@@ -1023,7 +1023,7 @@ TAB_RENDER.buildings = function () {
     const trap = S.map.tiles.findIndex((t) => t.trap === c.id);
     const effect = (b) => {
       const d = BLD[b.key];
-      if (d.recipes) { const rc = Q.recipeOf(b), out = Q.buildingOutput(S, b); return `${fmtGoods(rc.in) || 'no inputs'} → ${fmtGoods(out) || [rc.mpOut ? `${rc.mpOut} manpower` : '', rc.sciOut ? `${rc.sciOut} science` : '', rc.creditsOut ? `${rc.creditsOut} credits` : ''].filter(Boolean).join(', ')}`; }
+      if (d.recipes) { const rc = Q.recipeOf(b), out = Q.buildingOutput(S, b); return `${fmtGoods(rc.in) || 'no inputs'} → ${fmtGoods(out) || [rc.mpOut ? `${rc.mpOut} manpower` : '', rc.sciOut ? `${rc.sciOut} science` : '', Q.creditsOutOf(S, b) || rc.creditsPerResidence ? `${Q.creditsOutOf(S, b)} credits${rc.creditsPerResidence ? ` (${rc.creditsPerResidence} per working residence)` : ''}` : ''].filter(Boolean).join(', ')}`; }
       if (d.storage) return `Stores ${fmtGoods(d.storage)}`;
       if (d.storageAll) return `Stores +${d.storageAll} of every good except food and fuel${d.supplyBonus ? '; +1 supply range' : ''}`;
       if (d.builds) return `Builds ${d.builds.map((k) => UNI[k].name.toLowerCase()).join(', ')}`;
@@ -1061,10 +1061,10 @@ TAB_RENDER.production = function () {
       if (!off) {
         for (const [g, v] of Object.entries(rc.in || {})) totIn[g] = (totIn[g] || 0) + v;
         for (const [g, v] of Object.entries(out)) totOut[g] = (totOut[g] || 0) + v;
-        mp += rc.mp || 0; mpOut += rc.mpOut || 0; cr += rc.credits || 0; crOut += rc.creditsOut || 0; sci += rc.sciOut || 0;
+        mp += rc.mp || 0; mpOut += rc.mpOut || 0; cr += rc.credits || 0; crOut += Q.creditsOutOf(S, b); sci += rc.sciOut || 0;
       }
       const sel = keys.length > 1 ? `<select data-chg="product" data-id="${b.id}" aria-label="Product">${keys.map((k) => `<option value="${k}" ${k === cur ? 'selected' : ''}>${GN(k) || k}</option>`).join('')}</select>` : '';
-      const outs = [fmtGoods(out), rc.mpOut ? `${rc.mpOut} manpower` : '', rc.sciOut ? `${rc.sciOut} science` : '', rc.creditsOut ? `${rc.creditsOut} credits` : ''].filter(Boolean).join(', ');
+      const outs = [fmtGoods(out), rc.mpOut ? `${rc.mpOut} manpower` : '', rc.sciOut ? `${rc.sciOut} science` : '', Q.creditsOutOf(S, b) || rc.creditsPerResidence ? `${Q.creditsOutOf(S, b)} credits${rc.creditsPerResidence ? ` (${rc.creditsPerResidence} × residences)` : ''}` : ''].filter(Boolean).join(', ');
       const toggle = `<label class="ck small"><input type="checkbox" data-chg="halt" data-id="${b.id}" ${off ? '' : 'checked'}> On</label>`;
       return `<tr class="${off ? 'muted' : ''}"><td>${toggle}</td><td>${esc(d.short || d.name)}${d.place === 'tile' ? ` <span class="small muted">${tl(b.t)}</span>` : ''}</td><td>${sel}</td><td class="small">${esc(fmtGoods(rc.in) || '—')}${rc.credits ? `${rc.in ? ', ' : ''}${rc.credits} credits` : ''}</td><td class="small">${esc(outs)}</td><td class="n">${rc.mp || 0}</td><td class="small ${b.status && b.status.startsWith('Idle') ? 'warn' : 'muted'}">${esc(off ? (b.halted ? 'Halted' : 'Halts this turn') : b.halted ? 'Restarts this turn' : (b.status || 'New'))}</td></tr>`;
     }).join('');
@@ -1116,9 +1116,10 @@ TAB_RENDER.market = function () {
       <td><div class="row" style="margin:0;flex-wrap:nowrap"><input type="number" min="1" class="w-sm" id="mk-${g}" value="10" aria-label="${GN(g)} amount"><button class="btn small" data-act="buy" data-good="${g}" ${!c || blocked || !pr.pool ? 'disabled' : ''}>Buy</button><button class="btn small" data-act="sell" data-good="${g}" ${!c || blocked ? 'disabled' : ''}>Sell</button></div></td></tr>`;
   }).join('');
   const lines = [...d.buys.map((o, i) => ['buys', i, `Buy ${o.amount} ${gl(o.good)} for ${cityName(o.city)} (about ${o.amount * (S.market.prices[o.good] || {}).sell} credits)`]), ...d.sells.map((o, i) => ['sells', i, `Sell ${o.amount} ${gl(o.good)} from ${cityName(o.city)} (about ${o.amount * (S.market.prices[o.good] || {}).pays} credits)`])];
-  return `<div class="page"><h2>Global market</h2><p class="muted">The market only holds what players sell to it. Its price for a good falls as more of the world's supply sits in the market: price = base ÷ (1 + 4 × share). It pays sellers 80% of its selling price. No transport is needed; goods arrive in the city you choose. Buys fill before sells, and prices hold for the whole turn.</p>
+  return `<div class="page"><h2>Global market</h2><p class="muted">The market holds what players sell to it, plus ${Math.round(RR.MARKET.trickle * 100)}% of everything the world produces each turn (taken from no one). Its price for a good falls as more of the world's supply sits in the market: price = base ÷ (1 + 4 × share). It pays sellers 80% of its selling price. No transport is needed; goods arrive in the city you choose. Buys fill before sells, and prices hold for the whole turn.</p>
     <div class="row"><label>Deliver to and sell from <select data-chg="mk-city">${cities.map((x) => `<option value="${x.id}" ${x.id === UI.marketCity ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label><span class="small muted">Credits: <b class="num">${p.credits}</b></span></div>
     <div class="ledger"><table><thead><tr><th>Good</th><th class="n">Base</th><th class="n">Market sells at</th><th class="n">Market pays</th><th class="n">In market</th><th class="n">World total</th><th class="n">Share</th><th>In city</th><th>Order</th></tr></thead><tbody>${rows}</tbody></table></div>
+    ${S.market.lastTrickle && Object.keys(S.market.lastTrickle).length ? `<p class="small muted">Added to the market from last turn's world production: ${esc(fmtGoods(S.market.lastTrickle))}.</p>` : ''}
     <h3>This turn's market orders</h3><ul class="list">${lines.map(([l, i, t]) => `<li>${esc(t)}<button class="x" data-act="rm" data-list="${l}" data-idx="${i}">✕</button></li>`).join('') || '<li class="muted">None</li>'}</ul></div>`;
 };
 

@@ -453,7 +453,19 @@ const Engine = ((R) => {
     if (d.waterBonus && nbrs(S.map, b.t).some((j) => ['river', 'lake'].includes(S.map.tiles[j].type))) out.food = (out.food || 0) + d.waterBonus;
     if (d.oceanFood && S.map.tiles[b.t].type === 'ocean') out.food = d.oceanFood;
     if (d.riverFuel && nbrs(S.map, b.t).some((j) => S.map.tiles[j].type === 'river')) out.fuel = (out.fuel || 0) + d.riverFuel;
+    if (d.riverMult && nbrs(S.map, b.t).some((j) => S.map.tiles[j].type === 'river')) for (const g of Object.keys(out)) out[g] = Math.floor(out[g] * d.riverMult);
     return out;
+  }
+  // Credits a building makes. A tax office pays per residence in its city that worked this turn;
+  // without a turn number it estimates from the residences that are switched on.
+  function creditsOutOf(S, b, turn) {
+    const rc = recipeOf(b);
+    if (!rc) return 0;
+    if (rc.creditsPerResidence) {
+      const n = S.buildings.filter((x) => x.city === b.city && x.key === 'residence' && (turn == null ? !x.halted : x.ranTurn === turn)).length;
+      return n * rc.creditsPerResidence;
+    }
+    return rc.creditsOut || 0;
   }
   function capacity(S, c, g) {
     let cap = R.CITY.baseStorage;
@@ -1328,9 +1340,12 @@ const Engine = ((R) => {
     }
 
     /* ----- 6. production (before construction, so this turn's output can be built with) ----- */
+    const worldMade = {};
     for (const p of active) {
       const order = (k) => { const i = p.priority.indexOf(k); return i < 0 ? 999 : i; };
-      const blds = S.buildings.filter((b) => buildingOwner(S, b) === p.id && B[b.key].recipes).sort((a, b) => order(a.key) - order(b.key) || a.id - b.id);
+      // tax offices go last, so they can count the residences that worked this turn
+      const late = (b) => (recipeOf(b).creditsPerResidence ? 1 : 0);
+      const blds = S.buildings.filter((b) => buildingOwner(S, b) === p.id && B[b.key].recipes).sort((a, b) => late(a) - late(b) || order(a.key) - order(b.key) || a.id - b.id);
       const shortfalls = {};
       for (const b of blds) {
         const c = cityById(S, b.city), rc = recipeOf(b), d = B[b.key];
@@ -1349,10 +1364,12 @@ const Engine = ((R) => {
         p.manpower -= rc.mp || 0; p.credits -= rc.credits || 0;
         takeGoods(c.stock, rc.in || {});
         const made = {}, lost = {};
-        for (const [g, v] of Object.entries(out)) { const a = addToCity(S, c, g, v); made[g] = a; if (a < v) lost[g] = v - a; }
+        for (const [g, v] of Object.entries(out)) { const a = addToCity(S, c, g, v); made[g] = a; if (a < v) lost[g] = v - a; worldMade[g] = (worldMade[g] || 0) + a; }
         if (rc.mpOut) { p.manpower += rc.mpOut; made.manpower = rc.mpOut; }
         if (rc.sciOut) { p.science += rc.sciOut; made.science = rc.sciOut; }
-        if (rc.creditsOut) { p.credits += rc.creditsOut; made.credits = rc.creditsOut; }
+        const cr = creditsOutOf(S, b, turn);
+        if (cr) { p.credits += cr; made.credits = cr; }
+        b.ranTurn = turn;
         b.lastOut = made;
         b.status = Object.keys(lost).length ? `Running, but storage full: lost ${goodsText(lost)}` : 'Running';
         if (Object.keys(lost).length) rep(p.id, 'shortfall', `${c.name}: ${d.short || d.name} output lost to full storage (${goodsText(lost)}). Build storage or move goods out.`);
@@ -1361,6 +1378,18 @@ const Engine = ((R) => {
         const [cn, bn, why] = key.split('|');
         rep(p.id, 'shortfall', `${cn}: ${n > 1 ? `${n}× ` : ''}${bn} idle, missing ${why}.`);
       }
+    }
+
+    // The global market gains a share of the world's production of goods; nobody loses anything.
+    {
+      const carry = S.market.carry || (S.market.carry = {}), gained = {};
+      for (const g of R.GOODS) {
+        const v = (worldMade[g] || 0) * (R.MARKET.trickle || 0) + (carry[g] || 0);
+        const whole = Math.floor(v + 1e-9);
+        carry[g] = Math.round((v - whole) * 1000) / 1000;
+        if (whole > 0) { S.market.pool[g] = (S.market.pool[g] || 0) + whole; gained[g] = whole; }
+      }
+      S.market.lastTrickle = gained;
     }
 
     /* ----- 7. buildings: demolition, new cities, construction ----- */
@@ -1650,7 +1679,7 @@ const Engine = ((R) => {
     q: {
       cityById, unitById, cityAt, unitsAt, cityBuildings, countB, tileBuilding, tileOwner, tileOwnerCity, citiesOf, unitsOf, unitName,
       garrisonOf, posOf, carried, atWar, friendly, hasTreaty, isUnlocked, unitUnlocked, territoryRadius, supplyRadius, maxHp,
-      capacity, freeSpace, recipeOf, recipeKey, buildingOutput, buildingOwner, reachable, findPath, canEnter, pickTarget, attackTargets,
+      capacity, freeSpace, recipeOf, recipeKey, buildingOutput, creditsOutOf, buildingOwner, reachable, findPath, canEnter, pickTarget, attackTargets,
       cityWeaponTargets, supplySources, sourceName, upkeepOf, inBase, checkBuild, checkTrain, checkFound, routeEstimate, describeProposal,
       cargoUsed, cargoFree, portOk, dockable, slotFree, canCarry, carrySlots, demolishable, checkDemolish, checkClear, normPeace, checkPeace, peaceTerms, isWater, isLand, nearWater, tileLabel, goodsText, terrain,
     },

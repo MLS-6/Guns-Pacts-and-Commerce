@@ -21,7 +21,8 @@ const RULES = (() => {
     food: 100, lumber: 100, ore: 150, fiber: 150, fuel: 200, horses: 300, rubber: 300, ammo: 300,
     cloth: 400, metal: 500, clothing: 500, tools: 700, smallArms: 700, machinery: 2000,
   };
-  const MARKET = { scale: 4, buyRatio: 0.8 };
+  // trickle: share of each turn's world production of goods that appears in the market pool (no one loses anything)
+  const MARKET = { scale: 4, buyRatio: 0.8, trickle: 0.05 };
 
   // Goods that warehouses and supply depots do NOT store
   const SPECIAL_STORAGE = ['food', 'fuel'];
@@ -46,7 +47,8 @@ const RULES = (() => {
      riverFuel: extra fuel per turn it runs when its city is next to a river
      recipes: what the building does each turn it operates
        mp = manpower used, in = goods used, out = goods made,
-       mpOut / sciOut / creditsOut = national resources made, credits = credits used */
+       mpOut / sciOut / creditsOut = national resources made, credits = credits used
+       creditsPerResidence = credits for each residence in the same city that worked this turn */
   const BUILDINGS = {
     residence: { name: 'Residence', era: 1, sci: 0, place: 'city', cost: { lumber: 10, tools: 2, mp: 2 }, recipes: { manpower: { in: { food: 3 }, mpOut: 3 } } },
     farm: { name: 'Farm', abbr: 'Fm', era: 1, sci: 0, place: 'tile', tiles: ['grassland'], cost: { lumber: 6, tools: 2, mp: 1 }, recipes: { food: { mp: 1, out: { food: 10 } } }, waterBonus: 3 },
@@ -54,7 +56,7 @@ const RULES = (() => {
     fiberFarm: { name: 'Fiber farm', abbr: 'Fb', era: 1, sci: 2, place: 'tile', tiles: ['grassland'], cost: { lumber: 6, tools: 2, mp: 1 }, recipes: { fiber: { mp: 1, out: { fiber: 6 } } } },
     rubberPlantation: { name: 'Rubber plantation', abbr: 'Rb', era: 1, sci: 3, place: 'tile', tiles: ['rubber'], cost: { lumber: 8, tools: 2, mp: 1 }, recipes: { rubber: { mp: 1, out: { rubber: 4 } } } },
     stables: { name: 'Stables', abbr: 'St', era: 1, sci: 3, place: 'tile', tiles: ['grassland'], cost: { lumber: 10, tools: 2, mp: 1 }, recipes: { horses: { mp: 1, in: { food: 3 }, out: { horses: 3 } } } },
-    lumberYard: { name: 'Lumber yard', abbr: 'Lm', era: 1, sci: 0, place: 'tile', tiles: ['forest'], cost: { lumber: 4, tools: 2, mp: 1 }, recipes: { lumber: { mp: 1, out: { lumber: 8 } } } },
+    lumberYard: { name: 'Lumber yard', abbr: 'Lm', era: 1, sci: 0, place: 'tile', tiles: ['forest'], cost: { lumber: 4, tools: 2, mp: 1 }, recipes: { lumber: { mp: 1, out: { lumber: 8 } } }, riverMult: 1.5 },
     oreMine: { name: 'Ore mine', abbr: 'Om', era: 1, sci: 0, place: 'tile', tiles: ['ore'], cost: { lumber: 8, tools: 4, mp: 2 }, recipes: { ore: { mp: 1, out: { ore: 6 } } } },
     coalMine: { name: 'Coal mine', abbr: 'Cm', era: 1, sci: 0, place: 'tile', tiles: ['coal'], cost: { lumber: 8, tools: 4, mp: 2 }, recipes: { fuel: { mp: 1, out: { fuel: 6 } } } },
     charcoalRefinery: { name: 'Charcoal refinery', abbr: 'Ch', era: 1, sci: 2, place: 'tile', tiles: ['grassland'], cost: { lumber: 8, tools: 3, mp: 2 }, recipes: { fuel: { mp: 1, in: { lumber: 3 }, out: { fuel: 1 } } } },
@@ -89,7 +91,7 @@ const RULES = (() => {
     machineryFactory: { name: 'Machinery factory', era: 3, sci: 15, place: 'city', cost: { lumber: 15, metal: 25, tools: 12, machinery: 6, rubber: 6, mp: 5 }, recipes: { machinery: { mp: 4, in: { metal: 4, tools: 2, fuel: 1 }, out: { machinery: 3 } } }, builds: ['artillery', 'tank', 'train', 'supplyTruck'] , riverFuel: 1 },
 
     university: { name: 'University', era: 1, sci: 0, place: 'city', cost: { lumber: 12, metal: 4, tools: 6, mp: 3 }, recipes: { science: { mp: 6, credits: 50, sciOut: 1 } } },
-    taxOffice: { name: 'Tax office', era: 1, sci: 3, place: 'city', limit: 1, cost: { lumber: 20, metal: 6, tools: 6, mp: 3 }, recipes: { credits: { creditsOut: 100 } } },
+    taxOffice: { name: 'Tax office', era: 1, sci: 3, place: 'city', limit: 1, cost: { lumber: 20, metal: 6, tools: 6, mp: 3 }, recipes: { credits: { creditsPerResidence: 20 } } },
     townHall: { name: 'Town hall', era: 1, sci: 4, place: 'city', limit: 1, cost: { lumber: 30, metal: 10, tools: 8, mp: 4 }, territoryBonus: 1 },
 
     barracks: { name: 'Barracks', era: 1, sci: 0, place: 'city', cost: { lumber: 12, metal: 4, tools: 4, mp: 2 }, builds: ['infantry', 'cavalry'] },
