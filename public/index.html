@@ -1,0 +1,1574 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guns, Pacts, and Commerce</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #1e2620; --ink-2: #3c4a40; --muted: #5d6a5f;
+  --desk: #c9d1c4; --paper: #eef1eb; --paper-2: #e2e7de; --rule: #a9b3a6; --rule-soft: #cfd6cb;
+  --brass: #a8801f; --brass-soft: #ecdca8; --signal: #a3312b; --signal-soft: #f1d3cf; --ok: #2f6b45; --ok-soft: #d4e6d8;
+  --sea: #24405a; --me: #888;
+  --f-body: 'Barlow', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --f-head: 'Barlow Condensed', 'Arial Narrow', system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--desk); color: var(--ink); font: 15px/1.45 var(--f-body); }
+button, input, select { font: inherit; color: inherit; }
+h1, h2, h3, h4 { font-family: var(--f-head); font-weight: 600; margin: 0; letter-spacing: 0.01em; }
+h2 { font-size: 1.5rem; }
+h3 { font-size: 1.2rem; margin: 18px 0 8px; }
+h4 { font-size: 1.02rem; margin: 12px 0 6px; }
+p { margin: 0 0 8px; max-width: 72ch; }
+a { color: var(--ink); }
+:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+.num { font-family: var(--f-head); font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.small { font-size: 0.86rem; }
+.warn { color: var(--signal); }
+.good { color: var(--ok); }
+
+/* ---------- top bar ---------- */
+.app { display: grid; grid-template-rows: auto auto 1fr; height: 100vh; }
+.bar { display: flex; align-items: center; gap: 16px; padding: 8px 16px 8px 0; background: var(--paper); border-bottom: 1px solid var(--rule); flex-wrap: wrap; }
+.bar .nation { display: flex; align-items: center; gap: 12px; padding-left: 14px; border-left: 8px solid var(--me); min-height: 40px; }
+.bar .title { font-family: var(--f-head); font-size: 1.45rem; font-weight: 700; line-height: 1; }
+.bar .sub { font-size: 0.85rem; color: var(--muted); }
+.bar .turn { font-family: var(--f-head); font-size: 1.15rem; }
+.bar .spacer { flex: 1; }
+.chips { display: flex; gap: 6px; flex-wrap: nowrap; margin-left: auto; align-items: center; padding: 0 0 0 16px; }
+.chip { white-space: nowrap; display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px 2px 4px; border-radius: 999px; background: var(--paper-2); border: 1px solid var(--rule-soft); font-size: 0.82rem; }
+.chip i { width: 12px; height: 12px; border-radius: 50%; display: inline-block; border: 1px solid rgba(0, 0, 0, 0.35); }
+.chip.done { background: var(--ok-soft); border-color: #9cc3a6; }
+.res { display: flex; gap: 14px; font-size: 0.9rem; }
+.res b { font-family: var(--f-head); font-size: 1.1rem; font-weight: 600; }
+
+/* ---------- buttons ---------- */
+.btn { border: 1px solid var(--rule); background: var(--paper); border-radius: 6px; padding: 5px 11px; cursor: pointer; line-height: 1.25; }
+.btn:hover { background: #fff; }
+.btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.btn.primary:hover { background: #2f3b33; }
+.btn.brass { background: var(--brass); border-color: #8a6914; color: #fff; }
+.btn.danger { color: var(--signal); border-color: #d4a19c; }
+.btn.small { padding: 2px 8px; font-size: 0.84rem; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.linkbtn { background: none; border: 0; padding: 0; color: var(--ink-2); text-decoration: underline; cursor: pointer; font-size: 0.85rem; }
+.x { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 1rem; padding: 0 4px; }
+.x:hover { color: var(--signal); }
+
+/* ---------- tabs ---------- */
+.tabs { display: flex; align-items: center; gap: 2px; padding: 0 12px; background: var(--paper-2); border-bottom: 1px solid var(--rule); overflow-x: auto; }
+.tabs button { border: 0; background: none; padding: 9px 13px 8px; font-family: var(--f-head); font-size: 1.04rem; cursor: pointer; color: var(--ink-2); border-bottom: 3px solid transparent; white-space: nowrap; }
+.tabs button:hover { color: var(--ink); }
+.tabs button.on { color: var(--ink); border-bottom-color: var(--brass); font-weight: 600; }
+.tabs .count { font-size: 0.78rem; background: var(--brass-soft); border-radius: 8px; padding: 0 6px; margin-left: 4px; }
+
+/* ---------- layout ---------- */
+.main { min-height: 0; overflow: auto; }
+.page { padding: 18px 22px 40px; max-width: 1400px; }
+.split { display: grid; grid-template-columns: 1fr 370px; height: 100%; min-height: 0; }
+.mapwrap { position: relative; background: var(--sea); overflow: hidden; min-height: 300px; touch-action: none; }
+.mapwrap svg { width: 100%; height: 100%; display: block; cursor: grab; user-select: none; }
+.mapwrap svg.drag { cursor: grabbing; }
+.maptools { position: absolute; left: 10px; top: 10px; display: flex; gap: 4px; }
+.maptools .btn { background: rgba(238, 241, 235, 0.92); }
+.modebar { position: absolute; left: 50%; top: 10px; transform: translateX(-50%); background: var(--brass); color: #fff; padding: 6px 12px; border-radius: 6px; display: flex; gap: 10px; align-items: center; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); font-size: 0.92rem; }
+.modebar .btn { background: #fff; color: var(--ink); }
+.legend { position: absolute; left: 10px; bottom: 10px; background: rgba(238, 241, 235, 0.94); border-radius: 6px; padding: 8px 10px; font-size: 0.78rem; display: grid; grid-template-columns: repeat(2, auto); gap: 2px 14px; max-width: 360px; }
+.legend span { display: flex; align-items: center; gap: 6px; }
+.legend i { width: 14px; height: 12px; display: inline-block; clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); }
+.side { background: var(--paper); border-left: 1px solid var(--rule); overflow-y: auto; padding: 14px 16px 30px; }
+.side section { border-top: 1px solid var(--rule-soft); padding-top: 10px; margin-top: 12px; }
+.side section:first-child { border-top: 0; margin-top: 0; padding-top: 0; }
+
+/* ---------- tables ---------- */
+table { border-collapse: collapse; width: 100%; }
+th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--rule-soft); vertical-align: top; }
+th { font-family: var(--f-head); font-weight: 600; font-size: 0.95rem; border-bottom: 1.5px solid var(--rule); background: var(--paper-2); position: sticky; top: 0; z-index: 1; }
+td.n, th.n { text-align: right; font-family: var(--f-head); font-variant-numeric: tabular-nums; }
+tr.sub td { background: var(--paper-2); font-family: var(--f-head); font-weight: 600; }
+.ledger { background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; overflow: auto; }
+.ledger + .ledger { margin-top: 14px; }
+.full { color: var(--signal); font-weight: 600; }
+.near { color: #8a6914; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; font-size: 0.92rem; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; }
+.goodsgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px 12px; font-size: 0.86rem; }
+.goodsgrid div { display: flex; justify-content: space-between; border-bottom: 1px dotted var(--rule-soft); }
+.goodsgrid .z { color: var(--muted); }
+.swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 5px; vertical-align: middle; }
+.pdot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; margin-right: 6px; vertical-align: -1px; border: 1px solid rgba(0, 0, 0, 0.35); }
+.tag { display: inline-block; font-size: 0.78rem; padding: 0 7px; border-radius: 9px; background: var(--paper-2); border: 1px solid var(--rule-soft); }
+.tag.war { background: var(--signal-soft); border-color: #dca7a1; color: var(--signal); }
+.tag.ok { background: var(--ok-soft); border-color: #9cc3a6; color: var(--ok); }
+.tag.brass { background: var(--brass-soft); border-color: #d9c27c; }
+
+/* ---------- forms & lists ---------- */
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 6px 0; }
+input[type=number], input[type=text], select { border: 1px solid var(--rule); border-radius: 5px; background: #fff; padding: 3px 6px; }
+input[type=number] { width: 70px; }
+input.w-sm { width: 56px; }
+label.ck { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+.list { list-style: none; margin: 0; padding: 0; }
+.list li { display: flex; gap: 8px; align-items: baseline; justify-content: space-between; padding: 4px 0; border-bottom: 1px dotted var(--rule-soft); font-size: 0.9rem; }
+.unitrow { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: none; border: 1px solid transparent; border-radius: 5px; padding: 3px 6px; cursor: pointer; }
+.unitrow:hover { background: var(--paper-2); }
+.unitrow.on { border-color: var(--brass); background: var(--brass-soft); }
+.menu-actions { display: grid; gap: 4px; }
+.buildlist { display: grid; gap: 3px; max-height: 300px; overflow-y: auto; padding-right: 4px; }
+.buildlist .opt { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; align-items: center; padding: 4px 6px; border-radius: 5px; border: 1px solid var(--rule-soft); background: #fff; }
+.buildlist .opt .cost { grid-column: 1 / 2; font-size: 0.78rem; color: var(--muted); }
+.buildlist .opt.no { opacity: 0.55; }
+.notice { background: var(--brass-soft); border: 1px solid #d9c27c; border-radius: 6px; padding: 8px 12px; margin: 0 0 12px; }
+.notice.bad { background: var(--signal-soft); border-color: #dca7a1; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(330px, 1fr)); gap: 18px; align-items: start; }
+.panel { background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 12px 14px; }
+.goodsform { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 4px 12px; }
+.goodsform label { display: flex; justify-content: space-between; gap: 6px; font-size: 0.86rem; align-items: center; }
+.reports .turnhead { font-family: var(--f-head); font-size: 1.15rem; margin: 16px 0 4px; }
+.reports li { display: grid; grid-template-columns: 110px 1fr; gap: 10px; padding: 4px 0; border-bottom: 1px dotted var(--rule-soft); }
+.cat { font-size: 0.78rem; text-align: center; border-radius: 9px; padding: 1px 6px; background: var(--paper-2); height: fit-content; }
+.cat.conflict, .cat.supply, .cat.shortfall { background: var(--signal-soft); color: var(--signal); }
+.cat.combat { background: #f0dccc; }
+.cat.diplomacy { background: #dde3f1; }
+.cat.logistics { background: var(--brass-soft); }
+.cat.market { background: #e3ecd9; }
+.prio li { padding: 2px 0; }
+.menu { position: absolute; right: 12px; top: 56px; background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; box-shadow: 0 6px 22px rgba(0, 0, 0, 0.2); padding: 8px; z-index: 30; display: grid; gap: 4px; min-width: 230px; }
+.menu hr { border: 0; border-top: 1px solid var(--rule-soft); margin: 4px 0; }
+.toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--paper); padding: 8px 16px; border-radius: 6px; z-index: 50; }
+.gameover { background: var(--ink); color: var(--paper); padding: 10px 16px; font-family: var(--f-head); font-size: 1.15rem; }
+
+/* ---------- setup ---------- */
+.setup { max-width: 760px; margin: 40px auto; background: var(--paper); border: 1px solid var(--rule); border-radius: 8px; padding: 26px 30px; }
+.setup h1 { font-size: 2.6rem; line-height: 1; margin-bottom: 6px; }
+.setup .lede { color: var(--ink-2); margin-bottom: 18px; }
+.players { display: grid; gap: 6px; margin: 10px 0 16px; }
+.players .prow { display: grid; grid-template-columns: 26px 1fr 1fr 44px; gap: 8px; align-items: center; }
+.players .prow:has(input[id^=sp-pin]) { grid-template-columns: 26px 1fr 1fr 96px 44px; }
+.setup.login { max-width: 460px; }
+.menu table td { padding: 2px 4px; }
+.players input[type=color] { width: 40px; height: 30px; border: 1px solid var(--rule); border-radius: 5px; padding: 1px; background: #fff; }
+
+/* ---------- svg map ---------- */
+.hx { stroke: rgba(30, 38, 32, 0.28); stroke-width: 0.6; }
+.glyph { font-size: 11px; fill: rgba(20, 24, 20, 0.55); text-anchor: middle; dominant-baseline: central; }
+.lbl { font-family: var(--f-head); font-weight: 600; font-size: 11px; fill: #fff; paint-order: stroke; stroke: rgba(20, 26, 22, 0.85); stroke-width: 3px; text-anchor: middle; }
+.blbl { font-family: var(--f-head); font-weight: 600; font-size: 8.5px; text-anchor: middle; dominant-baseline: central; fill: #fff; }
+.tok { font-family: var(--f-head); font-weight: 700; font-size: 9px; text-anchor: middle; dominant-baseline: central; }
+
+@media (max-width: 900px) {
+  .split { grid-template-columns: 1fr; grid-template-rows: 60vh auto; }
+  .side { border-left: 0; border-top: 1px solid var(--rule); }
+  .bar { padding: 8px 12px 8px 0; gap: 10px; }
+  .bar > :not(.nation) { margin-left: 12px; }
+  .res { width: 100%; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tabs button { transition: color 0.12s; }
+}
+
+</style>
+<script>
+/* Campaign server settings. The game rules (costs, production, damage, starting
+   stock...) are in rules.js; the auto-resolve time is in wrangler.jsonc. */
+window.SUPPLY_LINES_CONFIG = {
+  title: 'Guns, Pacts, and Commerce',
+  CAMPAIGN_API: '/api',
+  POLL_SECONDS: 45,
+};
+</script>
+</head>
+<body>
+<div id="app"><p style="padding:24px">Loading…</p></div>
+<script src="rules.js"></script>
+<script src="engine.js"></script>
+<script>
+/* ---- ui-core.js ---- */
+/* =====================================================================
+   SUPPLY LINES — INTERFACE: state, sync, map, header and actions
+   ===================================================================== */
+const CONFIG = Object.assign({ title: 'Guns, Pacts, and Commerce', CAMPAIGN_API: '', SERVER_URL: '', STATE_URL: '', POLL_SECONDS: 30 }, (typeof window !== 'undefined' && window.SUPPLY_LINES_CONFIG) || {});
+const RR = RULES, Q = Engine.q, HX = Engine.hex;
+const BLD = RR.BUILDINGS, UNI = RR.UNITS;
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const GN = (g) => RR.GOOD_NAMES[g] || g;
+const gl = (g) => GN(g).toLowerCase();
+const clone = (o) => JSON.parse(JSON.stringify(o));
+const fmtGoods = (o) => Object.entries(o || {}).filter(([, v]) => v > 0).map(([g, v]) => `${v} ${gl(g)}`).join(', ');
+const costText = (cost) => [cost.mp ? `${cost.mp} manpower` : null, ...Object.entries(cost).filter(([g]) => g !== 'mp').map(([g, v]) => `${v} ${gl(g)}`)].filter(Boolean).join(', ');
+
+const UI = {
+  bundle: null, me: 0, locked: false, tab: 'map', sel: null, mode: null, views: {}, menu: false,
+  reportCat: 'all', routeEdit: null, marketCity: null, toast: null, hl: { move: new Map(), attack: new Set(), build: new Set() },
+};
+const st = () => UI.bundle.state;
+const meP = () => st().players[UI.me];
+const pcol = (id) => (st().players[id] ? st().players[id].color : '#888');
+const pname = (id) => (st().players[id] ? st().players[id].name : '?');
+const cityName = (id) => { const c = Q.cityById(st(), id); return c ? c.name : `city #${id}`; };
+const tl = (t) => Q.tileLabel(st(), t);
+const uname = (id) => { const u = Q.unitById(st(), id); return u ? Q.unitName(u) : `unit #${id}`; };
+function textOn(hex) {
+  const h = hex.replace('#', ''); const r = parseInt(h.substr(0, 2), 16), g = parseInt(h.substr(2, 2), 16), b = parseInt(h.substr(4, 2), 16);
+  return (0.299 * r + 0.587 * g + 0.114 * b) > 150 ? '#1e2620' : '#ffffff';
+}
+function toast(msg) { UI.toast = msg; renderToast(); clearTimeout(UI._tt); UI._tt = setTimeout(() => { UI.toast = null; renderToast(); }, 2600); }
+function renderToast() { let el = $('#toast'); if (!el) { el = document.createElement('div'); el.id = 'toast'; document.body.appendChild(el); } el.className = UI.toast ? 'toast' : ''; el.textContent = UI.toast || ''; el.setAttribute('role', 'status'); }
+function download(name, obj) {
+  const blob = new Blob([JSON.stringify(obj, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+function pickFiles(multiple) {
+  return new Promise((resolve) => {
+    const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json,application/json'; inp.multiple = !!multiple;
+    inp.onchange = async () => { const out = []; for (const f of inp.files) { try { out.push(JSON.parse(await f.text())); } catch (e) { toast(`${f.name} is not valid JSON`); } } resolve(out); };
+    inp.click();
+  });
+}
+
+/* ---------------------------------------------------------------------
+   SYNC — where the shared game lives. A "bundle" is { state, pending },
+   pending[playerId] = { orders, turn, at }.
+   - This browser (default): everything in localStorage; pass-and-play.
+   - SERVER_URL: GET {url}/game -> bundle, PUT {url}/game (bundle),
+                 PUT {url}/orders/{playerId} ({ orders, turn }).
+   - STATE_URL (e.g. 'state.json' in your GitHub repo): read-only state;
+                 players download their orders file and send it to the host.
+   --------------------------------------------------------------------- */
+const Sync = (() => {
+  const KEY = 'supplylines.bundle';
+  const local = {
+    mode: 'local', label: 'Saved in this browser',
+    async load() { const raw = localStorage.getItem(KEY); return raw ? JSON.parse(raw) : null; },
+    async publish(bundle) { localStorage.setItem(KEY, JSON.stringify(bundle)); },
+    async submit(bundle, pid, orders) { bundle.pending[pid] = { orders, turn: bundle.state.turn, at: Date.now() }; await this.publish(bundle); return bundle; },
+  };
+  const server = {
+    mode: 'server', label: 'Synced with server',
+    async load() { const r = await fetch(`${CONFIG.SERVER_URL}/game`, { cache: 'no-store' }); if (r.status === 404) return null; if (!r.ok) throw new Error(`Server returned ${r.status}`); return r.json(); },
+    async publish(bundle) { const r = await fetch(`${CONFIG.SERVER_URL}/game`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(bundle) }); if (!r.ok) throw new Error(`Server returned ${r.status}`); },
+    async submit(bundle, pid, orders) {
+      const r = await fetch(`${CONFIG.SERVER_URL}/orders/${pid}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ orders, turn: bundle.state.turn }) });
+      if (!r.ok) throw new Error(`Server returned ${r.status}`);
+      return (await this.load()) || bundle;
+    },
+  };
+  const file = {
+    mode: 'file', label: 'Shared state file',
+    async load() { const r = await fetch(`${CONFIG.STATE_URL}${CONFIG.STATE_URL.includes('?') ? '&' : '?'}v=${Date.now()}`, { cache: 'no-store' }); if (!r.ok) return null; return r.json(); },
+    async publish(bundle) { download('state.json', bundle); localStorage.setItem(KEY, JSON.stringify(bundle)); },
+    async submit(bundle, pid, orders) {
+      download(`orders-p${pid + 1}-turn${bundle.state.turn}.json`, { player: pid, turn: bundle.state.turn, orders });
+      bundle.pending[pid] = { orders, turn: bundle.state.turn, at: Date.now() };
+      return bundle;
+    },
+  };
+  // The campaign server: one running campaign, players log in with a PIN.
+  const PK = 'gpc.pin', AK = 'gpc.adminPin';
+  const ls = { get: (k) => { try { return localStorage.getItem(k) || ''; } catch (e) { return ''; } }, set: (k, v) => { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) { /* blocked */ } } };
+  const campaign = {
+    mode: 'campaign', label: 'Campaign server', you: null, schedule: null,
+    pin: () => ls.get(PK), adminPin: () => ls.get(AK),
+    hasPin() { return !!(this.pin() || this.adminPin()); },
+    setPins(pin, admin) { if (pin !== undefined) ls.set(PK, pin); if (admin !== undefined) ls.set(AK, admin); },
+    logout() { ls.set(PK, ''); ls.set(AK, ''); this.you = null; },
+    async call(method, path, body) {
+      const r = await fetch(`${CONFIG.CAMPAIGN_API}${path}`, { method, cache: 'no-store', headers: { 'Content-Type': 'application/json', 'X-Pin': this.pin(), 'X-Admin-Pin': this.adminPin() }, body: body ? JSON.stringify(body) : undefined });
+      let j = null; try { j = await r.json(); } catch (e) { j = null; }
+      if (!r.ok) { const err = new Error((j && j.error) || `Server returned ${r.status}`); err.status = r.status; err.body = j; throw err; }
+      return j;
+    },
+    take(j) { this.you = j.you || this.you; this.schedule = j.schedule || this.schedule; return j.state ? { state: j.state, pending: j.pending || {} } : null; },
+    async login(pin) { return this.call('POST', '/login', { pin }); },
+    async load() {
+      try { return this.take(await this.call('GET', '/game')); } catch (e) { if (e.status === 404 && e.body) { this.take(e.body); return null; } throw e; }
+    },
+    async publish(bundle) { return this.take(await this.call('PUT', '/state', { state: bundle.state })); },
+    async submit(bundle, pid, orders) { return this.take(await this.call('PUT', '/orders', { turn: bundle.state.turn, orders })) || bundle; },
+    async resolve(turn) { return this.take(await this.call('POST', '/resolve', { turn })); },
+    async create(state, pins, replace) { return this.take(await this.call('POST', '/campaign', { state, pins, replace: !!replace })); },
+    async pins() { return (await this.call('GET', '/pins')).pins; },
+    async setPin(pid, pin) { return this.call('PUT', '/pins', { pid, pin }); },
+  };
+  return CONFIG.CAMPAIGN_API ? campaign : CONFIG.SERVER_URL ? server : CONFIG.STATE_URL ? file : local;
+})();
+const isCampaign = () => Sync.mode === 'campaign';
+const isAdmin = () => isCampaign() && !!(Sync.you && Sync.you.admin);
+const canPlay = () => !isCampaign() || !!(Sync.you && Sync.you.role === 'player');
+function scheduleText() {
+  const sc = Sync.schedule; if (!sc) return '';
+  const h = sc.hour % 12 || 12, ap = sc.hour < 12 ? 'AM' : 'PM';
+  return `Turns resolve automatically at ${h} ${ap} (${sc.tz.replace(/_/g, ' ')})`;
+}
+
+/* ---------- draft orders (per game, turn and player) ---------- */
+function draftKey() { const S = st(); return `supplylines.draft.${S.id}.${S.turn}.${UI.me}`; }
+function draft() {
+  const k = draftKey();
+  if (UI._dk !== k || !UI._d) {
+    UI._dk = k;
+    let d = null;
+    try { d = JSON.parse(localStorage.getItem(k)); } catch (e) { d = null; }
+    if (!d) { const pe = UI.bundle.pending[UI.me]; d = pe && pe.turn === st().turn ? clone(pe.orders) : {}; }
+    UI._d = Engine.normalizeOrders(d);
+    if (d.settings) UI._d.settings = d.settings;
+  }
+  return UI._d;
+}
+function saveDraft() { try { localStorage.setItem(UI._dk, JSON.stringify(UI._d)); } catch (e) { /* storage full or blocked */ } }
+function mutate(fn) { fn(draft()); saveDraft(); render(); }
+function settings() { const d = draft(); if (!d.settings) d.settings = {}; return d.settings; }
+function draftCount(d) { return ['attacks', 'moves', 'board', 'unload', 'buys', 'sells', 'research', 'demolish', 'clear', 'builds', 'trains', 'found', 'cargo', 'routeOps', 'diplo'].reduce((n, k) => n + d[k].length, 0) + (d.settings && (d.settings.priority || (d.settings.products && Object.keys(d.settings.products).length) || (d.settings.halt && Object.keys(d.settings.halt).length)) ? 1 : 0); }
+// goods and manpower already committed by this turn's orders, per city
+function reserved(cityId) {
+  const d = draft(), goods = {};
+  let mp = 0;
+  const addCost = (cost) => { for (const [g, v] of Object.entries(cost)) { if (g === 'mp') mp += v; else goods[g] = (goods[g] || 0) + v; } };
+  for (const b of d.builds) if (b.city === cityId && BLD[b.key]) addCost(BLD[b.key].cost);
+  for (const t of d.trains) if (t.city === cityId && UNI[t.type]) addCost(UNI[t.type].cost);
+  for (const s of d.sells) if (s.city === cityId) goods[s.good] = (goods[s.good] || 0) + Number(s.amount || 0);
+  for (const c of d.cargo) if (c.city === cityId && c.amount > 0) goods[c.good] = (goods[c.good] || 0) + Number(c.amount);
+  for (const o of d.clear) { const oc = Q.tileOwnerCity(st(), o.t); if (oc && oc.id === cityId) goods.tools = (goods.tools || 0) + RR.CLEAR_FOREST.tools; }
+  return { goods, mp };
+}
+function reservedMp() {
+  const d = draft(); let mp = 0;
+  for (const b of d.builds) if (BLD[b.key]) mp += BLD[b.key].cost.mp || 0;
+  for (const t of d.trains) if (UNI[t.type]) mp += UNI[t.type].cost.mp || 0;
+  if (d.found.length) mp += RR.CITY.foundMp * d.found.length;
+  mp += RR.DEMOLISH.mp * d.demolish.length;
+  mp += RR.CLEAR_FOREST.mp * d.clear.length;
+  return mp;
+}
+
+/* ---------- bundle helpers ---------- */
+function activePlayers() { return st().players.filter((p) => !p.eliminated); }
+function submitted(pid) { const pe = UI.bundle.pending[pid]; return !!(pe && pe.turn === st().turn); }
+function allSubmitted() { return activePlayers().every((p) => submitted(p.id)); }
+
+/* =====================================================================
+   MAP
+   ===================================================================== */
+const HS = 24, SQ3 = Math.sqrt(3), PAD = 8;
+const CORN = [0, 1, 2, 3, 4, 5].map((k) => { const a = (Math.PI / 180) * (60 * k - 30); return [HS * Math.cos(a), HS * Math.sin(a)]; });
+function center(m, i) { const c = i % m.w, r = Math.floor(i / m.w); return [HS * SQ3 * (c + 0.5 * (r & 1)) + (HS * SQ3) / 2 + PAD, HS * 1.5 * r + HS + PAD]; }
+const hexPts = (x, y, s = 1) => CORN.map(([dx, dy]) => `${(x + dx * s).toFixed(1)},${(y + dy * s).toFixed(1)}`).join(' ');
+function mapSize(m) { return [HS * SQ3 * (m.w + 0.5) + PAD * 2, HS * 1.5 * (m.h - 1) + HS * 2 + PAD * 2]; }
+
+function computeHL() {
+  const S = st(), hl = { move: new Map(), attack: new Set(), build: new Set() };
+  UI.hl = hl;
+  if (UI.mode) {
+    const md = UI.mode;
+    if (md.kind === 'build') {
+      const d = BLD[md.key], c = Q.cityById(S, md.city);
+      const pool = d.place === 'tile' ? S.map.tiles.map((x, i) => i).filter((i) => S.map.tiles[i].owner === c.id) : S.map.tiles.map((x, i) => i);
+      const taken = new Set(draft().builds.filter((b) => b.t != null && (BLD[b.key].place !== 'infra' || b.key === md.key)).map((b) => b.t));
+      for (const t of pool) if (!taken.has(t) && !Q.checkBuild(S, UI.me, { city: c.id, key: md.key, t })) hl.build.add(t);
+    } else if (md.kind === 'weapon') {
+      for (const t of Q.cityWeaponTargets(S, Q.cityById(S, md.city), md.w)) hl.attack.add(t);
+    } else if (md.kind === 'unload') {
+      const u = Q.unitById(S, md.unit), tr = u && Q.unitById(S, u.carriedBy);
+      if (tr) for (const t of HX.nbrs(S.map, tr.t).concat([tr.t])) {
+        const probe = Object.assign({}, u, { carriedBy: null });
+        const c = Q.cityAt(S, t);
+        if (Q.canEnter(S, probe, t, { final: true }) && !(c && !Q.friendly(S, c.owner, UI.me)) && Q.slotFree(S, probe, t)) hl.build.add(t);
+      }
+    } else if (md.kind === 'cede' && UI.peace) {
+      const pd = UI.peace;
+      S.map.tiles.forEach((tile, t) => {
+        const oc = Q.tileOwnerCity(S, t);
+        if (!oc || oc.t === t) return;
+        if ((oc.owner === UI.me && !pd.give.cities.includes(oc.id)) || (oc.owner === pd.to && !pd.get.cities.includes(oc.id))) hl.build.add(t);
+      });
+    }
+    return;
+  }
+  const u = UI.sel && UI.sel.unit != null ? Q.unitById(S, UI.sel.unit) : null;
+  if (!u || u.owner !== UI.me || u.carriedBy != null || S.gameOver) return;
+  if (u.route == null) {
+    for (const [t, path] of Q.reachable(S, u)) {
+      if (!Q.slotFree(S, u, t)) continue;
+      hl.move.set(t, path);
+    }
+  }
+  for (const t of Q.attackTargets(S, u)) hl.attack.add(t);
+}
+
+function unitToken(u, x, y, small) {
+  const d = UNI[u.type], col = pcol(u.owner), fg = textOn(col);
+  const hp = u.hp / d.hp;
+  const ring = u.id === (UI.sel && UI.sel.unit) ? '<circle r="13" fill="none" stroke="#fff" stroke-width="2.2"/>' : '';
+  let shape;
+  if (d.cls === 'ship') shape = `<path d="M-11,-5 L11,-5 L7,6 L-7,6 Z" fill="${col}" stroke="#141a16" stroke-width="1.2"/>`;
+  else if (d.role === 'logistic') shape = `<rect x="${small ? -8 : -10}" y="-6" width="${small ? 16 : 20}" height="12" rx="2.5" fill="${col}" stroke="#141a16" stroke-width="1.1"/>`;
+  else shape = `<circle r="${small ? 7 : 9.5}" fill="${col}" stroke="#141a16" stroke-width="1.3"/>`;
+  const bar = hp < 1 ? `<rect x="-9" y="${small ? 8 : 10}" width="18" height="3" fill="#1e2620"/><rect x="-9" y="${small ? 8 : 10}" width="${(18 * Math.max(0, hp)).toFixed(1)}" height="3" fill="${hp > 0.5 ? '#6fbf7f' : hp > 0.25 ? '#e2b33c' : '#d6463e'}"/>` : '';
+  const cargo = Q.carried(st(), u).length ? `<circle cx="9" cy="-7" r="5" fill="#fff" stroke="#141a16" stroke-width="0.8"/><text class="tok" x="9" y="-7" fill="#141a16" style="font-size:7px">${Q.carried(st(), u).length}</text>` : '';
+  return `<g transform="translate(${x.toFixed(1)},${y.toFixed(1)})">${ring}${shape}<text class="tok" fill="${fg}" style="font-size:${small ? 7.5 : 9}px">${d.abbr}</text>${bar}${cargo}</g>`;
+}
+
+function buildMapSvg(kind) {
+  const S = st(), m = S.map, n = m.tiles.length, out = [];
+  const [W, H] = mapSize(m);
+  const flow = kind === 'flow';
+  const tileOwnerP = (i) => { const o = m.tiles[i].owner; if (o == null) return null; const c = Q.cityById(S, o); return c ? c.owner : null; };
+  out.push(`<defs>
+    <marker id="arr-brass" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#f2d37a"/></marker>
+    <marker id="arr-red" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="5" markerHeight="5" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#ff6b5e"/></marker>
+    ${RR.GOODS.map((g) => `<marker id="arr-${g}" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="4" markerHeight="4" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="${RR.GOOD_COLORS[g]}"/></marker>`).join('')}
+  </defs>`);
+  out.push(`<rect x="0" y="0" width="${W}" height="${H}" fill="#24405a"/>`);
+  // tiles
+  out.push(`<g${flow ? ' opacity="0.55"' : ''}>`);
+  for (let i = 0; i < n; i++) { const [x, y] = center(m, i); out.push(`<polygon class="hx" data-t="${i}" points="${hexPts(x, y)}" fill="${RR.TILES[m.tiles[i].type].color}"/>`); }
+  out.push('</g><g pointer-events="none">');
+  // territory tint
+  for (let i = 0; i < n; i++) { const p = tileOwnerP(i); if (p == null) continue; const [x, y] = center(m, i); out.push(`<polygon points="${hexPts(x, y)}" fill="${pcol(p)}" opacity="${flow ? 0.08 : 0.11}"/>`); }
+  // glyphs
+  if (!flow) for (let i = 0; i < n; i++) { const tt = RR.TILES[m.tiles[i].type], g = tt.glyph; if (!g) continue; const [x, y] = center(m, i); out.push(`<text class="glyph" x="${x - 8}" y="${y - 6}"${tt.glyphColor ? ` style="fill:${tt.glyphColor}"` : ''}>${g}</text>`); }
+  // bridges
+  for (let i = 0; i < n; i++) if (m.tiles[i].bridge) {
+    const [x, y] = center(m, i), rail = m.tiles[i].bridge === 'rail';
+    out.push(`<g transform="translate(${x},${y})"><rect x="-13" y="-5" width="26" height="10" fill="${rail ? '#6f7880' : '#9c7a52'}" stroke="#2b2b2b" stroke-width="1"/><line x1="-13" y1="-5" x2="13" y2="-5" stroke="#2b2b2b"/><line x1="-13" y1="5" x2="13" y2="5" stroke="#2b2b2b"/>${rail ? '<line x1="-11" y1="0" x2="11" y2="0" stroke="#e6dcc8" stroke-width="1.6" stroke-dasharray="2 2"/>' : ''}</g>`);
+  }
+  // rails
+  const railish = (i) => m.tiles[i].rail != null || !!Q.cityAt(S, i);
+  for (let i = 0; i < n; i++) {
+    if (!railish(i)) continue;
+    for (const j of HX.nbrs(m, i)) {
+      if (j < i || !railish(j) || (m.tiles[i].rail == null && m.tiles[j].rail == null)) continue;
+      const [x1, y1] = center(m, i), [x2, y2] = center(m, j);
+      out.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#2b221b" stroke-width="4" stroke-linecap="round"/><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#c8b59a" stroke-width="1.4" stroke-dasharray="2 3"/>`);
+    }
+  }
+  // borders
+  for (let i = 0; i < n; i++) {
+    const p = tileOwnerP(i); if (p == null) continue;
+    const [x, y] = center(m, i), dd = HX.dirs(m, i);
+    for (let k = 0; k < 6; k++) {
+      const j = dd[k]; const q = j < 0 ? null : tileOwnerP(j);
+      if (q === p) continue;
+      const a = CORN[k], b = CORN[(k + 1) % 6], s = 0.9;
+      out.push(`<line x1="${(x + a[0] * s).toFixed(1)}" y1="${(y + a[1] * s).toFixed(1)}" x2="${(x + b[0] * s).toFixed(1)}" y2="${(y + b[1] * s).toFixed(1)}" stroke="${pcol(p)}" stroke-width="3.2" stroke-linecap="round"/>`);
+    }
+  }
+  // tile buildings and traps
+  for (const b of S.buildings) {
+    if (BLD[b.key].place !== 'tile') continue;
+    const [x, y] = center(m, b.t);
+    const idle = b.status && b.status.startsWith('Idle');
+    out.push(`<g transform="translate(${x},${y - 11})"><rect x="-11" y="-6" width="22" height="12" rx="3" fill="${idle ? '#7a2b26' : '#1e2620'}" opacity="0.88"/><text class="blbl">${BLD[b.key].abbr}</text></g>`);
+  }
+  for (let i = 0; i < n; i++) if (m.tiles[i].trap != null) { const [x, y] = center(m, i); out.push(`<text x="${x + 11}" y="${y - 6}" style="font-size:12px;font-weight:700" fill="#1e2620" text-anchor="middle">✕</text>`); }
+  // cities
+  for (const c of S.cities) {
+    const [x, y] = center(m, c.t), col = pcol(c.owner), mh = Q.maxHp(S, c);
+    out.push(`<g transform="translate(${x},${y})"><rect x="-9" y="-9" width="18" height="18" rx="2" fill="${col}" stroke="#141a16" stroke-width="1.6"/><rect x="-4" y="-4" width="8" height="8" fill="#fff" opacity="0.9"/>
+      <text class="lbl" y="-14">${esc(c.name)}</text><text class="lbl" y="22" style="font-size:9.5px">${c.hp}/${mh}</text></g>`);
+  }
+  // units
+  if (!flow || true) {
+    const byTile = new Map();
+    for (const u of S.units) if (u.carriedBy == null) { if (!byTile.has(u.t)) byTile.set(u.t, []); byTile.get(u.t).push(u); }
+    for (const [t, list] of byTile) {
+      const [x, y] = center(m, t), city = !!Q.cityAt(S, t);
+      const combat = list.filter((u) => UNI[u.type].role === 'combat');
+      const logi = list.filter((u) => UNI[u.type].role !== 'combat');
+      combat.slice(0, 2).forEach((u, k) => out.push(unitToken(u, x + (city ? 10 : 0) + k * 6, y + (city ? 9 : 2) + k * 3, false)));
+      logi.slice(0, 3).forEach((u, k) => out.push(unitToken(u, x - 11 + k * 11, y + (city || combat.length ? 14 : 4), true)));
+      if (logi.length > 3) out.push(`<text class="lbl" x="${x + 16}" y="${y + 18}" style="font-size:9px">+${logi.length - 3}</text>`);
+    }
+  }
+  // overlays
+  if (!flow) {
+    const sel = UI.sel;
+    for (const t of UI.hl.build) { const [x, y] = center(m, t); out.push(`<polygon points="${hexPts(x, y, 0.9)}" fill="rgba(242,211,122,0.28)" stroke="#f2d37a" stroke-width="2"/>`); }
+    for (const [t] of UI.hl.move) { const [x, y] = center(m, t); out.push(`<polygon points="${hexPts(x, y, 0.88)}" fill="rgba(255,255,255,0.18)" stroke="#fdf4d0" stroke-width="1.4"/>`); }
+    for (const t of UI.hl.attack) { const [x, y] = center(m, t); out.push(`<polygon points="${hexPts(x, y, 0.88)}" fill="rgba(214,70,62,0.25)" stroke="#ff6b5e" stroke-width="2"/>`); }
+    if (sel) { const [x, y] = center(m, sel.t); out.push(`<polygon points="${hexPts(x, y, 0.97)}" fill="none" stroke="#fff" stroke-width="2.6"/>`); }
+    // my planned orders
+    const d = draft();
+    for (const mv of d.moves) {
+      const pts = mv.path.map((t) => center(m, t).map((v) => v.toFixed(1)).join(',')).join(' ');
+      out.push(`<polyline points="${pts}" fill="none" stroke="#1e2620" stroke-width="5" opacity="0.5" stroke-linejoin="round"/><polyline points="${pts}" fill="none" stroke="#f2d37a" stroke-width="2.6" stroke-dasharray="6 4" stroke-linejoin="round" marker-end="url(#arr-brass)"/>`);
+    }
+    for (const a of d.attacks) {
+      const from = a.unit != null ? (Q.unitById(S, a.unit) || {}).t : (Q.cityById(S, a.city) || {}).t;
+      if (from == null) continue;
+      const [x1, y1] = center(m, from), [x2, y2] = center(m, a.t);
+      out.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#ff6b5e" stroke-width="2.6" marker-end="url(#arr-red)"/>`);
+    }
+    for (const b of d.builds) {
+      if (b.t == null) continue;
+      const [x, y] = center(m, b.t);
+      out.push(`<polygon points="${hexPts(x, y, 0.8)}" fill="none" stroke="#f2d37a" stroke-width="2" stroke-dasharray="4 3"/><g transform="translate(${x},${y + 11})"><rect x="-12" y="-6" width="24" height="12" rx="3" fill="#a8801f"/><text class="blbl">+${esc(BLD[b.key].abbr || BLD[b.key].name.slice(0, 3))}</text></g>`);
+    }
+    for (const dm of d.demolish) {
+      const [x, y] = center(m, dm.t);
+      out.push(`<polygon points="${hexPts(x, y, 0.8)}" fill="rgba(163,49,43,0.18)" stroke="#ff6b5e" stroke-width="2" stroke-dasharray="4 3"/><text x="${x}" y="${y + 4}" text-anchor="middle" style="font-size:16px;font-weight:700" fill="#ff6b5e">✕</text>`);
+    }
+    for (const o of d.clear) {
+      const [x, y] = center(m, o.t);
+      out.push(`<polygon points="${hexPts(x, y, 0.8)}" fill="rgba(194,160,82,0.25)" stroke="#e0b860" stroke-width="2" stroke-dasharray="4 3"/><text x="${x}" y="${y + 5}" text-anchor="middle" style="font-size:14px;font-weight:700" fill="#f2d37a">🪓</text>`);
+    }
+    if (UI.peace) {
+      for (const [list, col] of [[UI.peace.give.tiles, '#f2d37a'], [UI.peace.get.tiles, '#8fe0ff']]) for (const t of list) {
+        const [x, y] = center(m, t);
+        out.push(`<polygon points="${hexPts(x, y, 0.78)}" fill="${col}" fill-opacity="0.35" stroke="${col}" stroke-width="2.4"/>`);
+      }
+    }
+    for (const un of d.unload) {
+      const u = Q.unitById(S, un.unit); if (!u) continue;
+      const [x1, y1] = center(m, Q.posOf(S, u)), [x2, y2] = center(m, un.t);
+      out.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#f2d37a" stroke-width="2" stroke-dasharray="3 3" marker-end="url(#arr-brass)"/>`);
+    }
+  } else {
+    out.push(flowOverlay());
+  }
+  out.push('</g>');
+  return { W, H, body: out.join('') };
+}
+
+function routeTiles(r) {
+  const S = st(), from = Q.cityById(S, r.from), to = r.to.type === 'city' ? Q.cityById(S, r.to.id) : Q.unitById(S, r.to.id);
+  if (!from || !to) return null;
+  const u = r.transports.map((id) => Q.unitById(S, id)).find(Boolean) || { type: 'caravan', owner: r.owner, cargo: {} };
+  return Q.findPath(S, u, from.t, to.t, { partner: r.partner, ignoreUnits: true });
+}
+function visibleRoutes() { const S = st(); return S.routes.filter((r) => r.owner === UI.me || r.partner === UI.me); }
+function flowOverlay() {
+  const S = st(), m = S.map, out = [];
+  visibleRoutes().forEach((r, k) => {
+    const path = routeTiles(r);
+    if (!path || path.length < 2) return;
+    const off = ((k % 3) - 1) * 3;
+    const pts = path.map((t) => { const [x, y] = center(m, t); return `${(x + off).toFixed(1)},${(y + off).toFixed(1)}`; });
+    const goods = Object.keys(r.goods);
+    const g = goods[0] || 'food';
+    const est = Q.routeEstimate(S, r);
+    out.push(`<polyline points="${pts.join(' ')}" fill="none" stroke="#141a16" stroke-width="7" opacity="0.55" stroke-linejoin="round"/>`);
+    out.push(`<polyline points="${pts.join(' ')}" fill="none" stroke="${RR.GOOD_COLORS[g]}" stroke-width="4" stroke-linejoin="round" marker-end="url(#arr-${g})" ${r.accepted ? '' : 'stroke-dasharray="6 5"'}/>`);
+    if (Object.keys(r.back || {}).length) {
+      const bg = Object.keys(r.back)[0];
+      const back = path.slice().reverse().map((t) => { const [x, y] = center(m, t); return `${(x - off - 5).toFixed(1)},${(y - off + 5).toFixed(1)}`; });
+      out.push(`<polyline points="${back.join(' ')}" fill="none" stroke="${RR.GOOD_COLORS[bg]}" stroke-width="2.4" stroke-dasharray="5 4" marker-end="url(#arr-${bg})"/>`);
+    }
+    const mid = center(m, path[Math.floor(path.length / 2)]);
+    const label = r.rule === 'stock' ? `#${r.id} keep ${fmtGoods(r.goods)}` : `#${r.id} ${fmtGoods(r.goods)}/turn`;
+    out.push(`<text class="lbl" x="${mid[0]}" y="${mid[1] - 14}" style="font-size:10px">${esc(label)} (capacity ${est.perTurn}/turn)</text>`);
+  });
+  return out.join('');
+}
+
+/* ---------- pan & zoom ---------- */
+function fitView(kind) {
+  const [W, H] = mapSize(st().map);
+  UI.views[kind] = { x: 0, y: 0, w: W, h: H };
+}
+function attachMap(svg, kind) {
+  let drag = null;
+  const v = () => UI.views[kind];
+  const apply = () => svg.setAttribute('viewBox', `${v().x} ${v().y} ${v().w} ${v().h}`);
+  svg.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const r = svg.getBoundingClientRect(), V = v();
+    const fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height;
+    const k = e.deltaY > 0 ? 1.15 : 1 / 1.15;
+    const [W] = mapSize(st().map);
+    const nw = Math.min(W * 1.6, Math.max(160, V.w * k)), nh = (V.h * nw) / V.w;
+    V.x += (V.w - nw) * fx; V.y += (V.h - nh) * fy; V.w = nw; V.h = nh; apply();
+  }, { passive: false });
+  svg.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, vx: v().x, vy: v().y, moved: false }; });
+  svg.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) < 5) return;
+    if (!drag.moved) { drag.moved = true; svg.classList.add('drag'); try { svg.setPointerCapture(e.pointerId); } catch (er) { /* ignore */ } }
+    const r = svg.getBoundingClientRect(), sx = v().w / r.width;
+    v().x = drag.vx - dx * sx; v().y = drag.vy - dy * sx; apply();
+  });
+  const end = (e) => {
+    if (!drag) return;
+    const wasDrag = drag.moved; drag = null; svg.classList.remove('drag');
+    if (wasDrag || kind !== 'main') return;
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    if (el && el.dataset && el.dataset.t != null) onTileClick(Number(el.dataset.t));
+  };
+  svg.addEventListener('pointerup', end);
+  svg.addEventListener('pointercancel', () => { drag = null; svg.classList.remove('drag'); });
+}
+function zoomBy(kind, k) {
+  const V = UI.views[kind]; const nw = V.w * k, nh = V.h * k;
+  V.x += (V.w - nw) / 2; V.y += (V.h - nh) / 2; V.w = nw; V.h = nh; render();
+}
+function centerOn(kind, t) {
+  if (!UI.views[kind]) fitView(kind);
+  const V = UI.views[kind], [x, y] = center(st().map, t);
+  const w = Math.min(V.w, 900), h = (V.h * w) / V.w;
+  UI.views[kind] = { x: x - w / 2, y: y - h / 2, w, h };
+}
+
+/* ---------- map clicks ---------- */
+function onTileClick(t) {
+  const S = st();
+  if (S.gameOver && UI.mode) UI.mode = null;
+  if (UI.mode) {
+    const md = UI.mode;
+    if (md.kind === 'build' && UI.hl.build.has(t)) {
+      mutate((d) => d.builds.push({ city: md.city, key: md.key, t }));
+      if (md.key !== 'railroad') UI.mode = null;
+      computeHL(); render(); return;
+    }
+    if (md.kind === 'weapon' && UI.hl.attack.has(t)) {
+      UI.mode = null;
+      mutate((d) => { d.attacks = d.attacks.filter((a) => !(a.city === md.city && a.w === md.w)); d.attacks.push({ city: md.city, w: md.w, t }); });
+      return;
+    }
+    if (md.kind === 'cede' && UI.peace) {
+      const oc = Q.tileOwnerCity(S, t);
+      if (UI.hl.build.has(t) && oc) {
+        const part = oc.owner === UI.me ? UI.peace.give : UI.peace.get;
+        part.tiles = part.tiles.includes(t) ? part.tiles.filter((x) => x !== t) : [...part.tiles, t];
+        computeHL(); render(); return;
+      }
+      toast(`Click a tile held by you or ${pname(UI.peace.to)}, other than a city.`);
+      return;
+    }
+    if (md.kind === 'unload' && UI.hl.build.has(t)) {
+      UI.mode = null;
+      mutate((d) => { d.unload = d.unload.filter((x) => x.unit !== md.unit); d.unload.push({ unit: md.unit, t }); });
+      return;
+    }
+    toast('That tile is not a valid choice. Press Esc to cancel.');
+    return;
+  }
+  const su = UI.sel && UI.sel.unit != null ? Q.unitById(S, UI.sel.unit) : null;
+  if (su && su.owner === UI.me && t !== su.t) {
+    if (UI.hl.attack.has(t)) { mutate((d) => { d.attacks = d.attacks.filter((a) => a.unit !== su.id); d.attacks.push({ unit: su.id, t }); }); return; }
+    if (UI.hl.move.has(t)) { const path = UI.hl.move.get(t); mutate((d) => { d.moves = d.moves.filter((m) => m.unit !== su.id); d.moves.push({ unit: su.id, path }); }); return; }
+  }
+  const units = Q.unitsAt(S, t);
+  let unit = null;
+  if (UI.sel && UI.sel.t === t && units.length) {
+    const i = units.findIndex((u) => u.id === UI.sel.unit);
+    unit = units[(i + 1) % units.length].id;
+  } else {
+    const pick = units.find((u) => u.owner === UI.me && UNI[u.type].role === 'combat') || units.find((u) => u.owner === UI.me) || units[0];
+    unit = pick ? pick.id : null;
+  }
+  UI.sel = { t, unit };
+  computeHL(); render();
+}
+
+/* =====================================================================
+   HEADER, TABS, RENDER LOOP
+   ===================================================================== */
+const TABS = [
+  ['map', 'Map'], ['flow', 'Flow'], ['supply', 'Supply'], ['stock', 'Stockpiles'], ['buildings', 'Buildings'], ['production', 'Production'],
+  ['research', 'Research'], ['market', 'Market'], ['diplomacy', 'Diplomacy'], ['reports', 'Reports'], ['orders', 'Orders'],
+];
+function renderHeader() {
+  const S = st(), p = meP(), d = draft();
+  const sel = UI.locked
+    ? `<strong>${esc(p.name)}</strong>`
+    : `<label class="small muted">Playing as <select data-chg="me" aria-label="Playing as">${S.players.map((x) => `<option value="${x.id}" ${x.id === UI.me ? 'selected' : ''}>${esc(x.name)}${x.eliminated ? ' (out)' : ''}</option>`).join('')}</select></label>`;
+  const vas = p.eliminated ? ' <span class="tag war">out of the game</span>' : '';
+  return `<header class="bar" style="--me:${p.color}">
+    <div class="nation"><div><div class="title">${esc(CONFIG.title)}</div><div class="sub">${esc(S.name)}, ${esc(isCampaign() ? scheduleText().replace('Turns resolve automatically at', 'auto-resolves') : Sync.label.toLowerCase())}</div></div></div>
+    <div class="turn">Turn ${S.turn}</div>
+    <div>${sel}${vas}</div>
+    <div class="res"><span>Credits <b>${p.credits}</b></span><span>Manpower <b>${p.manpower}</b>${reservedMp() ? ` <span class="small muted">(−${reservedMp()} queued)</span>` : ''}</span><span>Science <b>${p.science}</b></span></div>
+    <div class="spacer"></div>
+    ${canPlay() ? `<button class="btn primary" data-act="submit" ${S.gameOver || p.eliminated ? 'disabled' : ''}>${submitted(UI.me) ? 'Resubmit orders' : 'Submit orders'} (${draftCount(d)})</button>` : '<span class="tag">Admin view: not playing</span>'}
+    ${!isCampaign() || isAdmin() ? `<button class="btn ${allSubmitted() ? 'brass' : ''}" data-act="resolve" ${S.gameOver ? 'disabled' : ''} title="Resolve the turn for everyone">${isCampaign() ? 'Resolve turn now' : 'Resolve turn'}</button>` : ''}
+    <button class="btn" data-act="menu" aria-haspopup="true">Game ▾</button>
+    ${UI.menu ? (isCampaign() ? campaignMenu() : `<div class="menu" role="menu">
+      <button class="btn" data-act="save-file">Download game file</button>
+      <button class="btn" data-act="load-file">Load game file</button>
+      <hr><button class="btn" data-act="export-orders">Download my orders</button>
+      <button class="btn" data-act="import-orders">Import players' orders</button>
+      <hr><button class="btn" data-act="reload">Reload from ${Sync.mode === 'local' ? 'storage' : 'shared copy'}</button>
+      <button class="btn danger" data-act="new-game">Start a new game</button></div>`) : ''}
+  </header>`;
+}
+function campaignMenu() {
+  const you = Sync.you || {}, S = st();
+  const who = you.role === 'player' ? `Logged in as ${esc(pname(you.pid))}` : 'Logged in with the admin PIN';
+  const last = Sync.schedule && Sync.schedule.lastResolve ? `<p class="small muted">Turn ${Sync.schedule.lastResolve.turn} was resolved ${Sync.schedule.lastResolve.how === 'auto' ? 'automatically' : 'by the admin'} on ${new Date(Sync.schedule.lastResolve.at).toLocaleString()}.</p>` : '';
+  const pins = UI.pins ? `<table class="small"><tbody>${UI.pins.map((x) => `<tr><td>${esc(x.name)}</td><td class="num"><input type="text" inputmode="numeric" value="${esc(x.pin)}" id="pin-${x.pid}" style="width:90px" aria-label="PIN for ${esc(x.name)}"></td><td><button class="btn small" data-act="pin-save" data-pid="${x.pid}">Save</button></td></tr>`).join('')}</tbody></table>` : '';
+  return `<div class="menu" role="menu">
+    <p class="small"><b>${who}</b><br><span class="muted">${esc(scheduleText())}</span></p>${last}
+    <button class="btn" data-act="reload">Reload</button>
+    <button class="btn" data-act="save-file">Download game file (backup)</button>
+    ${isAdmin() ? `<hr><p class="small muted">Admin</p>
+      <button class="btn" data-act="pins-show">${UI.pins ? 'Hide' : 'Show'} player PINs</button>${pins}
+      <button class="btn" data-act="load-file">Restore game from a backup file</button>
+      <button class="btn danger" data-act="new-game">Start a new campaign</button>`
+    : `<hr><div class="row"><input type="password" inputmode="numeric" id="admin-pin" placeholder="Admin PIN" style="width:110px" aria-label="Admin PIN"><button class="btn small" data-act="admin-unlock">Unlock admin</button></div>`}
+    <hr><button class="btn" data-act="logout">Log out</button></div>`;
+}
+function renderTabs() {
+  const d = draft(), S = st();
+  const newReports = (S.reports[UI.me] || []).filter((r) => r.turn === S.turn - 1).length;
+  const chips = activePlayers().map((x) => `<span class="chip ${submitted(x.id) ? 'done' : ''}" title="${submitted(x.id) ? 'Orders submitted' : 'Waiting for orders'}"><i style="background:${x.color}"></i>${esc(x.name)}${submitted(x.id) ? ' ✓' : ''}</span>`).join('');
+  return `<nav class="tabs" role="tablist">${TABS.map(([k, label]) => `<button role="tab" aria-selected="${UI.tab === k}" class="${UI.tab === k ? 'on' : ''}" data-act="tab" data-tab="${k}">${label}${k === 'orders' && draftCount(d) ? `<span class="count">${draftCount(d)}</span>` : ''}${k === 'reports' && newReports ? `<span class="count">${newReports}</span>` : ''}</button>`).join('')}<div class="chips" aria-label="Who has submitted orders">${chips}</div></nav>`;
+}
+function render() {
+  if (UI._rendering) { UI._again = true; return; }
+  UI._rendering = true;
+  try { renderNow(); } finally { UI._rendering = false; }
+  if (UI._again) { UI._again = false; setTimeout(render, 0); }
+}
+function renderNow() {
+  if (!UI.bundle || !UI.bundle.state) { if (isCampaign() && !isAdmin()) { if (!Sync.hasPin()) renderLogin(); else renderWaiting(); } else renderSetup(); return; }
+  UI.waiting = false;
+  const S = st();
+  if (!S.players[UI.me]) UI.me = 0;
+  const root = $('#app');
+  const scroll = $('.main') ? $('.main').scrollTop : 0;
+  const sideScroll = $('.side') ? $('.side').scrollTop : 0;
+  let body = '';
+  try {
+    body = (TAB_RENDER[UI.tab] || TAB_RENDER.map)();
+  } catch (e) {
+    console.error(e);
+    body = `<div class="page"><div class="notice bad">This tab hit an error: ${esc(e.message)}</div></div>`;
+  }
+  const over = S.gameOver ? `<div class="gameover">Game over on turn ${S.gameOver.turn}: ${esc(S.gameOver.reason)}</div>` : '';
+  root.innerHTML = `<div class="app">${renderHeader()}${renderTabs()}<main class="main">${over}${body}</main></div>`;
+  for (const svg of root.querySelectorAll('svg[data-map]')) attachMap(svg, svg.dataset.map);
+  if ($('.main')) $('.main').scrollTop = scroll;
+  if ($('.side')) $('.side').scrollTop = sideScroll;
+}
+
+/* ---------- map tab ---------- */
+function mapBlock(kind) {
+  if (!UI.views[kind]) {
+    fitView(kind);
+    const cap = Q.citiesOf(st(), UI.me)[0];
+    if (cap && kind === 'main') centerOn(kind, cap.t);
+  }
+  const { body } = buildMapSvg(kind), V = UI.views[kind];
+  return `<svg data-map="${kind}" viewBox="${V.x} ${V.y} ${V.w} ${V.h}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${kind === 'flow' ? 'Resource flow map' : 'Game map'}">${body}</svg>`;
+}
+function legendHtml() {
+  return `<div class="legend">${Object.entries(RR.TILES).map(([, t]) => `<span><i style="background:${t.color}"></i>${t.name}${t.glyph ? ` ${t.glyph}` : ''}</span>`).join('')}
+    <span>■ City (HP below)</span><span>● Combat unit</span><span>▬ Logistics unit</span><span>⛵ Ship (hull shape)</span></div>`;
+}
+const TAB_RENDER = {};
+TAB_RENDER.map = function () {
+  computeHL();
+  const md = UI.mode;
+  let modebar = '';
+  if (md) {
+    const what = md.kind === 'build' ? `Placing ${BLD[md.key].name.toLowerCase()}: click a highlighted tile` : md.kind === 'weapon' ? `Aiming ${BLD[md.w].name.toLowerCase()}: click a red tile` : md.kind === 'cede' ? `Peace treaty with ${esc(pname(UI.peace ? UI.peace.to : 0))}: click your tiles to give (gold) and theirs to ask for (blue)` : 'Unloading: click a highlighted tile';
+    modebar = `<div class="modebar">${what}<button class="btn small" data-act="cancel-mode">${md.key === 'railroad' || md.kind === 'cede' ? 'Done' : 'Cancel'}</button></div>`;
+  }
+  return `<div class="split"><div class="mapwrap">${mapBlock('main')}
+      <div class="maptools"><button class="btn small" data-act="zoom" data-k="0.8" aria-label="Zoom in">+</button><button class="btn small" data-act="zoom" data-k="1.25" aria-label="Zoom out">−</button><button class="btn small" data-act="fit" data-kind="main">Whole map</button><button class="btn small" data-act="legend">${UI.legend ? 'Hide' : 'Show'} legend</button></div>
+      ${modebar}${UI.legend ? legendHtml() : ''}</div>
+    <aside class="side">${sidePanel()}</aside></div>`;
+};
+
+/* ---------- side panel ---------- */
+function goodsGrid(stock, city) {
+  const S = st(), res = city ? reserved(city.id).goods : {};
+  return `<div class="goodsgrid">${RR.GOODS.map((g) => {
+    const v = stock[g] || 0, cap = city ? Q.capacity(S, city, g) : null, after = v - (res[g] || 0);
+    const cls = cap != null && v >= cap ? 'full' : cap != null && v >= cap * 0.9 ? 'near' : v ? '' : 'z';
+    return `<div class="${cls}"><span>${GN(g)}</span><span class="num">${v}${cap != null ? `<span class="muted">/${cap}</span>` : ''}${res[g] ? ` <span class="warn">→${after}</span>` : ''}</span></div>`;
+  }).join('')}</div>`;
+}
+function sidePanel() {
+  const S = st();
+  if (!UI.sel) {
+    const caps = Q.citiesOf(S, UI.me);
+    return `<h2>Your turn</h2><p class="muted">Click a tile to inspect it. Click one of your units, then a highlighted tile to move or a red tile to attack. Click one of your cities to build and recruit.</p>
+      <h3>Your cities</h3><ul class="list">${caps.map((c) => `<li><button class="linkbtn" data-act="goto" data-t="${c.t}">${esc(c.name)}</button><span class="num">${c.hp}/${Q.maxHp(S, c)} HP</span></li>`).join('') || '<li class="muted">None</li>'}</ul>
+      <h3>Your units</h3><ul class="list">${Q.unitsOf(S, UI.me).map((u) => `<li><button class="linkbtn" data-act="goto-unit" data-id="${u.id}">${esc(Q.unitName(u))}</button><span class="small muted">${tl(Q.posOf(S, u))}</span></li>`).join('') || '<li class="muted">None yet. Build a barracks to raise infantry.</li>'}</ul>`;
+  }
+  const t = UI.sel.t, tile = S.map.tiles[t], city = Q.cityAt(S, t), oc = Q.tileOwnerCity(S, t), tb = Q.tileBuilding(S, t);
+  const parts = [];
+  parts.push(`<section><h2>${esc(RR.TILES[tile.type].name)} <span class="muted small">at ${tl(t)}</span></h2><dl class="kv">
+    <dt>Territory</dt><dd>${oc ? `<span class="pdot" style="background:${pcol(oc.owner)}"></span>${esc(oc.name)} (${esc(pname(oc.owner))})` : 'Unclaimed'}</dd>
+    ${tb ? `<dt>Building</dt><dd>${esc(BLD[tb.key].name)}${tb.status ? ` <span class="small ${tb.status.startsWith('Idle') ? 'warn' : 'muted'}">${esc(tb.status)}</span>` : ''}</dd>` : ''}
+    ${tile.rail != null ? `<dt>Railroad</dt><dd>${esc(pname(tile.rail))}</dd>` : ''}${tile.bridge ? '<dt>Bridge</dt><dd>Yes</dd>' : ''}
+    ${tile.trap != null ? `<dt>Tank trap</dt><dd>${esc(cityName(tile.trap))}</dd>` : ''}</dl>${clearBlock(t)}${demolishBlock(t)}</section>`);
+  if (city) parts.push(cityPanel(city));
+  const units = Q.unitsAt(S, t);
+  if (units.length) {
+    parts.push(`<section><h3>Units here</h3>${units.map((u) => `<button class="unitrow ${u.id === UI.sel.unit ? 'on' : ''}" data-act="sel-unit" data-id="${u.id}"><span class="pdot" style="background:${pcol(u.owner)}"></span>${esc(Q.unitName(u))}<span class="spacer" style="flex:1"></span><span class="num small">${u.hp}/${UNI[u.type].hp} HP</span></button>`).join('')}</section>`);
+  }
+  const su = UI.sel.unit != null ? Q.unitById(S, UI.sel.unit) : null;
+  if (su) parts.push(unitPanel(su));
+  return parts.join('');
+}
+function clearBlock(t) {
+  const S = st();
+  if (S.gameOver || S.map.tiles[t].type !== 'forest') return '';
+  const oc = Q.tileOwnerCity(S, t);
+  if (!oc || oc.owner !== UI.me) return '';
+  const d = draft(), CF = RR.CLEAR_FOREST, qi = d.clear.findIndex((x) => x.t === t);
+  if (qi >= 0) return `<div class="row small" style="margin-top:6px"><span class="tag">Clearing forest</span><button class="x" data-act="rm" data-list="clear" data-idx="${qi}" aria-label="Cancel clearing">✕</button></div>`;
+  let err = Q.checkClear(S, UI.me, { t });
+  if (!err && (oc.stock.tools || 0) - (reserved(oc.id).goods.tools || 0) < CF.tools) err = `${oc.name}'s tools are already committed this turn`;
+  if (!err && S.players[UI.me].manpower - reservedMp() < CF.mp) err = 'Not enough uncommitted manpower';
+  return `<div class="row small" style="margin-top:6px"><button class="btn small" data-act="clear-forest" data-t="${t}" ${err ? 'disabled' : ''}>Clear forest</button><span class="muted">${err ? esc(err) : `${CF.tools} tool + ${CF.mp} manpower; yields ${CF.lumber} lumber to ${esc(oc.name)}; becomes grassland`}</span></div>`;
+}
+function demolishBlock(t) {
+  const S = st(), opts = Q.demolishable(S, UI.me, t);
+  if (!opts.length || S.gameOver) return '';
+  const tile = S.map.tiles[t], d = draft();
+  const keyOf = (w) => (w === 'building' ? Q.tileBuilding(S, t).key : w === 'trap' ? 'tankTrap' : w === 'rail' ? 'railroad' : tile.bridge === 'rail' ? 'railBridge' : 'bridge');
+  const back = (k) => Object.entries(BLD[k].cost).filter(([g]) => g !== 'mp').map(([g, v]) => [g, Math.floor(v * RR.DEMOLISH.refund)]).filter(([, v]) => v > 0).map(([g, v]) => `${v} ${gl(g)}`).join(', ');
+  return `<div style="margin-top:6px">${opts.map((w) => {
+    const k = keyOf(w), qi = d.demolish.findIndex((x) => x.t === t && x.what === w), err = Q.checkDemolish(S, UI.me, { t, what: w });
+    return qi >= 0 ? `<div class="row small"><span class="tag war">Demolishing ${esc(BLD[k].name.toLowerCase())}</span><button class="x" data-act="rm" data-list="demolish" data-idx="${qi}" aria-label="Cancel demolition">✕</button></div>`
+      : `<div class="row small"><button class="btn small danger" data-act="demolish" data-t="${t}" data-what="${w}" ${err ? 'disabled' : ''}>Demolish ${esc(BLD[k].name.toLowerCase())}</button><span class="muted">${err ? esc(err) : `${RR.DEMOLISH.mp} manpower; returns ${esc(back(k) || 'nothing')}`}</span></div>`;
+  }).join('')}</div>`;
+}
+function cityPanel(c) {
+  const S = st(), own = c.owner === UI.me, d = draft();
+  const head = `<section><h2><span class="pdot" style="background:${pcol(c.owner)}"></span>${esc(c.name)}</h2><dl class="kv">
+    <dt>Owner</dt><dd>${esc(pname(c.owner))}</dd><dt>HP</dt><dd class="num">${c.hp} / ${Q.maxHp(S, c)}</dd>
+    <dt>Territory</dt><dd>${Q.territoryRadius(S, c)} tiles</dd><dt>Supply range</dt><dd>${Q.supplyRadius(S, c)} tiles on land${Q.countB(S, c.id, 'port') || Q.countB(S, c.id, 'harbor') ? `, ${RR.CITY.portRadius} at sea` : ''}</dd>
+    ${(() => { const g = Q.garrisonOf(S, c); return g ? `<dt>Garrison</dt><dd>${esc(Q.unitName(g))}</dd>` : ''; })()}</dl>`;
+  if (!own) return head + '</section>';
+  const blds = Q.cityBuildings(S, c.id);
+  const counts = {}; for (const b of blds) counts[b.key] = (counts[b.key] || 0) + 1;
+  const queued = d.builds.filter((b) => b.city === c.id), qTrain = d.trains.filter((x) => x.city === c.id);
+  const opts = Object.entries(BLD).filter(([k]) => Q.isUnlocked(S, UI.me, k)).map(([k, b]) => {
+    const err = b.place === 'city' ? (Q.checkBuild(S, UI.me, { city: c.id, key: k }) || (b.limit && queued.filter((x) => x.key === k).length + (counts[k] || 0) >= b.limit ? `Only ${b.limit} per city` : null)) : null;
+    const act = b.place === 'city' ? `<button class="btn small" data-act="build-city" data-city="${c.id}" data-key="${k}" ${err ? 'disabled' : ''}>Build</button>` : `<button class="btn small" data-act="mode-build" data-city="${c.id}" data-key="${k}">Place…</button>`;
+    return `<div class="opt ${err ? 'no' : ''}"><span>${esc(b.name)}${err ? ` <span class="small warn">${esc(err)}</span>` : ''}</span>${act}<span class="cost">${esc(costText(b.cost))}</span></div>`;
+  }).join('');
+  const trainOpts = Object.entries(UNI).filter(([k]) => Q.unitUnlocked(S, UI.me, k)).map(([k, u]) => {
+    const err = Q.checkTrain(S, UI.me, c.id, k);
+    return `<div class="opt ${err ? 'no' : ''}"><span>${esc(u.name)}${err ? ` <span class="small muted">${esc(err)}</span>` : ''}</span><button class="btn small" data-act="train" data-city="${c.id}" data-type="${k}" ${err ? 'disabled' : ''}>Build</button><span class="cost">${esc(costText(u.cost))}</span></div>`;
+  }).join('');
+  const weapons = ['fort', 'navalBattery'].filter((w) => Q.countB(S, c.id, w)).map((w) => `<button class="btn small" data-act="mode-weapon" data-city="${c.id}" data-w="${w}">Aim ${BLD[w].name.toLowerCase()}</button>`).join(' ');
+  return `${head}</section>
+    <section><h3>Stockpile</h3>${goodsGrid(c.stock, c)}<p class="small muted" style="margin-top:4px">Red arrows show what is left after this turn's orders.</p></section>
+    <section><h3>Buildings (${blds.length})</h3><p class="small">${Object.entries(counts).map(([k, n]) => `${esc(BLD[k].short || BLD[k].name)}${n > 1 ? ` ×${n}` : ''}`).join(', ') || '<span class="muted">None yet</span>'}</p>
+      ${queued.length ? `<p class="small">Queued: ${queued.map((b) => `${esc(BLD[b.key].name)}${b.t != null ? ` at ${tl(b.t)}` : ''}`).join(', ')}</p>` : ''}
+      <h4>Build</h4><div class="buildlist">${opts}</div></section>
+    <section><h3>Recruit</h3>${qTrain.length ? `<p class="small">Queued: ${qTrain.map((x) => esc(UNI[x.type].name)).join(', ')}</p>` : ''}<div class="buildlist">${trainOpts || '<p class="muted small">Research units first.</p>'}</div></section>
+    ${weapons ? `<section><h3>Defenses</h3>${weapons}</section>` : ''}`;
+}
+function unitPanel(u) {
+  const S = st(), dd = UNI[u.type], d = draft(), own = u.owner === UI.me;
+  const mv = d.moves.find((m) => m.unit === u.id), at = d.attacks.find((a) => a.unit === u.id);
+  const tr = u.carriedBy != null ? Q.unitById(S, u.carriedBy) : null;
+  const aboard = Q.carried(S, u);
+  const out = [`<section><h3>${esc(Q.unitName(u))} <span class="muted small">${esc(pname(u.owner))}</span></h3><dl class="kv">
+    <dt>HP</dt><dd class="num">${u.hp} / ${dd.hp}</dd><dt>Move</dt><dd>${dd.move} tiles${dd.cls === 'rail' ? ' (rail only)' : ''}</dd>
+    ${dd.range ? `<dt>Attack</dt><dd>range ${dd.range}, ${dd.ammo} ammo per attack</dd>` : ''}
+    ${dd.cargo ? `<dt>Cargo</dt><dd>${Q.cargoUsed(u)} / ${dd.cargo}${Q.cargoUsed(u) ? `: ${esc(fmtGoods(u.cargo))}` : ''}</dd>` : ''}
+    ${dd.carry ? `<dt>Carrying</dt><dd>${aboard.reduce((a, x) => a + Q.carrySlots(u, x), 0)} / ${dd.carry} slots${dd.carryTypes ? ` (${Object.entries(dd.carryTypes).map(([k, n]) => `${UNI[k].name.toLowerCase()} ${n}`).join(', ')})` : ''}${aboard.length ? `: ${aboard.map((x) => esc(Q.unitName(x))).join(', ')}` : ''}</dd>` : ''}
+    ${tr ? `<dt>Aboard</dt><dd>${esc(Q.unitName(tr))}</dd>` : ''}
+    ${u.route != null ? `<dt>Route</dt><dd>#${u.route} (${esc(u.leg || '')})</dd>` : ''}
+    ${own ? `<dt>Supply</dt><dd class="small">${esc(u.supply || '—')}</dd><dt>Upkeep</dt><dd class="small">${esc(fmtGoods(Q.upkeepOf(S, u, mv ? mv.path.length - 1 : 0)) || 'none (in base)')}</dd>` : ''}</dl></section>`];
+  if (!own) return out.join('');
+  const ord = [];
+  if (mv) ord.push(`<li>Move to ${tl(mv.path[mv.path.length - 1])} (${mv.path.length - 1} tiles)<button class="x" data-act="clear" data-list="moves" data-unit="${u.id}" aria-label="Cancel move">✕</button></li>`);
+  if (at) ord.push(`<li>Attack ${tl(at.t)}<button class="x" data-act="clear" data-list="attacks" data-unit="${u.id}" aria-label="Cancel attack">✕</button></li>`);
+  const brd = d.board.find((b) => b.unit === u.id); if (brd) ord.push(`<li>Board ${esc(uname(brd.transport))}<button class="x" data-act="clear" data-list="board" data-unit="${u.id}">✕</button></li>`);
+  const unl = d.unload.find((b) => b.unit === u.id); if (unl) ord.push(`<li>Unload at ${tl(unl.t)}<button class="x" data-act="clear" data-list="unload" data-unit="${u.id}">✕</button></li>`);
+  const fnd = d.found.find((f) => f.unit === u.id); if (fnd) ord.push(`<li>Found ${esc(fnd.name)}<button class="x" data-act="clear" data-list="found" data-unit="${u.id}">✕</button></li>`);
+  const acts = [];
+  if (u.route != null) acts.push(`<p class="small muted">This unit runs route #${u.route} automatically. Remove it from the route in the Supply tab to move it by hand.</p>`);
+  else if (u.carriedBy == null) acts.push(`<p class="small muted">${UI.hl.move.size ? 'Highlighted tiles are in reach; red tiles can be attacked.' : 'No tiles in reach.'}</p>`);
+  // boarding
+  if (u.carriedBy == null && u.route == null && dd.cls === 'land') {
+    const trs = Q.unitsOf(S, UI.me).filter((x) => x !== u && HX.dist(S.map, x.t, u.t) <= 1 && !Q.canCarry(S, x, u));
+    for (const x of trs) acts.push(`<button class="btn small" data-act="board" data-unit="${u.id}" data-tr="${x.id}">Board ${esc(Q.unitName(x))}</button>`);
+  }
+  if (u.carriedBy != null) acts.push(`<button class="btn small" data-act="mode-unload" data-unit="${u.id}">Unload…</button>`);
+  if (dd.role === 'logistic' && u.carriedBy == null) {
+    const err = Q.checkFound(S, UI.me, u.id);
+    acts.push(err ? `<p class="small muted">Found a city: ${esc(err)}.</p>` : `<div class="row"><input type="text" id="found-name" placeholder="City name" aria-label="New city name"><button class="btn small brass" data-act="found" data-unit="${u.id}">Found city here</button></div>`);
+    const c = Q.cityAt(S, u.t);
+    if (c && c.owner === UI.me && dd.cargo) {
+      acts.push(`<h4>Load or unload in ${esc(c.name)}</h4><div class="row"><select id="cg-good" aria-label="Good">${RR.GOODS.map((g) => `<option value="${g}">${GN(g)} (city ${c.stock[g] || 0}, aboard ${u.cargo[g] || 0})</option>`).join('')}</select><input type="number" id="cg-amt" min="1" value="10" aria-label="Amount"></div>
+        <div class="row"><button class="btn small" data-act="cargo" data-unit="${u.id}" data-city="${c.id}" data-dir="1">Load</button><button class="btn small" data-act="cargo" data-unit="${u.id}" data-city="${c.id}" data-dir="-1">Unload</button></div>`);
+    }
+  }
+  out.push(`<section><h3>Orders</h3>${ord.length ? `<ul class="list">${ord.join('')}</ul>` : '<p class="small muted">No orders for this unit.</p>'}<div class="menu-actions" style="margin-top:6px">${acts.join('')}</div></section>`);
+  return out.join('');
+}
+
+/* ---- ui-tabs.js ---- */
+/* =====================================================================
+   SUPPLY LINES — INTERFACE: tabs, actions, setup and start-up
+   ===================================================================== */
+const goodsInputs = (prefix, values, attrs = '') => `<div class="goodsform">${RR.GOODS.map((g) => `<label><span><i class="swatch" style="background:${RR.GOOD_COLORS[g]}"></i>${GN(g)}</span><input type="number" min="0" class="w-sm" data-chg="${prefix}" data-good="${g}" value="${values[g] || ''}" ${attrs} aria-label="${GN(g)}"></label>`).join('')}</div>`;
+const playerLabel = (id) => `<span class="pdot" style="background:${pcol(id)}"></span>${esc(pname(id))}`;
+
+/* ---------- Flow ---------- */
+TAB_RENDER.flow = function () {
+  const S = st(), routes = visibleRoutes();
+  const rows = routes.map((r) => {
+    const est = Q.routeEstimate(S, r);
+    const to = r.to.type === 'city' ? cityName(r.to.id) : uname(r.to.id);
+    return `<li style="display:block"><div><strong>#${r.id}</strong> ${esc(cityName(r.from))} → ${esc(to)}${r.partner != null ? ` <span class="tag brass">trade with ${esc(pname(r.owner === UI.me ? r.partner : r.owner))}</span>` : ''}</div>
+      <div class="small">${r.rule === 'stock' ? 'Keep stocked: ' : 'Send per turn: '}${esc(fmtGoods(r.goods) || 'nothing set')}${Object.keys(r.back || {}).length ? `; back: ${esc(fmtGoods(r.back))}` : ''}</div>
+      <div class="small muted">Capacity ${est.perTurn}/turn over ${est.len == null ? '?' : est.len} tiles, ${r.transports.length} transport${r.transports.length === 1 ? '' : 's'}. ${esc(r.status || '')}</div></li>`;
+  }).join('');
+  return `<div class="split"><div class="mapwrap">${mapBlock('flow')}<div class="maptools"><button class="btn small" data-act="zoom-flow" data-k="0.8">+</button><button class="btn small" data-act="zoom-flow" data-k="1.25">−</button><button class="btn small" data-act="fit" data-kind="flow">Whole map</button></div></div>
+    <aside class="side"><h2>Resource flow</h2><p class="small muted">Each line runs from source to destination, colored by its first good. Dashed lines are trade routes still waiting for the partner, or goods coming back on a trade route.</p>
+    <ul class="list">${rows || '<li class="muted">No routes yet. Set one up in the Supply tab.</li>'}</ul>
+    <h3>Key</h3><div class="goodsgrid">${RR.GOODS.map((g) => `<div><span><i class="swatch" style="background:${RR.GOOD_COLORS[g]}"></i>${GN(g)}</span></div>`).join('')}</div></aside></div>`;
+};
+
+/* ---------- Supply ---------- */
+function newRouteForm() {
+  const c = Q.citiesOf(st(), UI.me)[0];
+  return { id: null, from: c ? c.id : null, to: '', transports: [], rule: 'send', goods: {}, back: {}, priority: 'normal' };
+}
+TAB_RENDER.supply = function () {
+  const S = st(), d = draft();
+  if (!UI.routeEdit) UI.routeEdit = newRouteForm();
+  const f = UI.routeEdit;
+  const myCities = Q.citiesOf(S, UI.me);
+  const myLog = Q.unitsOf(S, UI.me).filter((u) => UNI[u.type].role === 'logistic');
+  const routes = visibleRoutes();
+  const ops = d.routeOps;
+  const routeRows = routes.map((r) => {
+    const est = Q.routeEstimate(S, r), mine = r.owner === UI.me;
+    const to = r.to.type === 'city' ? cityName(r.to.id) : uname(r.to.id);
+    const pendingOp = ops.find((o) => o.id === r.id);
+    return `<tr><td class="n">#${r.id}</td><td>${esc(cityName(r.from))} → ${esc(to)}</td><td>${r.partner != null ? playerLabel(mine ? r.partner : r.owner) : '<span class="muted">Domestic</span>'}</td>
+      <td class="small">${r.transports.map((id) => esc(uname(id))).join(', ') || '<span class="warn">none</span>'}</td>
+      <td>${r.rule === 'stock' ? 'Keep stocked at' : 'Send per turn'}</td><td class="small">${esc(fmtGoods(r.goods) || '—')}${Object.keys(r.back || {}).length ? `<br><span class="muted">back: ${esc(fmtGoods(r.back))}</span>` : ''}</td>
+      <td>${esc(r.priority)}</td><td class="n">${est.perTurn}</td><td class="small">${esc(r.status || '')}${r.endsTurn ? ` <span class="warn">closes turn ${r.endsTurn}</span>` : ''}${pendingOp ? ` <span class="tag brass">${pendingOp.op === 'remove' ? 'closing' : 'edited'} this turn</span>` : ''}</td>
+      <td>${mine ? `<button class="btn small" data-act="route-edit" data-id="${r.id}">Edit</button> ` : ''}<button class="btn small danger" data-act="route-remove" data-id="${r.id}">Close</button></td></tr>`;
+  }).join('');
+  const newOps = ops.filter((o) => o.op === 'create').map((o, i) => `<tr><td class="muted">new</td><td>${esc(cityName(o.from))} → ${esc(o.to.type === 'city' ? cityName(o.to.id) : uname(o.to.id))}</td><td colspan="7" class="small">${o.rule === 'stock' ? 'Keep stocked at' : 'Send per turn'} ${esc(fmtGoods(o.goods))}${Object.keys(o.back || {}).length ? `; asking ${esc(fmtGoods(o.back))}` : ''} with ${o.transports.length} transport(s)</td><td><button class="x" data-act="rm-op" data-idx="${ops.indexOf(o)}" aria-label="Remove">✕</button></td></tr>`).join('');
+
+  // destination choices
+  const toOpts = [
+    `<optgroup label="Your cities">${myCities.filter((c) => c.id !== f.from).map((c) => `<option value="city:${c.id}" ${f.to === `city:${c.id}` ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</optgroup>`,
+    `<optgroup label="Your field supply units">${myLog.filter((u) => ['caravan', 'supplyTruck', 'train'].includes(u.type) && u.route == null).map((u) => `<option value="unit:${u.id}" ${f.to === `unit:${u.id}` ? 'selected' : ''}>${esc(Q.unitName(u))} at ${tl(u.t)}</option>`).join('')}</optgroup>`,
+    `<optgroup label="Trade with another nation">${S.cities.filter((c) => c.owner !== UI.me && !S.players[c.owner].eliminated).map((c) => `<option value="city:${c.id}" ${f.to === `city:${c.id}` ? 'selected' : ''}>${esc(c.name)} (${esc(pname(c.owner))})</option>`).join('')}</optgroup>`,
+  ].join('');
+  const toCity = f.to.startsWith('city:') ? Q.cityById(S, Number(f.to.slice(5))) : null;
+  const trade = toCity && toCity.owner !== UI.me;
+  const transportOpts = myLog.filter((u) => u.carriedBy == null && (u.route == null || u.route === f.id) && `unit:${u.id}` !== f.to).map((u) => `<label class="ck"><input type="checkbox" data-chg="rf-tr" value="${u.id}" ${f.transports.includes(u.id) ? 'checked' : ''}> ${esc(Q.unitName(u))} <span class="small muted">(${UNI[u.type].cargo} cargo, move ${UNI[u.type].move}, at ${tl(u.t)})</span></label>`).join('<br>');
+  let preview = '';
+  if (f.from != null && f.to) {
+    const r = { id: f.id || 0, owner: UI.me, from: f.from, to: { type: f.to.split(':')[0], id: Number(f.to.split(':')[1]) }, partner: trade ? toCity.owner : null, transports: f.transports, rule: f.rule, goods: f.goods, back: f.back };
+    const est = Q.routeEstimate(S, r);
+    const want = Object.values(f.goods).reduce((a, b) => a + Number(b || 0), 0);
+    preview = f.transports.length ? `<p class="${est.ok ? '' : 'warn'}">${est.ok ? `Capacity about <strong class="num">${est.perTurn}</strong> per turn over ${est.len} tiles.` : 'At least one transport has no open path between these points (terrain, rail or borders).'}${f.rule === 'send' && want > est.perTurn && est.ok ? ` <span class="warn">You ask for ${want}/turn, more than the capacity.</span>` : ''}</p>` : '<p class="muted small">Pick transports to see the capacity.</p>';
+  }
+  const unitRows = Q.unitsOf(S, UI.me).map((u) => {
+    const mv = d.moves.find((m) => m.unit === u.id);
+    const src = Q.supplySources(S, u).filter((s) => s.ref !== u).map(Q.sourceName);
+    const up = Q.upkeepOf(S, u, mv ? mv.path.length - 1 : 0);
+    const bad = (u.supply || '').startsWith('Out');
+    return `<tr><td>${esc(Q.unitName(u))}</td><td>${tl(Q.posOf(S, u))}</td><td class="small">${esc(fmtGoods(up) || 'none (in base)')}</td><td class="small">${Q.inBase(S, u) ? 'In base' : src.length ? esc(src.join(', ')) : '<span class="warn">Nothing in range</span>'}</td><td class="small ${bad ? 'warn' : ''}">${esc(u.supply || '—')}</td><td class="small">${UNI[u.type].cargo ? esc(fmtGoods(u.cargo) || 'empty') : ''}</td></tr>`;
+  }).join('');
+  return `<div class="page"><h2>Supply</h2><p class="muted">Routes move goods automatically every turn until changed. Units inside a city's supply range draw upkeep from it; further out they draw from caravans, supply trucks or a stopped train within 2 tiles.</p>
+    <h3>Routes</h3><div class="ledger"><table><thead><tr><th class="n">#</th><th>From → to</th><th>Partner</th><th>Transports</th><th>Rule</th><th>Goods</th><th>Priority</th><th class="n">Cap/turn</th><th>Status</th><th></th></tr></thead><tbody>${routeRows}${newOps}${!routeRows && !newOps ? '<tr><td colspan="10" class="muted">No routes yet.</td></tr>' : ''}</tbody></table></div>
+    <div class="cols" style="margin-top:16px"><div class="panel"><h3 style="margin-top:0">${f.id ? `Edit route #${f.id}` : 'New route'}</h3>
+      <div class="row"><label>From <select data-chg="rf-from" ${f.id ? 'disabled' : ''}>${myCities.map((c) => `<option value="${c.id}" ${c.id === f.from ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>
+      <label>To <select data-chg="rf-to" ${f.id ? 'disabled' : ''}><option value="">Choose…</option>${toOpts}</select></label></div>
+      ${trade ? `<p class="small notice">This is a trade route with ${esc(pname(toCity.owner))}. They must accept it next turn; your transports carry goods both ways.</p>` : ''}
+      <h4>Transports</h4><div class="small">${transportOpts || '<span class="muted">No free logistics units. Build caravans at stables, trains or supply trucks at a machinery workshop, or ships at a shipyard.</span>'}</div>
+      <h4>Rule</h4><div class="row"><label class="ck"><input type="radio" name="rf-rule" data-chg="rf-rule" value="send" ${f.rule === 'send' ? 'checked' : ''}> Send an amount per turn</label><label class="ck"><input type="radio" name="rf-rule" data-chg="rf-rule" value="stock" ${f.rule === 'stock' ? 'checked' : ''}> Keep the destination stocked at</label></div>
+      <h4>Goods sent</h4>${goodsInputs('rf-goods', f.goods)}
+      ${trade ? `<h4>Goods you receive back (per turn)</h4>${goodsInputs('rf-back', f.back)}` : ''}
+      <div class="row"><label>Priority <select data-chg="rf-prio">${['high', 'normal', 'low'].map((x) => `<option ${f.priority === x ? 'selected' : ''}>${x}</option>`).join('')}</select></label></div>
+      ${preview}
+      <div class="row"><button class="btn primary" data-act="route-save" ${f.from == null || !f.to ? 'disabled' : ''}>${f.id ? 'Save changes' : 'Add route'}</button>${f.id ? '<button class="btn" data-act="route-new">New route instead</button>' : ''}</div></div>
+      <div class="panel"><h3 style="margin-top:0">Load and unload by hand</h3><p class="small muted">Select a logistics unit standing in one of your cities on the Map tab to load or unload goods. Units waiting in a city:</p>
+      <ul class="list">${myLog.filter((u) => Q.cityAt(S, u.t) && Q.cityAt(S, u.t).owner === UI.me && u.carriedBy == null).map((u) => `<li><button class="linkbtn" data-act="goto-unit" data-id="${u.id}">${esc(Q.unitName(u))}</button><span class="small">${esc(cityName(Q.cityAt(S, u.t).id))}, ${esc(fmtGoods(u.cargo) || 'empty')}</span></li>`).join('') || '<li class="muted">None</li>'}</ul>
+      ${d.cargo.length ? `<h4>Queued transfers</h4><ul class="list">${d.cargo.map((c, i) => `<li>${esc(uname(c.unit))} ${c.amount > 0 ? 'loads' : 'unloads'} ${Math.abs(c.amount)} ${gl(c.good)}<button class="x" data-act="rm" data-list="cargo" data-idx="${i}">✕</button></li>`).join('')}</ul>` : ''}</div></div>
+    <h3>Unit supply</h3><p class="small muted">Upkeep includes this turn's planned movement. "Last turn" is what happened at the end of the previous turn.</p>
+    <div class="ledger"><table><thead><tr><th>Unit</th><th>Tile</th><th>Upkeep this turn</th><th>Supplied from</th><th>Last turn</th><th>Cargo</th></tr></thead><tbody>${unitRows || '<tr><td colspan="6" class="muted">No units.</td></tr>'}</tbody></table></div></div>`;
+};
+
+/* ---------- Stockpiles ---------- */
+TAB_RENDER.stock = function () {
+  const S = st(), p = meP();
+  const cities = Q.citiesOf(S, UI.me);
+  const head = `<tr><th>Location</th>${RR.GOODS.map((g) => `<th class="n">${GN(g)}</th>`).join('')}</tr>`;
+  const cityRows = cities.map((c) => `<tr><td><button class="linkbtn" data-act="goto" data-t="${c.t}">${esc(c.name)}</button></td>${RR.GOODS.map((g) => { const v = c.stock[g] || 0, cap = Q.capacity(S, c, g); return `<td class="n ${v >= cap ? 'full' : v >= cap * 0.9 ? 'near' : ''}">${v}<span class="muted small">/${cap}</span></td>`; }).join('')}</tr>`).join('');
+  const units = Q.unitsOf(S, UI.me).filter((u) => UNI[u.type].cargo);
+  const unitRows = units.map((u) => `<tr><td><button class="linkbtn" data-act="goto-unit" data-id="${u.id}">${esc(Q.unitName(u))}</button> <span class="small muted">${tl(Q.posOf(S, u))}, ${Q.cargoUsed(u)}/${UNI[u.type].cargo}</span></td>${RR.GOODS.map((g) => `<td class="n">${u.cargo[g] || ''}</td>`).join('')}</tr>`).join('');
+  const tot = {}; for (const c of cities) for (const g of RR.GOODS) tot[g] = (tot[g] || 0) + (c.stock[g] || 0); for (const u of units) for (const g of RR.GOODS) tot[g] = (tot[g] || 0) + (u.cargo[g] || 0);
+  return `<div class="page"><h2>Stockpiles</h2><p class="muted">Credits, manpower and science belong to the whole nation. Every other good sits in a city or a logistics unit and only moves by transport. Amounts show stock/capacity.</p>
+    <div class="row" style="gap:24px;margin:10px 0 14px"><span>Credits <b class="num" style="font-size:1.3rem">${p.credits}</b></span><span>Manpower <b class="num" style="font-size:1.3rem">${p.manpower}</b></span><span>Science <b class="num" style="font-size:1.3rem">${p.science}</b></span></div>
+    <div class="ledger"><table><thead>${head}</thead><tbody>${cityRows ? `<tr class="sub"><td colspan="${RR.GOODS.length + 1}">Cities</td></tr>${cityRows}` : ''}${unitRows ? `<tr class="sub"><td colspan="${RR.GOODS.length + 1}">Logistics units</td></tr>${unitRows}` : ''}
+    <tr class="sub"><td>Total</td>${RR.GOODS.map((g) => `<td class="n">${tot[g] || 0}</td>`).join('')}</tr></tbody></table></div></div>`;
+};
+
+/* ---------- Buildings ---------- */
+TAB_RENDER.buildings = function () {
+  const S = st();
+  const blocks = Q.citiesOf(S, UI.me).map((c) => {
+    const blds = Q.cityBuildings(S, c.id).sort((a, b) => a.key.localeCompare(b.key));
+    const rails = S.map.tiles.filter((t) => t.owner === c.id && t.rail != null).length;
+    const bridges = S.map.tiles.filter((t) => t.owner === c.id && t.bridge).length;
+    const trap = S.map.tiles.findIndex((t) => t.trap === c.id);
+    const effect = (b) => {
+      const d = BLD[b.key];
+      if (d.recipes) { const rc = Q.recipeOf(b), out = Q.buildingOutput(S, b); return `${fmtGoods(rc.in) || 'no inputs'} → ${fmtGoods(out) || [rc.mpOut ? `${rc.mpOut} manpower` : '', rc.sciOut ? `${rc.sciOut} science` : '', rc.creditsOut ? `${rc.creditsOut} credits` : ''].filter(Boolean).join(', ')}`; }
+      if (d.storage) return `Stores ${fmtGoods(d.storage)}`;
+      if (d.storageAll) return `Stores +${d.storageAll} of every good except food and fuel${d.supplyBonus ? '; +1 supply range' : ''}`;
+      if (d.builds) return `Builds ${d.builds.map((k) => UNI[k].name.toLowerCase()).join(', ')}`;
+      if (d.dock) return d.dock === 'sail' ? 'Docks sailing ships' : 'Docks all ships';
+      if (d.hp) return `+${d.hp} city HP${d.weapon ? ', fires at range 2' : ''}`;
+      if (d.territoryBonus) return 'Territory 3 tiles';
+      return '';
+    };
+    return `<div class="ledger"><table><thead><tr><th colspan="4">${esc(c.name)} <span class="muted small">HP ${c.hp}/${Q.maxHp(S, c)}, territory ${Q.territoryRadius(S, c)}, supply range ${Q.supplyRadius(S, c)}</span></th></tr>
+      <tr><th>Building</th><th>Where</th><th>Does</th><th>Last turn</th></tr></thead><tbody>
+      ${blds.map((b) => `<tr><td>${esc(BLD[b.key].name)}</td><td>${BLD[b.key].place === 'tile' ? `<button class="linkbtn" data-act="goto" data-t="${b.t}">${esc(RR.TILES[S.map.tiles[b.t].type].name)} ${tl(b.t)}</button>` : 'City'}</td><td class="small">${esc(effect(b))}</td><td class="small ${b.status && b.status.startsWith('Idle') ? 'warn' : 'muted'}">${esc(b.status || '')}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">No buildings yet.</td></tr>'}
+      ${rails || bridges || trap >= 0 ? `<tr class="sub"><td colspan="4">Infrastructure in territory: ${rails} railroad tile${rails === 1 ? '' : 's'}, ${bridges} bridge${bridges === 1 ? '' : 's'}${trap >= 0 ? `, tank trap at ${tl(trap)}` : ''}</td></tr>` : ''}
+      </tbody></table></div>`;
+  }).join('');
+  return `<div class="page"><h2>Buildings</h2>${blocks || '<p class="muted">You have no cities.</p>'}</div>`;
+};
+
+/* ---------- Production ---------- */
+TAB_RENDER.production = function () {
+  const S = st(), p = meP(), st0 = settings();
+  const prio = st0.priority || p.priority;
+  const products = st0.products || {};
+  const halts = st0.halt || {};
+  const isHalted = (b) => (halts[b.id] != null ? !!halts[b.id] : !!b.halted);
+  const usedKeys = new Set(S.buildings.filter((b) => Q.buildingOwner(S, b) === UI.me && BLD[b.key].recipes).map((b) => b.key));
+  const prioList = prio.filter((k) => usedKeys.has(k)).map((k, i, arr) => `<li class="row" style="margin:0;justify-content:space-between"><span><span class="num muted">${i + 1}.</span> ${esc(BLD[k].short || BLD[k].name)}</span><span><button class="btn small" data-act="prio" data-key="${k}" data-dir="-1" ${i === 0 ? 'disabled' : ''} aria-label="Move up">↑</button> <button class="btn small" data-act="prio" data-key="${k}" data-dir="1" ${i === arr.length - 1 ? 'disabled' : ''} aria-label="Move down">↓</button></span></li>`).join('');
+  const blocks = Q.citiesOf(S, UI.me).map((c) => {
+    const lines = Q.cityBuildings(S, c.id).filter((b) => BLD[b.key].recipes).sort((a, b) => prio.indexOf(a.key) - prio.indexOf(b.key));
+    const totIn = {}, totOut = {}; let mp = 0, mpOut = 0, cr = 0, crOut = 0, sci = 0;
+    const rows = lines.map((b) => {
+      const d = BLD[b.key], keys = Object.keys(d.recipes);
+      const cur = products[b.id] || Q.recipeKey(b);
+      const rc = d.recipes[cur], out = Q.buildingOutput(S, Object.assign({}, b, { product: cur }));
+      const off = isHalted(b);
+      if (!off) {
+        for (const [g, v] of Object.entries(rc.in || {})) totIn[g] = (totIn[g] || 0) + v;
+        for (const [g, v] of Object.entries(out)) totOut[g] = (totOut[g] || 0) + v;
+        mp += rc.mp || 0; mpOut += rc.mpOut || 0; cr += rc.credits || 0; crOut += rc.creditsOut || 0; sci += rc.sciOut || 0;
+      }
+      const sel = keys.length > 1 ? `<select data-chg="product" data-id="${b.id}" aria-label="Product">${keys.map((k) => `<option value="${k}" ${k === cur ? 'selected' : ''}>${GN(k) || k}</option>`).join('')}</select>` : '';
+      const outs = [fmtGoods(out), rc.mpOut ? `${rc.mpOut} manpower` : '', rc.sciOut ? `${rc.sciOut} science` : '', rc.creditsOut ? `${rc.creditsOut} credits` : ''].filter(Boolean).join(', ');
+      const toggle = `<label class="ck small"><input type="checkbox" data-chg="halt" data-id="${b.id}" ${off ? '' : 'checked'}> On</label>`;
+      return `<tr class="${off ? 'muted' : ''}"><td>${toggle}</td><td>${esc(d.short || d.name)}${d.place === 'tile' ? ` <span class="small muted">${tl(b.t)}</span>` : ''}</td><td>${sel}</td><td class="small">${esc(fmtGoods(rc.in) || '—')}${rc.credits ? `${rc.in ? ', ' : ''}${rc.credits} credits` : ''}</td><td class="small">${esc(outs)}</td><td class="n">${rc.mp || 0}</td><td class="small ${b.status && b.status.startsWith('Idle') ? 'warn' : 'muted'}">${esc(off ? (b.halted ? 'Halted' : 'Halts this turn') : b.halted ? 'Restarts this turn' : (b.status || 'New'))}</td></tr>`;
+    }).join('');
+    return `<div class="ledger"><table><thead><tr><th colspan="7">${esc(c.name)}</th></tr><tr><th>Running</th><th>Production line</th><th>Making</th><th>Uses per turn</th><th>Makes per turn</th><th class="n">Manpower</th><th>Last turn</th></tr></thead><tbody>
+      ${rows || '<tr><td colspan="7" class="muted">No production buildings yet.</td></tr>'}
+      ${rows ? `<tr class="sub"><td colspan="3">If every line that is on runs</td><td class="small">${esc(fmtGoods(totIn) || '—')}${cr ? `, ${cr} credits` : ''}</td><td class="small">${esc([fmtGoods(totOut), mpOut ? `${mpOut} manpower` : '', sci ? `${sci} science` : '', crOut ? `${crOut} credits` : ''].filter(Boolean).join(', '))}</td><td class="n">${mp}</td><td></td></tr>` : ''}</tbody></table></div>`;
+  }).join('');
+  return `<div class="page"><h2>Production</h2><p class="muted">Untick a line to halt it: it uses no manpower or inputs and makes nothing until you switch it back on.</p><div class="cols" style="grid-template-columns: 1fr 300px">
+    <div>${blocks}</div>
+    <div class="panel"><h3 style="margin-top:0">Priority</h3><p class="small muted">When manpower or inputs run short, buildings lower on this list stop first. Changes apply when the turn resolves.</p><ol class="list prio">${prioList || '<li class="muted">Build something first.</li>'}</ol></div></div></div>`;
+};
+
+/* ---------- Research ---------- */
+TAB_RENDER.research = function () {
+  const S = st(), p = meP(), d = draft();
+  const queuedCost = d.research.reduce((a, k) => a + (BLD[k] ? BLD[k].sci : 0), 0);
+  const eras = [1, 2, 3].map((era) => {
+    const rows = Object.entries(BLD).filter(([, b]) => b.era === era).sort((a, b) => a[1].sci - b[1].sci).map(([k, b]) => {
+      const free = b.sci === 0, res = p.researched.includes(k), bp = p.blueprints.includes(k), q = d.research.includes(k);
+      const units = Object.entries(UNI).filter(([, u]) => u.unlock === k).map(([, u]) => u.name).join(', ');
+      const status = free ? '<span class="tag">Start</span>' : res ? '<span class="tag ok">Researched</span>' : bp ? '<span class="tag ok">Blueprint</span>' : `<label class="ck"><input type="checkbox" data-chg="research" value="${k}" ${q ? 'checked' : ''}> Research</label>`;
+      return `<tr><td>${esc(b.name)}</td><td class="n">${b.sci}</td><td class="small">${esc(units)}</td><td>${status}</td></tr>`;
+    }).join('');
+    return `<div class="ledger"><table><thead><tr><th colspan="4">Era ${era}: ${RR.ERA_NAMES[era]}</th></tr><tr><th>Building</th><th class="n">Science</th><th>Unlocks units</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  }).join('');
+  const sellable = p.researched.filter((k) => BLD[k]);
+  const others = activePlayers().filter((x) => x.id !== UI.me);
+  const offers = d.diplo.filter((o) => o.type === 'propose' && o.kind === 'blueprint');
+  return `<div class="page"><h2>Research</h2><p class="muted">Universities turn 6 manpower and 50 credits into 1 science each turn. Research any building in any order; later eras cost more. Science is never lost.</p>
+    <div class="row" style="gap:24px"><span>Science available <b class="num" style="font-size:1.3rem">${p.science}</b></span><span>Queued this turn <b class="num ${queuedCost > p.science ? 'warn' : ''}" style="font-size:1.3rem">${queuedCost}</b></span></div>
+    <div class="cols" style="margin-top:12px"><div>${eras}</div>
+    <div class="panel"><h3 style="margin-top:0">Sell a blueprint</h3><p class="small muted">Only buildings you researched yourself can be sold. The buyer accepts next turn and pays on acceptance.</p>
+      ${sellable.length && others.length ? `<div class="row"><select id="bp-key" aria-label="Blueprint">${sellable.map((k) => `<option value="${k}">${esc(BLD[k].name)}</option>`).join('')}</select><select id="bp-to" aria-label="Buyer">${others.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select><input type="number" id="bp-price" min="0" value="200" aria-label="Price in credits"><button class="btn small" data-act="bp-offer">Offer</button></div>` : '<p class="small muted">Nothing to sell yet.</p>'}
+      ${offers.length ? `<ul class="list">${offers.map((o) => `<li>${esc(BLD[o.payload.key].name)} to ${esc(pname(o.to))} for ${o.payload.price}<button class="x" data-act="rm" data-list="diplo" data-idx="${d.diplo.indexOf(o)}">✕</button></li>`).join('')}</ul>` : ''}
+      <h4>Bought blueprints</h4><p class="small">${p.blueprints.map((k) => esc(BLD[k].name)).join(', ') || '<span class="muted">None</span>'}</p></div></div></div>`;
+};
+
+/* ---------- Market ---------- */
+TAB_RENDER.market = function () {
+  const S = st(), p = meP(), d = draft();
+  const cities = Q.citiesOf(S, UI.me);
+  if (!cities.find((c) => c.id === UI.marketCity)) UI.marketCity = cities[0] ? cities[0].id : null;
+  const c = Q.cityById(S, UI.marketCity);
+  const blocked = false;
+  const rows = RR.GOODS.map((g) => {
+    const pr = S.market.prices[g] || { sell: RR.BASE_PRICE[g], pays: Math.round(RR.BASE_PRICE[g] * 0.8), pool: 0, world: 0, r: 0 };
+    return `<tr><td><i class="swatch" style="background:${RR.GOOD_COLORS[g]}"></i>${GN(g)}</td><td class="n">${RR.BASE_PRICE[g]}</td><td class="n"><strong>${pr.sell}</strong></td><td class="n">${pr.pays}</td><td class="n">${pr.pool}</td><td class="n">${pr.world}</td><td class="n">${Math.round(pr.r * 100)}%</td>
+      <td>${c ? `<span class="small muted">${c.stock[g] || 0}</span>` : ''}</td>
+      <td><div class="row" style="margin:0;flex-wrap:nowrap"><input type="number" min="1" class="w-sm" id="mk-${g}" value="10" aria-label="${GN(g)} amount"><button class="btn small" data-act="buy" data-good="${g}" ${!c || blocked || !pr.pool ? 'disabled' : ''}>Buy</button><button class="btn small" data-act="sell" data-good="${g}" ${!c || blocked ? 'disabled' : ''}>Sell</button></div></td></tr>`;
+  }).join('');
+  const lines = [...d.buys.map((o, i) => ['buys', i, `Buy ${o.amount} ${gl(o.good)} for ${cityName(o.city)} (about ${o.amount * (S.market.prices[o.good] || {}).sell} credits)`]), ...d.sells.map((o, i) => ['sells', i, `Sell ${o.amount} ${gl(o.good)} from ${cityName(o.city)} (about ${o.amount * (S.market.prices[o.good] || {}).pays} credits)`])];
+  return `<div class="page"><h2>Global market</h2><p class="muted">The market only holds what players sell to it. Its price for a good falls as more of the world's supply sits in the market: price = base ÷ (1 + 4 × share). It pays sellers 80% of its selling price. No transport is needed; goods arrive in the city you choose. Buys fill before sells, and prices hold for the whole turn.</p>
+    <div class="row"><label>Deliver to and sell from <select data-chg="mk-city">${cities.map((x) => `<option value="${x.id}" ${x.id === UI.marketCity ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label><span class="small muted">Credits: <b class="num">${p.credits}</b></span></div>
+    <div class="ledger"><table><thead><tr><th>Good</th><th class="n">Base</th><th class="n">Market sells at</th><th class="n">Market pays</th><th class="n">In market</th><th class="n">World total</th><th class="n">Share</th><th>In city</th><th>Order</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <h3>This turn's market orders</h3><ul class="list">${lines.map(([l, i, t]) => `<li>${esc(t)}<button class="x" data-act="rm" data-list="${l}" data-idx="${i}">✕</button></li>`).join('') || '<li class="muted">None</li>'}</ul></div>`;
+};
+
+/* ---------- Diplomacy ---------- */
+function peaceDraft(to) {
+  if (!UI.peace || UI.peace.to !== to) UI.peace = { to, term: RR.PEACE.minTerm, give: { credits: 0, science: 0, cities: [], tiles: [] }, get: { credits: 0, science: 0, cities: [], tiles: [] } };
+  return UI.peace;
+}
+function peaceBuilder() {
+  const S = st(), pd = UI.peace;
+  if (!pd || !S.players[pd.to] || S.players[pd.to].eliminated) return '';
+  const them = S.players[pd.to], pl = Q.normPeace(pd), err = Q.checkPeace(S, UI.me, pd.to, pl);
+  const side = (key, pid) => {
+    const part = pd[key], P = S.players[pid], cities = Q.citiesOf(S, pid);
+    return `<div><h4>${pid === UI.me ? 'You give' : `${esc(P.name)} gives`}</h4>
+      <div class="row"><label>Credits <input type="number" min="0" data-chg="pc-num" data-side="${key}" data-f="credits" value="${part.credits || ''}" placeholder="0"></label><span class="small muted">has ${P.credits}</span></div>
+      <div class="row"><label>Science <input type="number" min="0" data-chg="pc-num" data-side="${key}" data-f="science" value="${part.science || ''}" placeholder="0"></label><span class="small muted">has ${P.science}</span></div>
+      <div class="small">${cities.map((c) => `<label class="ck"><input type="checkbox" data-chg="pc-city" data-side="${key}" value="${c.id}" ${part.cities.includes(c.id) ? 'checked' : ''}> ${esc(c.name)}</label>`).join('<br>') || '<span class="muted">No cities</span>'}</div>
+      <p class="small">${part.tiles.length} tile${part.tiles.length === 1 ? '' : 's'} chosen${part.tiles.length ? ` (${part.tiles.map(tl).join(', ')})` : ''}</p></div>`;
+  };
+  return `<div class="panel" id="peace-builder"><h3 style="margin-top:0">Peace treaty with ${playerLabel(pd.to)}</h3>
+    <p class="small muted">${Q.atWar(S, UI.me, pd.to) ? 'Signing ends your war.' : 'You are at peace; this adds a guaranteed term.'} Neither side may declare war until the term ends. ${esc(them.name)} answers next turn, and the transfers happen only if both sides still have what they promised.</p>
+    <div class="row"><label>Term <select data-chg="pc-term">${Array.from({ length: RR.PEACE.maxTerm - RR.PEACE.minTerm + 1 }, (_, i) => i + RR.PEACE.minTerm).map((n) => `<option value="${n}" ${n === pl.term ? 'selected' : ''}>${n} turns</option>`).join('')}</select></label></div>
+    <div class="cols" style="grid-template-columns:1fr 1fr;gap:12px">${side('give', UI.me)}${side('get', pd.to)}</div>
+    <p class="small muted">Ceded cities keep their stockpiles and all their territory. Ceded tiles bring their buildings, joining the new owner's nearest city.</p>
+    <div class="row"><button class="btn" data-act="pc-pick">Pick tiles on the map</button><button class="btn primary" data-act="pc-send" ${err ? 'disabled' : ''}>Propose treaty</button><button class="btn" data-act="pc-close">Cancel</button></div>
+    ${err ? `<p class="small warn">${esc(err[0].toUpperCase() + err.slice(1))}.</p>` : ''}</div>`;
+}
+TAB_RENDER.diplomacy = function () {
+  const S = st(), p = meP(), d = draft();
+  const others = S.players.filter((x) => x.id !== UI.me);
+  const queued = (pred) => d.diplo.some(pred);
+  const pact = (x) => S.treaties.find((t) => t.type === 'peace' && ((t.a === UI.me && t.b === x.id) || (t.b === UI.me && t.a === x.id)));
+  const rel = (x) => {
+    if (x.eliminated) return '<span class="tag">Out of the game</span>';
+    if (Q.atWar(S, UI.me, x.id)) return '<span class="tag war">At war</span>';
+    const pc = pact(x);
+    if (pc) return `<span class="tag ok">Peace treaty</span><div class="small muted">no war before turn ${pc.endsTurn}</div>`;
+    return '<span class="tag ok">At peace</span>';
+  };
+  const rows = others.map((x) => {
+    if (x.eliminated) return `<tr><td>${playerLabel(x.id)}</td><td>${rel(x)}</td><td colspan="3"></td></tr>`;
+    const war = Q.atWar(S, UI.me, x.id);
+    const tr = S.treaties.filter((t) => t.type !== 'peace' && ((t.a === UI.me && t.b === x.id) || (t.b === UI.me && t.a === x.id)));
+    const acts = [];
+    acts.push(queued((o) => o.type === 'propose' && o.kind === 'peace' && o.to === x.id) ? '<span class="tag brass">Peace offered</span>' : `<button class="btn small" data-act="pc-open" data-to="${x.id}">${war ? 'Propose peace…' : 'Offer peace treaty…'}</button>`);
+    if (!war && !pact(x)) acts.push(queued((o) => o.type === 'declare' && o.to === x.id) ? '<span class="tag war">War declared this turn</span>' : `<button class="btn small danger" data-act="declare" data-to="${x.id}">Declare war</button>`);
+    if (!war) for (const type of ['transit', 'port', 'rail']) if (!tr.some((t) => t.type === type) && !queued((o) => o.type === 'propose' && o.kind === 'treaty' && o.to === x.id && o.payload.type === type)) acts.push(`<button class="btn small" data-act="treaty" data-to="${x.id}" data-type="${type}">Offer ${type} rights</button>`);
+    acts.push(`<span class="row" style="margin:0"><input type="number" min="1" class="w-sm" id="cr-${x.id}" placeholder="0" aria-label="Credits to send"><button class="btn small" data-act="credits" data-to="${x.id}">Send credits</button></span>`);
+    return `<tr><td>${playerLabel(x.id)}</td><td>${rel(x)}</td>
+      <td class="small">${tr.map((t) => `${t.type} rights${t.endsTurn ? ` (ends turn ${t.endsTurn})` : ` <button class="linkbtn" data-act="cancel-treaty" data-id="${t.id}">cancel</button>`}`).join('<br>') || '<span class="muted">None</span>'}</td>
+      <td class="small">${citiesOf(x.id).length} cit${citiesOf(x.id).length === 1 ? 'y' : 'ies'}, ${Q.unitsOf(S, x.id).length} units</td><td><div class="row" style="margin:0">${acts.join(' ')}</div></td></tr>`;
+  }).join('');
+  const incoming = S.proposals.filter((pr) => pr.to === UI.me && pr.turn === S.turn).map((pr) => {
+    const ans = d.diplo.find((o) => o.type === 'respond' && o.id === pr.id);
+    return `<li><span>${playerLabel(pr.from)} offers ${esc(Q.describeProposal(S, pr))}${pr.kind === 'route' ? `: ${esc(pr.payload.from)} → ${esc(pr.payload.to)} (${esc((() => { const r = S.routes.find((x) => x.id === pr.payload.route); return r ? `you get ${fmtGoods(r.goods)}, you send ${fmtGoods(r.back) || 'nothing'}` : ''; })())})` : ''}</span>
+      <span><label class="ck"><input type="radio" name="pr-${pr.id}" data-chg="respond" data-id="${pr.id}" value="1" ${ans && ans.accept ? 'checked' : ''}> Accept</label> <label class="ck"><input type="radio" name="pr-${pr.id}" data-chg="respond" data-id="${pr.id}" value="0" ${ans && !ans.accept ? 'checked' : ''}> Reject</label></span></li>`;
+  }).join('');
+  const outgoing = S.proposals.filter((pr) => pr.from === UI.me).map((pr) => `<li>${esc(Q.describeProposal(S, pr))} to ${esc(pname(pr.to))}<span class="small muted">answer due turn ${pr.turn}</span></li>`).join('');
+  const alive = S.players.filter((x) => !x.eliminated);
+  return `<div class="page"><h2>Diplomacy</h2><p class="muted">Peace treaties, rights treaties and trade routes are enforced by the game. Alliances, promises and informal arrangements are just words. Proposals reach the other nation next turn.</p>
+    ${peaceBuilder()}
+    <div class="ledger" style="margin-top:14px"><table><thead><tr><th>Nation</th><th>Status</th><th>Rights treaties</th><th>Size</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="cols" style="margin-top:16px">
+      <div class="panel"><h3 style="margin-top:0">Answer this turn</h3><ul class="list">${incoming || '<li class="muted">Nothing to answer.</li>'}</ul><h4>Waiting on others</h4><ul class="list">${outgoing || '<li class="muted">None</li>'}</ul></div>
+      <div class="panel"><h3 style="margin-top:0">Wars and treaties</h3><ul class="list">${S.wars.map((w) => `<li>${playerLabel(w.a)} vs ${playerLabel(w.b)}<span class="small muted">since turn ${w.since}</span></li>`).join('') || '<li class="muted">No wars.</li>'}
+        ${S.treaties.filter((t) => t.type === 'peace').map((t) => `<li>${playerLabel(t.a)} and ${playerLabel(t.b)}<span class="small muted">peace, no war before turn ${t.endsTurn}</span></li>`).join('')}</ul>
+        <h4>End the game</h4><p class="small">The game ends when one nation is left, or when every remaining nation (${alive.map((x) => esc(x.name)).join(', ')}) votes to end it in the same turn while none are at war.</p>
+        ${!p.eliminated ? `<label class="ck"><input type="checkbox" data-chg="endvote" ${queued((o) => o.type === 'endVote') ? 'checked' : ''}> Vote to end the game this turn</label>` : ''}</div>
+    </div></div>`;
+};
+const citiesOf = (pid) => Q.citiesOf(st(), pid);
+
+/* ---------- Reports ---------- */
+const REPORT_CATS = { all: 'Everything', conflict: 'Order conflicts', supply: 'Supply', shortfall: 'Production shortfalls', combat: 'Combat', movement: 'Movement', logistics: 'Logistics', market: 'Market', construction: 'Construction', recruitment: 'Recruitment', research: 'Research', diplomacy: 'Diplomacy', game: 'Game' };
+TAB_RENDER.reports = function () {
+  const S = st();
+  const list = (S.reports[UI.me] || []).filter((r) => UI.reportCat === 'all' || r.cat === UI.reportCat);
+  const turns = [...new Set(list.map((r) => r.turn))].sort((a, b) => b - a);
+  return `<div class="page reports"><h2>Reports</h2><p class="muted">What happened when each turn resolved: order conflicts, units out of supply, idle buildings and everything else. The last 40 turns are kept.</p>
+    <div class="row"><label>Show <select data-chg="repcat">${Object.entries(REPORT_CATS).map(([k, v]) => `<option value="${k}" ${UI.reportCat === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label></div>
+    ${turns.map((t) => `<div class="turnhead">${t === 0 ? 'Game start' : `Turn ${t}`}</div><ul class="list">${list.filter((r) => r.turn === t).map((r) => `<li><span class="cat ${r.cat}">${esc(REPORT_CATS[r.cat] || r.cat)}</span><span>${esc(r.msg)}</span></li>`).join('')}</ul>`).join('') || '<p class="muted">No reports yet. They appear after the first turn resolves.</p>'}</div>`;
+};
+
+/* ---------- Orders ---------- */
+function orderGroups() {
+  const S = st(), d = draft();
+  const G = [];
+  const add = (phase, list, i, text) => { let g = G.find((x) => x.phase === phase); if (!g) { g = { phase, items: [] }; G.push(g); } g.items.push({ list, i, text }); };
+  d.diplo.forEach((o, i) => {
+    const t = o.type === 'declare' ? `Declare war on ${pname(o.to)}`
+      : o.type === 'propose' ? `Propose ${o.kind === 'treaty' ? `${o.payload.type} rights` : o.kind === 'blueprint' ? `selling ${BLD[o.payload.key].name} for ${o.payload.price}` : Q.describeProposal(S, { kind: 'peace', from: UI.me, to: o.to, payload: o.payload })} to ${pname(o.to)}`
+        : o.type === 'respond' ? `${o.accept ? 'Accept' : 'Reject'} ${Q.describeProposal(S, S.proposals.find((p) => p.id === o.id) || { kind: '?' })}`
+          : o.type === 'credits' ? `Send ${o.amount} credits to ${pname(o.to)}`
+            : o.type === 'cancelTreaty' ? 'Cancel a treaty'
+              : o.type === 'endVote' ? 'Vote to end the game' : o.type;
+    add('Diplomacy', 'diplo', i, t);
+  });
+  d.attacks.forEach((o, i) => add('Combat', 'attacks', i, o.unit != null ? `${uname(o.unit)} attacks ${tl(o.t)}` : `${cityName(o.city)} ${BLD[o.w].name.toLowerCase()} fires at ${tl(o.t)}`));
+  d.board.forEach((o, i) => add('Movement', 'board', i, `${uname(o.unit)} boards ${uname(o.transport)}`));
+  d.moves.forEach((o, i) => add('Movement', 'moves', i, `${uname(o.unit)} moves to ${tl(o.path[o.path.length - 1])} (${o.path.length - 1} tiles)`));
+  d.unload.forEach((o, i) => add('Movement', 'unload', i, `${uname(o.unit)} unloads at ${tl(o.t)}`));
+  d.buys.forEach((o, i) => add('Market buys', 'buys', i, `Buy ${o.amount} ${gl(o.good)} for ${cityName(o.city)}`));
+  d.sells.forEach((o, i) => add('Market sells', 'sells', i, `Sell ${o.amount} ${gl(o.good)} from ${cityName(o.city)}`));
+  d.research.forEach((k, i) => add('Research', 'research', i, `Research ${BLD[k].name} (${BLD[k].sci} science)`));
+  d.clear.forEach((o, i) => add('Buildings', 'clear', i, `Clear the forest at ${tl(o.t)} (+${RR.CLEAR_FOREST.lumber} lumber)`));
+  d.demolish.forEach((o, i) => add('Buildings', 'demolish', i, `Demolish ${o.what === 'building' ? (Q.tileBuilding(S, o.t) ? BLD[Q.tileBuilding(S, o.t).key].name.toLowerCase() : 'building') : o.what === 'trap' ? 'tank trap' : o.what === 'rail' ? 'railroad' : 'bridge'} at ${tl(o.t)}`));
+  d.found.forEach((o, i) => add('Buildings', 'found', i, `Found ${o.name} with ${uname(o.unit)}`));
+  d.builds.forEach((o, i) => add('Buildings', 'builds', i, `Build ${BLD[o.key].name} for ${cityName(o.city)}${o.t != null ? ` at ${tl(o.t)}` : ''}`));
+  d.trains.forEach((o, i) => add('Units', 'trains', i, `Build ${UNI[o.type].name} in ${cityName(o.city)}`));
+  if (d.settings && (d.settings.priority || (d.settings.products && Object.keys(d.settings.products).length) || (d.settings.halt && Object.keys(d.settings.halt).length))) add('Production', 'settings', 0, 'Production priority, products or on/off switches changed');
+  d.cargo.forEach((o, i) => add('Logistics', 'cargo', i, `${uname(o.unit)} ${o.amount > 0 ? 'loads' : 'unloads'} ${Math.abs(o.amount)} ${gl(o.good)}`));
+  d.routeOps.forEach((o, i) => add('Logistics', 'routeOps', i, o.op === 'remove' ? `Close route #${o.id}` : o.op === 'update' ? `Change route #${o.id}` : `New route ${cityName(o.from)} → ${o.to.type === 'city' ? cityName(o.to.id) : uname(o.to.id)}`));
+  const order = ['Diplomacy', 'Combat', 'Movement', 'Market buys', 'Market sells', 'Research', 'Production', 'Buildings', 'Units', 'Logistics'];
+  return G.sort((a, b) => order.indexOf(a.phase) - order.indexOf(b.phase));
+}
+TAB_RENDER.orders = function () {
+  const S = st(), groups = orderGroups();
+  const status = activePlayers().map((x) => `<li><span>${playerLabel(x.id)}</span><span class="${submitted(x.id) ? 'good' : 'muted'}">${submitted(x.id) ? `Submitted ${new Date(UI.bundle.pending[x.id].at).toLocaleString()}` : 'Not yet'}</span></li>`).join('');
+  return `<div class="page"><h2>Orders for turn ${S.turn}</h2><p class="muted">Orders resolve in this order: diplomacy, combat, movement, market buys, market sells, research, production, buildings, units, then logistics (routes, supply and repairs). Attacks use positions from the start of the turn.</p>
+    <div class="cols"><div class="panel">${groups.map((g) => `<h4>${g.phase}</h4><ul class="list">${g.items.map((it) => `<li>${esc(it.text)}<button class="x" data-act="rm" data-list="${it.list}" data-idx="${it.i}" aria-label="Remove order">✕</button></li>`).join('')}</ul>`).join('') || '<p class="muted">No orders yet. Standing routes and production keep running anyway.</p>'}
+      <div class="row" style="margin-top:12px"><button class="btn primary" data-act="submit">${submitted(UI.me) ? 'Resubmit orders' : 'Submit orders'}</button><button class="btn danger" data-act="clear-all">Clear all orders</button></div></div>
+    <div class="panel"><h3 style="margin-top:0">Who has submitted</h3><ul class="list">${status}</ul>
+      <p class="small muted" style="margin-top:8px">${isCampaign() ? `Orders go to the server and you can resubmit until the turn resolves. ${esc(scheduleText())}, or earlier if the admin resolves it.` : Sync.mode === 'file' ? 'Submitting downloads your orders file. Send it to the host, who imports everyone\'s files from the Game menu and resolves the turn.' : Sync.mode === 'server' ? 'Orders go to the server. Anyone can resolve once everyone has submitted.' : 'Pass-and-play: everyone uses this browser. Switch "Playing as", submit, then resolve when all are in.'}</p></div></div></div>`;
+};
+
+/* =====================================================================
+   ACTIONS
+   ===================================================================== */
+function routeFormFrom(r) { return { id: r.id, from: r.from, to: `${r.to.type}:${r.to.id}`, transports: r.transports.slice(), rule: r.rule, goods: clone(r.goods), back: clone(r.back || {}), priority: r.priority }; }
+const ACT = {
+  tab(el) { UI.tab = el.dataset.tab; UI.mode = null; UI.menu = false; render(); },
+  menu() { UI.menu = !UI.menu; render(); },
+  zoom(el) { zoomBy('main', Number(el.dataset.k)); },
+  'zoom-flow'(el) { zoomBy('flow', Number(el.dataset.k)); },
+  fit(el) { fitView(el.dataset.kind); render(); },
+  legend() { UI.legend = !UI.legend; render(); },
+  goto(el) { const t = Number(el.dataset.t); UI.tab = 'map'; UI.sel = { t, unit: null }; centerOn('main', t); render(); },
+  'goto-unit'(el) { const u = Q.unitById(st(), Number(el.dataset.id)); if (!u) return; const t = Q.posOf(st(), u); UI.tab = 'map'; UI.sel = { t, unit: u.id }; centerOn('main', t); render(); },
+  'sel-unit'(el) { UI.sel.unit = Number(el.dataset.id); render(); },
+  clear(el) { const id = Number(el.dataset.unit), list = el.dataset.list; mutate((d) => { d[list] = d[list].filter((o) => o.unit !== id); }); },
+  rm(el) {
+    const list = el.dataset.list, i = Number(el.dataset.idx);
+    mutate((d) => { if (list === 'settings') d.settings = null; else d[list].splice(i, 1); });
+  },
+  'rm-op'(el) { mutate((d) => d.routeOps.splice(Number(el.dataset.idx), 1)); },
+  'clear-all'() { if (confirm('Clear every order for this turn?')) { UI._d = Engine.normalizeOrders({}); saveDraft(); render(); } },
+  'build-city'(el) { mutate((d) => d.builds.push({ city: Number(el.dataset.city), key: el.dataset.key })); toast(`${BLD[el.dataset.key].name} queued`); },
+  'mode-build'(el) { UI.mode = { kind: 'build', city: Number(el.dataset.city), key: el.dataset.key }; computeHL(); if (!UI.hl.build.size) { UI.mode = null; toast(`No valid tile for ${BLD[el.dataset.key].name.toLowerCase()} right now.`); } render(); },
+  'mode-weapon'(el) { UI.mode = { kind: 'weapon', city: Number(el.dataset.city), w: el.dataset.w }; computeHL(); if (!UI.hl.attack.size) { UI.mode = null; toast('No enemy in range.'); } render(); },
+  'mode-unload'(el) { UI.mode = { kind: 'unload', unit: Number(el.dataset.unit) }; render(); },
+  'cancel-mode'() { const back = UI.mode && UI.mode.kind === 'cede'; UI.mode = null; if (back) UI.tab = 'diplomacy'; render(); },
+  train(el) { mutate((d) => d.trains.push({ city: Number(el.dataset.city), type: el.dataset.type })); toast(`${UNI[el.dataset.type].name} queued`); },
+  board(el) { const unit = Number(el.dataset.unit), transport = Number(el.dataset.tr); mutate((d) => { d.board = d.board.filter((b) => b.unit !== unit); d.moves = d.moves.filter((m) => m.unit !== unit); d.board.push({ unit, transport }); }); },
+  found(el) { const name = ($('#found-name') || {}).value || ''; const unit = Number(el.dataset.unit); mutate((d) => { d.found = d.found.filter((f) => f.unit !== unit); d.found.push({ unit, name: name.trim() || 'New city' }); }); },
+  cargo(el) { const good = $('#cg-good').value, amt = Math.abs(Math.floor(Number($('#cg-amt').value) || 0)) * Number(el.dataset.dir); if (!amt) return; mutate((d) => d.cargo.push({ unit: Number(el.dataset.unit), city: Number(el.dataset.city), good, amount: amt })); },
+  // supply
+  'route-edit'(el) { const r = st().routes.find((x) => x.id === Number(el.dataset.id)); if (r) UI.routeEdit = routeFormFrom(r); render(); },
+  'route-new'() { UI.routeEdit = newRouteForm(); render(); },
+  'route-remove'(el) { const id = Number(el.dataset.id); mutate((d) => { d.routeOps = d.routeOps.filter((o) => o.id !== id); d.routeOps.push({ op: 'remove', id }); }); },
+  'route-save'() {
+    const f = UI.routeEdit; const [type, id] = f.to.split(':');
+    const op = { op: f.id ? 'update' : 'create', id: f.id || undefined, from: f.from, to: { type, id: Number(id) }, transports: f.transports, rule: f.rule, goods: f.goods, back: f.back, priority: f.priority };
+    mutate((d) => { if (f.id) d.routeOps = d.routeOps.filter((o) => o.id !== f.id); d.routeOps.push(op); });
+    toast(f.id ? `Route #${f.id} changes queued` : 'New route queued');
+    UI.routeEdit = newRouteForm(); render();
+  },
+  // production
+  prio(el) {
+    const p = meP(), s = settings(); const list = (s.priority || p.priority).slice(); const k = el.dataset.key, dir = Number(el.dataset.dir);
+    const used = new Set(st().buildings.filter((b) => Q.buildingOwner(st(), b) === UI.me && BLD[b.key].recipes).map((b) => b.key));
+    const vis = list.filter((x) => used.has(x)); const i = vis.indexOf(k), j = i + dir; if (j < 0 || j >= vis.length) return;
+    const a = list.indexOf(vis[i]), b = list.indexOf(vis[j]); [list[a], list[b]] = [list[b], list[a]];
+    s.priority = list; saveDraft(); render();
+  },
+  // research & diplomacy
+  'bp-offer'() { const key = $('#bp-key').value, to = Number($('#bp-to').value), price = Math.max(0, Math.floor(Number($('#bp-price').value) || 0)); mutate((d) => d.diplo.push({ type: 'propose', kind: 'blueprint', to, payload: { key, price } })); },
+  buy(el) { const g = el.dataset.good, amount = Math.floor(Number($(`#mk-${g}`).value) || 0); if (amount > 0) mutate((d) => d.buys.push({ good: g, amount, city: UI.marketCity })); },
+  sell(el) { const g = el.dataset.good, amount = Math.floor(Number($(`#mk-${g}`).value) || 0); if (amount > 0) mutate((d) => d.sells.push({ good: g, amount, city: UI.marketCity })); },
+  declare(el) { const to = Number(el.dataset.to); if (confirm(`Declare war on ${pname(to)}? It takes effect at the start of this turn's resolution.`)) mutate((d) => d.diplo.push({ type: 'declare', to })); },
+  'pc-open'(el) { peaceDraft(Number(el.dataset.to)); render(); const pb = $('#peace-builder'); if (pb) pb.scrollIntoView({ block: 'nearest' }); },
+  'pc-close'() { UI.peace = null; render(); },
+  'pc-pick'() { UI.mode = { kind: 'cede' }; UI.tab = 'map'; UI.sel = null; render(); },
+  'pc-send'() {
+    const pd = UI.peace; const payload = Q.normPeace(pd);
+    mutate((d) => { d.diplo = d.diplo.filter((o) => !(o.type === 'propose' && o.kind === 'peace' && o.to === pd.to)); d.diplo.push({ type: 'propose', kind: 'peace', to: pd.to, payload }); });
+    UI.peace = null; toast('Peace treaty queued'); render();
+  },
+  'clear-forest'(el) { const t = Number(el.dataset.t); mutate((d) => { if (!d.clear.some((x) => x.t === t)) d.clear.push({ t }); }); },
+  demolish(el) { const t = Number(el.dataset.t), what = el.dataset.what; mutate((d) => { d.demolish = d.demolish.filter((x) => !(x.t === t && x.what === what)); d.demolish.push({ t, what }); }); },
+  treaty(el) { mutate((d) => d.diplo.push({ type: 'propose', kind: 'treaty', to: Number(el.dataset.to), payload: { type: el.dataset.type } })); },
+  credits(el) { const to = Number(el.dataset.to), amount = Math.floor(Number($(`#cr-${to}`).value) || 0); if (amount > 0) mutate((d) => d.diplo.push({ type: 'credits', to, amount })); },
+  'cancel-treaty'(el) { mutate((d) => d.diplo.push({ type: 'cancelTreaty', id: Number(el.dataset.id) })); },
+  // turn flow
+  async submit() {
+    try {
+      const orders = clone(draft());
+      UI.bundle = await Sync.submit(UI.bundle, UI.me, orders);
+      if (!UI.bundle.pending) UI.bundle.pending = {};
+      toast(Sync.mode === 'file' ? 'Orders file downloaded. Send it to the host.' : 'Orders submitted');
+      if (Sync.mode === 'local' && allSubmitted()) toast('Everyone has submitted. Resolve the turn when ready.');
+      render();
+    } catch (e) { toast(`Could not submit: ${e.message}`); }
+  },
+  async resolve() {
+    if (isCampaign()) {
+      if (!allSubmitted()) {
+        const missing = activePlayers().filter((x) => !submitted(x.id)).map((x) => x.name).join(', ');
+        if (!confirm(`Still waiting on ${missing}. Resolve now anyway? Their standing routes and production still run, but they give no new orders.`)) return;
+      }
+      try {
+        const turn = st().turn;
+        UI.bundle = (await Sync.resolve(turn)) || UI.bundle;
+        UI._d = null; UI.sel = null; UI.mode = null; UI.tab = 'reports'; UI.routeEdit = null;
+        toast(`Turn ${turn} resolved`); render();
+      } catch (e) { toast(`Could not resolve: ${e.message}`); }
+      return;
+    }
+    if (!allSubmitted()) {
+      const missing = activePlayers().filter((x) => !submitted(x.id)).map((x) => x.name).join(', ');
+      if (!confirm(`Still waiting on ${missing}. Resolve anyway? Their standing routes and production still run, but they give no new orders.`)) return;
+    }
+    try {
+      if (Sync.mode === 'server') UI.bundle = (await Sync.load()) || UI.bundle;
+      const S = st(), orders = {};
+      for (const p of S.players) { const pe = UI.bundle.pending[p.id]; if (pe && pe.turn === S.turn) orders[p.id] = pe.orders; }
+      const NS = Engine.resolveTurn(S, orders);
+      UI.bundle = { state: NS, pending: {} };
+      await Sync.publish(UI.bundle);
+      for (const p of S.players) try { localStorage.removeItem(`supplylines.draft.${S.id}.${S.turn}.${p.id}`); } catch (e) { /* ignore */ }
+      UI._d = null; UI.sel = null; UI.mode = null; UI.tab = 'reports'; UI.routeEdit = null;
+      toast(`Turn ${S.turn} resolved${Sync.mode === 'file' ? '. state.json downloaded; commit it to the repo.' : ''}`);
+      render();
+    } catch (e) { console.error(e); toast(`Could not resolve: ${e.message}`); }
+  },
+  'save-file'() { UI.menu = false; download(`${st().name.replace(/\W+/g, '-')}-turn${st().turn}.json`, UI.bundle); render(); },
+  async 'load-file'() {
+    UI.menu = false;
+    const [b] = await pickFiles(false); if (!b) return render();
+    const bundle = b.state ? b : { state: b, pending: {} };
+    if (bundle.state) Engine.migrate(bundle.state);
+    if (!bundle.state.map || !bundle.state.players) { toast('That file is not a Guns, Pacts, and Commerce game.'); return render(); }
+    if (isCampaign()) {
+      if (!confirm(`Replace the running campaign with "${bundle.state.name}" (turn ${bundle.state.turn})? Everyone keeps their PIN, and orders submitted this turn are cleared.`)) return render();
+      try { UI.bundle = (await Sync.publish(bundle)) || UI.bundle; UI._d = null; UI.views = {}; UI.sel = null; toast('Campaign restored from the file'); } catch (e) { toast(`Could not restore: ${e.message}`); }
+      return render();
+    }
+    UI.bundle = Object.assign({ pending: {} }, bundle); UI._d = null; UI.views = {}; UI.sel = null;
+    await Sync.publish(UI.bundle).catch(() => {});
+    toast('Game loaded'); render();
+  },
+  'export-orders'() { UI.menu = false; download(`orders-p${UI.me + 1}-turn${st().turn}.json`, { player: UI.me, turn: st().turn, orders: draft() }); render(); },
+  async 'import-orders'() {
+    UI.menu = false;
+    const files = await pickFiles(true); let n = 0;
+    for (const f of files) {
+      if (f.player == null || !f.orders) continue;
+      if (f.turn !== st().turn) { toast(`Skipped orders for turn ${f.turn}; this is turn ${st().turn}.`); continue; }
+      UI.bundle.pending[f.player] = { orders: f.orders, turn: f.turn, at: Date.now() }; n++;
+    }
+    if (Sync.mode === 'local') await Sync.publish(UI.bundle);
+    toast(`Imported ${n} orders file${n === 1 ? '' : 's'}`); render();
+  },
+  async reload() { UI.menu = false; try { const b = await Sync.load(); if (b) { UI.bundle = b; Engine.migrate(b.state); UI.bundle.pending = UI.bundle.pending || {}; UI._d = null; } toast('Reloaded'); } catch (e) { toast(e.message); } render(); },
+  'new-game'() {
+    UI.menu = false;
+    if (confirm(isCampaign() ? 'Start a new campaign? The current one is replaced when you click "Start campaign" on the next screen. Download a backup first if you want to keep it.' : 'Start a new game? Download the current game first if you want to keep it.')) { UI.keep = UI.bundle; UI.bundle = null; SETUP.replacing = isCampaign(); renderSetup(); } else render();
+  },
+  async 'pins-show'() { if (UI.pins) { UI.pins = null; return render(); } try { UI.pins = await Sync.pins(); } catch (e) { toast(e.message); } render(); },
+  async 'pin-save'(el) { const pid = Number(el.dataset.pid), v = ($(`#pin-${pid}`) || {}).value || ''; try { await Sync.setPin(pid, v.trim()); UI.pins = await Sync.pins(); toast('PIN saved'); } catch (e) { toast(e.message); } render(); },
+  async 'admin-unlock'() {
+    const v = (($('#admin-pin') || {}).value || '').trim(); if (!v) return;
+    try { const r = await Sync.login(v); if (!r.admin) { toast('That is not the admin PIN'); return; } Sync.setPins(undefined, v); UI.bundle = (await Sync.load()) || UI.bundle; toast('Admin unlocked'); } catch (e) { toast(e.message); }
+    render();
+  },
+  logout() { Sync.logout(); UI.waiting = false; UI.bundle = null; UI.menu = false; UI.pins = null; UI._d = null; renderLogin(); },
+};
+const CHG = {
+  me(el) { UI.me = Number(el.value); UI._d = null; UI.sel = null; UI.mode = null; UI.routeEdit = null; UI.views = {}; render(); },
+  'rf-from'(el) { UI.routeEdit.from = Number(el.value); render(); },
+  'rf-to'(el) { UI.routeEdit.to = el.value; UI.routeEdit.transports = UI.routeEdit.transports.filter((id) => `unit:${id}` !== el.value); render(); },
+  'rf-tr'(el) { const id = Number(el.value), f = UI.routeEdit; f.transports = el.checked ? [...new Set([...f.transports, id])] : f.transports.filter((x) => x !== id); render(); },
+  'rf-rule'(el) { UI.routeEdit.rule = el.value; render(); },
+  'rf-goods'(el) { const v = Math.floor(Number(el.value) || 0); if (v > 0) UI.routeEdit.goods[el.dataset.good] = v; else delete UI.routeEdit.goods[el.dataset.good]; render(); },
+  'rf-back'(el) { const v = Math.floor(Number(el.value) || 0); if (v > 0) UI.routeEdit.back[el.dataset.good] = v; else delete UI.routeEdit.back[el.dataset.good]; render(); },
+  'rf-prio'(el) { UI.routeEdit.priority = el.value; render(); },
+  halt(el) { const s = settings(); s.halt = s.halt || {}; const b = st().buildings.find((x) => x.id === Number(el.dataset.id)); const want = !el.checked; if (b && !!b.halted === want) delete s.halt[el.dataset.id]; else s.halt[el.dataset.id] = want; saveDraft(); render(); },
+  product(el) { const s = settings(); s.products = s.products || {}; s.products[el.dataset.id] = el.value; saveDraft(); render(); },
+  research(el) { mutate((d) => { d.research = d.research.filter((k) => k !== el.value); if (el.checked) d.research.push(el.value); }); },
+  'mk-city'(el) { UI.marketCity = Number(el.value); render(); },
+  respond(el) { const id = Number(el.dataset.id); mutate((d) => { d.diplo = d.diplo.filter((o) => !(o.type === 'respond' && o.id === id)); d.diplo.push({ type: 'respond', id, accept: el.value === '1' }); }); },
+  endvote(el) { mutate((d) => { d.diplo = d.diplo.filter((o) => o.type !== 'endVote'); if (el.checked) d.diplo.push({ type: 'endVote' }); }); },
+
+  repcat(el) { UI.reportCat = el.value; render(); },
+  'pc-term'(el) { UI.peace.term = Number(el.value); render(); },
+  'pc-num'(el) { UI.peace[el.dataset.side][el.dataset.f] = Math.max(0, Math.floor(Number(el.value) || 0)); render(); },
+  'pc-city'(el) { const part = UI.peace[el.dataset.side], id = Number(el.value); part.cities = el.checked ? [...new Set([...part.cities, id])] : part.cities.filter((x) => x !== id); render(); },
+};
+document.addEventListener('click', (e) => {
+  const el = e.target.closest('[data-act]');
+  if (!el) { if (UI.menu && !e.target.closest('.menu')) { UI.menu = false; render(); } return; }
+  const fn = ACT[el.dataset.act] || SETUP_ACT[el.dataset.act];
+  if (fn) { e.preventDefault(); fn(el, e); }
+});
+document.addEventListener('change', (e) => {
+  const el = e.target.closest('[data-chg]');
+  if (el && CHG[el.dataset.chg]) CHG[el.dataset.chg](el, e);
+});
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') { if (UI.mode) { UI.mode = null; render(); } else if (UI.menu) { UI.menu = false; render(); } else if (UI.sel) { UI.sel = null; render(); } }
+});
+
+/* =====================================================================
+   SETUP
+   ===================================================================== */
+const SETUP = { n: 4, names: [], colors: [], mapType: RR.MAP.type, tpp: RR.MAP.tilesPerPlayer, start: null };
+const startDefaults = () => ({ stock: Object.assign({}, RR.START.stock), credits: RR.START.credits, manpower: RR.START.manpower });
+function renderSetup() {
+  const st0 = SETUP.start || startDefaults();
+  if (isCampaign()) { SETUP.pins = SETUP.pins || []; for (let i = 0; i < SETUP.n; i++) if (!SETUP.pins[i]) { let p; do { p = String(100000 + Math.floor(Math.random() * 900000)); } while (SETUP.pins.includes(p)); SETUP.pins[i] = p; } }
+  const pinBox = (i) => (isCampaign() ? `<input type="text" inputmode="numeric" id="sp-pin-${i}" value="${esc(SETUP.pins[i])}" style="width:90px" aria-label="Player ${i + 1} PIN" title="This player's PIN">` : '');
+  const rows = Array.from({ length: SETUP.n }, (_, i) => `<div class="prow"><span class="num muted">${i + 1}</span><input type="text" id="sp-name-${i}" value="${esc(SETUP.names[i] || `Player ${i + 1}`)}" aria-label="Player ${i + 1} name"><input type="text" id="sp-city-${i}" value="${esc(SETUP.names[`c${i}`] || '')}" placeholder="Capital name (optional)" aria-label="Player ${i + 1} capital">${pinBox(i)}<input type="color" id="sp-col-${i}" value="${SETUP.colors[i] || RR.PLAYER_COLORS[i]}" aria-label="Player ${i + 1} color"></div>`).join('');
+  $('#app').innerHTML = `<div class="setup"><h1>${esc(CONFIG.title)}</h1><p class="lede">A game of diplomacy, trade and supply lines for 4 to 10 nations, one turn a day.</p>
+    ${Sync.mode === 'file' && UI.loadError ? `<div class="notice bad">Could not load ${esc(CONFIG.STATE_URL)}: ${esc(UI.loadError)}. The host can create the game here and commit the downloaded state.json.</div>` : ''}
+    <div class="row"><label>Game name <input type="text" id="sp-game" value="${esc(SETUP.game || CONFIG.title)}"></label>
+    <label>Players <select id="sp-n" data-act="noop">${[4, 5, 6, 7, 8, 9, 10].map((n) => `<option ${n === SETUP.n ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+    <label>Map seed <input type="text" id="sp-seed" value="${esc(SETUP.seed || '')}" placeholder="random" style="width:110px"></label></div>
+    <div class="row"><label>Map type <select id="sp-type">${Object.entries(RR.MAP.types).map(([k, v]) => `<option value="${k}" ${k === SETUP.mapType ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></label>
+    <label>Tiles per player <select id="sp-tpp">${RR.MAP.sizes.map((n) => `<option ${n === SETUP.tpp ? 'selected' : ''}>${n}</option>`).join('')}</select></label></div>
+    <div class="players">${rows}</div>
+    <p class="small muted">The map is about ${SETUP.n * SETUP.tpp} hexes (${SETUP.tpp} per player). Every nation starts with one city and the resources below.</p>
+    <fieldset class="startres"><legend>Starting resources for every nation</legend><div class="row">
+      ${Object.keys(RR.START.stock).map((g) => `<label>${esc(gl(g)[0].toUpperCase() + gl(g).slice(1))} <input type="number" min="0" max="${RR.CITY.baseStorage}" step="1" id="sp-st-${g}" value="${st0.stock[g]}" style="width:70px"></label>`).join('')}
+      <label>Manpower <input type="number" min="0" step="1" id="sp-st-manpower" value="${st0.manpower}" style="width:70px"></label>
+      <label>Credits <input type="number" min="0" step="50" id="sp-st-credits" value="${st0.credits}" style="width:90px"></label>
+      <button class="btn small" data-act="start-reset">Recommended</button></div>
+      <p class="small muted">Recommended: ${Object.entries(RR.START.stock).map(([g, v]) => `${v} ${gl(g)}`).join(', ')}, ${RR.START.manpower} manpower and ${RR.START.credits.toLocaleString('en-US')} credits. Goods are capped at the starting city's storage of ${RR.CITY.baseStorage} each.</p></fieldset>
+    ${isCampaign() ? `<p class="small muted">Each player gets the PIN beside their name; it is the only thing they need to log in. Write them down or view them later from the Game menu. ${esc(scheduleText())}.</p>` : ''}
+    <div class="row"><button class="btn primary" data-act="create">${isCampaign() ? 'Start campaign' : 'Create game'}</button>${isCampaign() ? `${UI.keep ? '<button class="btn" data-act="setup-cancel">Back to the current campaign</button>' : ''}<button class="btn" data-act="logout">Log out</button>` : '<button class="btn" data-act="load-file">Load a game file</button>'}</div></div>`;
+  const sel = $('#sp-n');
+  sel.onchange = () => { captureSetup(); SETUP.n = Number(sel.value); renderSetup(); };
+  $('#sp-tpp').onchange = () => { captureSetup(); renderSetup(); };
+}
+function captureSetup() {
+  for (let i = 0; i < SETUP.n; i++) { const n = $(`#sp-name-${i}`), c = $(`#sp-col-${i}`), cap = $(`#sp-city-${i}`); if (n) SETUP.names[i] = n.value; if (c) SETUP.colors[i] = c.value; if (cap) SETUP.names[`c${i}`] = cap.value; }
+  if (isCampaign()) for (let i = 0; i < SETUP.n; i++) { const pe = $(`#sp-pin-${i}`); if (pe) SETUP.pins[i] = pe.value.trim(); }
+  if ($('#sp-game')) SETUP.game = $('#sp-game').value; if ($('#sp-seed')) SETUP.seed = $('#sp-seed').value;
+  if ($('#sp-type')) SETUP.mapType = $('#sp-type').value; if ($('#sp-tpp')) SETUP.tpp = Number($('#sp-tpp').value);
+  if ($('#sp-st-credits')) {
+    const d = startDefaults(), num = (id, def, max) => { const v = Math.floor(Number($(id).value)); return Number.isFinite(v) && $(id).value !== '' ? Math.max(0, Math.min(max, v)) : def; };
+    SETUP.start = { stock: {}, credits: num('#sp-st-credits', d.credits, 1e9), manpower: num('#sp-st-manpower', d.manpower, 1e6) };
+    for (const g of Object.keys(d.stock)) SETUP.start.stock[g] = num(`#sp-st-${g}`, d.stock[g], RR.CITY.baseStorage);
+  }
+}
+const SETUP_ACT = {
+  noop() {},
+  'setup-cancel'() { UI.bundle = UI.keep; UI.keep = null; SETUP.replacing = false; render(); },
+  async login() {
+    const pin = (($('#login-pin') || {}).value || '').trim();
+    if (!pin) return;
+    try {
+      const r = await Sync.login(pin);
+      if (r.role === 'admin') Sync.setPins('', pin); else Sync.setPins(pin, undefined);
+      UI.loginError = null; await enterCampaign();
+    } catch (e) { UI.loginError = e.message; renderLogin(); }
+  },
+  'start-reset'() { captureSetup(); SETUP.start = null; renderSetup(); },
+  async create() {
+    captureSetup();
+    const players = Array.from({ length: SETUP.n }, (_, i) => ({ name: (SETUP.names[i] || `Player ${i + 1}`).trim().slice(0, 30), color: SETUP.colors[i] || RR.PLAYER_COLORS[i], cityName: (SETUP.names[`c${i}`] || '').trim().slice(0, 40) || undefined }));
+    const S = Engine.newGame({ players, seed: SETUP.seed || undefined, name: SETUP.game || CONFIG.title, mapType: SETUP.mapType, tilesPerPlayer: SETUP.tpp, start: SETUP.start || undefined });
+    if (isCampaign()) {
+      const pins = SETUP.pins.slice(0, SETUP.n);
+      if (pins.some((p) => !/^\d{4,10}$/.test(p))) { toast('PINs must be 4 to 10 digits'); return; }
+      if (new Set(pins).size !== pins.length) { toast('Every player needs a different PIN'); return; }
+      try {
+        UI.bundle = await Sync.create(S, pins, SETUP.replacing || !!UI.keep);
+      } catch (e) {
+        if (e.body && e.body.exists && confirm('A campaign is already running. Replace it?')) { try { UI.bundle = await Sync.create(S, pins, true); } catch (e2) { toast(e2.message); return; } } else { toast(`Could not start the campaign: ${e.message}`); return; }
+      }
+      UI.keep = null; SETUP.replacing = false; UI._d = null; UI.views = {}; UI.sel = null; UI.tab = 'map';
+      if (Sync.you && Sync.you.role === 'player') UI.me = Sync.you.pid; else UI.me = 0;
+      toast('Campaign started. Give each player their PIN.');
+      render(); return;
+    }
+    UI.bundle = { state: S, pending: {} }; UI._d = null; UI.views = {}; UI.sel = null; UI.tab = 'map';
+    if (!UI.locked) UI.me = 0;
+    try { await Sync.publish(UI.bundle); } catch (e) { toast(`Created locally, but could not publish: ${e.message}`); }
+    render();
+  },
+};
+
+/* =====================================================================
+   START
+   ===================================================================== */
+function renderLogin() {
+  $('#app').innerHTML = `<div class="setup login"><h1>${esc(CONFIG.title)}</h1><p class="lede">Enter your PIN to join the campaign.</p>
+    ${UI.loginError ? `<div class="notice bad">${esc(UI.loginError)}</div>` : ''}
+    <form class="row" onsubmit="event.preventDefault(); SETUP_ACT.login();"><input type="password" inputmode="numeric" autocomplete="current-password" id="login-pin" placeholder="PIN" aria-label="PIN" style="width:160px;font-size:1.2rem"><button class="btn primary" type="submit">Enter</button></form>
+    <p class="small muted">Your PIN is remembered on this device. The host has the admin PIN.</p></div>`;
+  const el = $('#login-pin'); if (el) el.focus();
+}
+function renderWaiting() {
+  UI.waiting = true;
+  $('#app').innerHTML = `<div class="setup"><h1>${esc(CONFIG.title)}</h1><p class="lede">No campaign is running right now.</p><p>Your host hasn't started the next campaign yet. This page will pick it up automatically.</p><div class="row"><button class="btn" data-act="logout">Log out</button></div></div>`;
+}
+async function enterCampaign() {
+  try { UI.bundle = await Sync.load(); }
+  catch (e) { if (e.status === 401) { Sync.logout(); UI.loginError = e.message; return renderLogin(); } UI.loginError = `Could not reach the server: ${e.message}`; return renderLogin(); }
+  if (UI.bundle && UI.bundle.state) { Engine.migrate(UI.bundle.state); UI.bundle.pending = UI.bundle.pending || {}; }
+  const you = Sync.you || {};
+  if (you.role === 'player') { UI.me = you.pid; UI.locked = true; } else { UI.locked = false; }
+  UI._d = null;
+  render();
+}
+async function boot() {
+  const params = new URLSearchParams(location.search);
+  if (isCampaign()) {
+    CONFIG.POLL_SECONDS = Math.max(CONFIG.POLL_SECONDS, 45);
+    if (!Sync.hasPin()) renderLogin(); else await enterCampaign();
+    startPolling();
+    return;
+  }
+  if (params.has('player')) { UI.me = Math.max(0, Number(params.get('player')) - 1); UI.locked = true; }
+  try { UI.bundle = await Sync.load(); } catch (e) { UI.loadError = e.message; UI.bundle = null; }
+  if (UI.bundle && UI.bundle.state) Engine.migrate(UI.bundle.state);
+  if (UI.bundle && !UI.bundle.state) UI.bundle = null;
+  if (UI.bundle) UI.bundle.pending = UI.bundle.pending || {};
+  render();
+  startPolling();
+}
+function startPolling() {
+  if (Sync.mode !== 'local' && CONFIG.POLL_SECONDS > 0) {
+    setInterval(async () => {
+      if (document.hidden) return;
+      if (isCampaign() && !Sync.hasPin()) return;
+      if (!UI.bundle) { if (UI.waiting) { try { const b = await Sync.load(); if (b && b.state) { UI.waiting = false; await enterCampaign(); } } catch (e) { /* offline */ } } return; }
+      try {
+        const b = await Sync.load();
+        if (!b || !b.state) return;
+        Engine.migrate(b.state);
+        const sig = (x) => JSON.stringify(Object.entries(x || {}).map(([k, v]) => [k, v.turn, v.at]));
+        const changed = b.state.turn !== st().turn || sig(b.pending) !== sig(UI.bundle.pending);
+        if (changed) { const turnChanged = b.state.turn !== st().turn; UI.bundle = Object.assign({ pending: {} }, b); if (turnChanged) { UI._d = null; UI.sel = null; toast(`Turn ${st().turn} is ready`); } render(); }
+      } catch (e) { if (isCampaign() && e.status === 401) { Sync.logout(); UI.bundle = null; UI.loginError = 'Your PIN no longer works (perhaps a new campaign started). Enter your new PIN.'; renderLogin(); } }
+    }, CONFIG.POLL_SECONDS * 1000);
+  }
+}
+if (typeof window !== 'undefined') window.addEventListener('DOMContentLoaded', boot);
+
+</script>
+</body>
+</html>
