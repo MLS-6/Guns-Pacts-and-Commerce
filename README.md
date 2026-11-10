@@ -1,52 +1,81 @@
-# Guns, Pacts, and Commerce
+# Guns, Pacts, and Commerce — campaign server
 
-A daily-turn game of diplomacy, trade and supply lines for 4–10 players. The whole game is one file, `index.html`.
+This runs one campaign on Cloudflare's free plan:
 
-## Put it on GitHub Pages
+- Players open the game's web address and type their PIN. Nothing else.
+- Orders are saved on the server as players submit them, and players can resubmit until the turn ends.
+- The turn resolves automatically at **10 PM New York time**, or earlier when you click **Resolve turn now** after logging in with the admin PIN.
+- The game page and rules live in this GitHub repository. Change a file on GitHub and Cloudflare redeploys within a couple of minutes.
 
-1. Create a repository and upload `index.html` (and this README).
-2. In the repository, go to **Settings → Pages**, set the source to your main branch, and save.
-3. Open the address GitHub gives you, for example `https://yourname.github.io/supply-lines/`.
+**Cost: $0.** The free plan is plenty for one campaign of 4–10 friends: 100,000 requests a day, and a daily resolve uses a few seconds of compute at most. The only optional cost is a custom domain, about $10 a year; without one the address looks like `guns-pacts-and-commerce.yourname.workers.dev`.
 
-Each player can bookmark `index.html?player=3` (their player number) so the page opens as their nation only.
-
-## Three ways to share a game
-
-GitHub Pages only serves files, so it can't collect everyone's orders on its own. Pick one of these at the top of `index.html` in `window.SUPPLY_LINES_CONFIG`:
-
-| Setting | How a turn works |
-| --- | --- |
-| `STATE_URL: ''` | Pass-and-play in one browser. Everyone picks "Playing as", submits, then anyone clicks **Resolve turn**. Good for testing. |
-| `STATE_URL: 'state.json'` (this file's setting) | No server needed. The host creates the game and commits the downloaded `state.json` to the repo. Each day players submit, which downloads an orders file they send to the host. The host uses **Game → Import players' orders**, clicks **Resolve turn**, and commits the new `state.json`. Everyone's page picks it up automatically. |
-| `SERVER_URL: 'https://…'` | Fully automatic, with any small server or hosted JSON store that implements the three calls below. |
-
-### Server contract
+## What's in the repository
 
 ```
-GET  {SERVER_URL}/game               → { state, pending }   (404 if there is no game yet)
-PUT  {SERVER_URL}/game               ← { state, pending }   (the whole game, after a turn resolves)
-PUT  {SERVER_URL}/orders/{playerId}  ← { orders, turn }     (store as pending[playerId] = { orders, turn, at })
+wrangler.jsonc        Cloudflare settings: auto-resolve time, time zone
+package.json          tells Cloudflare which tool deploys the server
+public/index.html     the game page
+public/rules.js       every number in the game (costs, production, damage, starting stock...)
+public/engine.js      the rules engine; the page and the server both use this one file
+server/worker.mjs     the server: PINs, orders, saving, and resolving turns
 ```
 
-Any player can resolve once everyone has submitted, and the page polls every `POLL_SECONDS`. There is no login, so this suits a group of friends rather than strangers. The game engine (`Engine.resolveTurn(state, ordersByPlayer)`) has no browser dependencies, so a Node server can also resolve turns itself on a daily schedule.
+## One-time setup (about 15 minutes)
 
-## Changing the rules
+### 1. Put the files on GitHub
 
-Every number (costs, production, damage, prices, starting stock) is in the `RULES` block near the top of the script in `index.html`. Edit it and reload.
+1. Open your repository on GitHub.
+2. Delete the old `index.html`, `README.md` and any `state.json` from the repository's top level. Open each file, click the trash icon, and commit.
+3. Click **Add file → Upload files**. Drag in everything from this folder, including the `public` and `server` folders themselves, so GitHub keeps them as folders. Commit.
 
-## Where the code made calls the rules didn't cover
+You can turn GitHub Pages off afterwards (**Settings → Pages**), since the game will now be served by Cloudflare.
 
-- Walls are limited to one per city; otherwise HP could be stacked without limit.
-- Naval batteries need a city next to water.
-- City tiles count as rail stations, so a railroad only has to reach the city's edge.
-- City tiles are exempt from the two-logistics-units-per-tile limit, so routes can share a hub.
-- Diplomacy (war declarations, accepted treaties) resolves first, before combat, so a war declared this turn allows attacks this turn.
-- A peace treaty fails as a whole if either side no longer has what it promised when it is accepted, and each side must keep at least one city.
-- Ceded tiles join the receiving nation's nearest city. Units on a ceded city tile move to the nearest free tile.
-- Ships on open ocean go anywhere; rivers and lakes inside another nation's territory need transit rights, like land.
-- Supply, upkeep and repairs happen at the end of the logistics phase.
-- Rubber and oil regions are centred on open land far from every capital (and roomy enough to hold the region), so they are contested ground. Inside a region the tiles are spread out, never two side by side; tiles within 2 hexes of a capital never get rubber or oil.
-- Production runs before construction, so goods made this turn can be built with, but inputs are also taken first. A new building starts producing the turn after it is built.
-- Clearing a forest that has a lumber yard on it requires demolishing the lumber yard first. Lumber that won't fit in the city's storage is lost.
-- Starting goods set in the setup screen are capped at the capital's base storage of 100 each.
-- Caravans and other transports eat from their own cargo first, so long caravan routes deliver less (or starve). The route form shows path length and capacity before you commit.
+### 2. Create the server on Cloudflare
+
+1. Sign up for a free account at [dash.cloudflare.com](https://dash.cloudflare.com/sign-up).
+2. Go to **Compute (Workers) → Workers & Pages → Create**, choose **Import a repository**, and connect your GitHub account when asked. You can give Cloudflare access to this one repository only.
+3. Pick the repository. Leave the build command empty and the deploy command as `npx wrangler deploy`. Click **Create and deploy**.
+4. Wait for the first deploy to finish. It takes a minute or two. Cloudflare shows the game's address, ending in `.workers.dev`.
+
+### 3. Set your admin PIN
+
+1. In Cloudflare, open the worker (**guns-pacts-and-commerce**) and go to **Settings → Variables and Secrets → Add**.
+2. Set **Type** to **Secret**, **Name** to `ADMIN_PIN` and **Value** to a number only you know. Use 6 or more digits.
+3. Click **Deploy**.
+
+### 4. Start the campaign
+
+1. Open the game's address and enter the admin PIN.
+2. Fill in the setup screen. Every player gets a random 6-digit PIN, which you can change before starting.
+3. Click **Start campaign**, then send each friend the address and their own PIN.
+
+Because you're also playing, log in with **your player PIN** to play. Then open **Game ▾**, type the admin PIN and click **Unlock admin** to get **Resolve turn now**, the PIN list, backups and the new-campaign button, all in the same session.
+
+## Day to day
+
+- Players submit whenever they like; the colored chips show who is in.
+- At 10 PM the turn resolves, and everyone's page picks up the new turn within a minute.
+- **Resolve turn now** resolves early. If you do that in the evening, the 10 PM resolve skips that night so nobody loses their turn. More precisely, a turn younger than `MIN_TURN_HOURS` (12) is left until the next evening.
+- **Game ▾ → Download game file** makes a backup at any time. **Restore game from a backup file** puts one back, and everyone keeps their PIN.
+- **Game ▾ → Show player PINs** lists the PINs and lets you change one, for example if a friend forgets theirs.
+
+## Changing the game
+
+| To change | Edit | Notes |
+| --- | --- | --- |
+| Costs, production, damage, prices, starting stock | `public/rules.js` | |
+| Rules logic | `public/engine.js` | |
+| The page | `public/index.html` | |
+| Resolve time or time zone | `wrangler.jsonc` → `RESOLVE_HOUR` (0–23) and `TIME_ZONE` | |
+| Admin PIN | the `ADMIN_PIN` secret in Cloudflare | Not stored in GitHub. |
+
+To edit, open the file on GitHub, click the pencil, and commit. Cloudflare redeploys automatically in about two minutes; you can watch it under the worker's **Deployments** tab. The running campaign is stored separately from the code, so redeploying never erases it.
+
+Between campaigns, change anything freely and then use **Start a new campaign**. During a campaign, number changes in `rules.js` take effect from the next turn, which is fine for balance tweaks. For bigger engine changes, download a backup first.
+
+## If something goes wrong
+
+- **The page says it can't reach the server.** Check the latest deploy under **Deployments** in Cloudflare; a failed deploy shows its error log.
+- **The admin PIN isn't accepted.** Make sure `ADMIN_PIN` is a **Secret** on the worker and that you clicked **Deploy** after adding it.
+- **"Too many wrong PINs".** After 10 wrong PINs from one address, that address must wait 10 minutes.
+- **The turn didn't resolve at 10 PM.** The server checks every hour, so it resolves at 11 PM at the latest. If the turn was opened by hand that evening, it waits until the next evening. Cloudflare shows each hourly run in the worker's logs and cron trigger history.

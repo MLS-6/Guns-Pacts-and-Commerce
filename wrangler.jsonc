@@ -1,0 +1,23 @@
+// Cloudflare Worker settings for the Guns, Pacts, and Commerce campaign server.
+{
+  "name": "guns-pacts-and-commerce",
+  "main": "server/worker.mjs",
+  "compatibility_date": "2025-09-01",
+
+  // The game page, rules.js and engine.js
+  "assets": { "directory": "./public", "binding": "ASSETS" },
+
+  // One Durable Object holds the single running campaign
+  "durable_objects": { "bindings": [{ "name": "CAMPAIGN", "class_name": "Campaign" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Campaign"] }],
+
+  // Wake up every hour (on the hour, UTC); the campaign resolves at RESOLVE_HOUR local time
+  "triggers": { "crons": ["0 * * * *"] },
+
+  "vars": {
+    "RESOLVE_HOUR": "22",              // 22 = 10 PM
+    "TIME_ZONE": "America/New_York",
+    "MIN_TURN_HOURS": "12"             // a turn younger than this (e.g. resolved by hand at 9 PM) waits until the next day
+  }
+  // ADMIN_PIN is a secret: set it in the Cloudflare dashboard (Settings → Variables and Secrets), not here.
+}
