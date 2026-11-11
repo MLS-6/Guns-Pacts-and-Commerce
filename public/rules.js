@@ -33,6 +33,8 @@ const RULES = (() => {
     rubber: { name: 'Rubber trees', terrain: 'land', color: '#2f8a6d', glyph: '✿' },
     ore: { name: 'Ore vein', terrain: 'land', color: '#a8998a', glyph: '◆' },
     coal: { name: 'Coal vein', terrain: 'land', color: '#6a625d', glyph: '■' },
+    silver: { name: 'Silver vein', terrain: 'land', color: '#c3c8ce', glyph: '◇' },
+    gold: { name: 'Gold vein', terrain: 'land', color: '#d9b441', glyph: '✦' },
     oil: { name: 'Oil field', terrain: 'land', color: '#24211f', glyph: '▼', glyphColor: 'rgba(235,225,200,0.75)' },
     river: { name: 'River', terrain: 'water', color: '#4b92c3', glyph: '' },
     lake: { name: 'Lake', terrain: 'water', color: '#63a9d0', glyph: '' },
@@ -58,6 +60,9 @@ const RULES = (() => {
     stables: { name: 'Stables', abbr: 'St', era: 1, sci: 3, place: 'tile', tiles: ['grassland'], cost: { lumber: 10, tools: 2, mp: 1 }, recipes: { horses: { mp: 1, in: { food: 3 }, out: { horses: 3 } } } },
     lumberYard: { name: 'Lumber yard', abbr: 'Lm', era: 1, sci: 0, place: 'tile', tiles: ['forest'], cost: { lumber: 4, tools: 2, mp: 1 }, recipes: { lumber: { mp: 1, out: { lumber: 8 } } }, riverMult: 1.5 },
     oreMine: { name: 'Ore mine', abbr: 'Om', era: 1, sci: 0, place: 'tile', tiles: ['ore'], cost: { lumber: 8, tools: 4, mp: 2 }, recipes: { ore: { mp: 1, out: { ore: 6 } } } },
+    // Silver and gold mines turn manpower into credits: assign workers (manpower per turn) up to maxLabor.
+    silverMine: { name: 'Silver mine', abbr: 'Ag', era: 1, sci: 2, place: 'tile', tiles: ['silver'], cost: { lumber: 8, tools: 4, mp: 2 }, recipes: { credits: { labor: true, creditsPerMp: 50, maxLabor: 15 } } },
+    goldMine: { name: 'Gold mine', abbr: 'Au', era: 1, sci: 3, place: 'tile', tiles: ['gold'], cost: { lumber: 10, metal: 4, tools: 6, mp: 3 }, recipes: { credits: { labor: true, creditsPerMp: 100, maxLabor: 10 } } },
     coalMine: { name: 'Coal mine', abbr: 'Cm', era: 1, sci: 0, place: 'tile', tiles: ['coal'], cost: { lumber: 8, tools: 4, mp: 2 }, recipes: { fuel: { mp: 1, out: { fuel: 6 } } } },
     charcoalRefinery: { name: 'Charcoal refinery', abbr: 'Ch', era: 1, sci: 2, place: 'tile', tiles: ['grassland'], cost: { lumber: 8, tools: 3, mp: 2 }, recipes: { fuel: { mp: 1, in: { lumber: 3 }, out: { fuel: 1 } } } },
     oilField: { name: 'Oil field', abbr: 'Ol', era: 3, sci: 12, place: 'tile', tiles: ['oil'], cost: { lumber: 4, metal: 10, tools: 6, machinery: 4, rubber: 4, mp: 4 }, recipes: { fuel: { mp: 2, out: { fuel: 15 } } } },
@@ -91,7 +96,7 @@ const RULES = (() => {
     machineryFactory: { name: 'Machinery factory', era: 3, sci: 15, place: 'city', cost: { lumber: 15, metal: 25, tools: 12, machinery: 6, rubber: 6, mp: 5 }, recipes: { machinery: { mp: 4, in: { metal: 4, tools: 2, fuel: 1 }, out: { machinery: 3 } } }, builds: ['artillery', 'tank', 'train', 'supplyTruck'] , riverFuel: 1 },
 
     university: { name: 'University', era: 1, sci: 0, place: 'city', cost: { lumber: 12, metal: 4, tools: 6, mp: 3 }, recipes: { science: { mp: 6, credits: 50, sciOut: 1 } } },
-    taxOffice: { name: 'Tax office', era: 1, sci: 3, place: 'city', limit: 1, cost: { lumber: 20, metal: 6, tools: 6, mp: 3 }, recipes: { credits: { creditsPerResidence: 20 } } },
+    taxOffice: { name: 'Tax office', era: 1, sci: 3, place: 'city', limit: 1, cost: { lumber: 20, metal: 6, tools: 6, mp: 3 }, recipes: { credits: { creditsPerResidence: 50 } } },
     townHall: { name: 'Town hall', era: 1, sci: 4, place: 'city', limit: 1, cost: { lumber: 30, metal: 10, tools: 8, mp: 4 }, territoryBonus: 1 },
 
     barracks: { name: 'Barracks', era: 1, sci: 0, place: 'city', cost: { lumber: 12, metal: 4, tools: 4, mp: 2 }, builds: ['infantry', 'cavalry'] },
@@ -101,7 +106,7 @@ const RULES = (() => {
     navalYard: { name: 'Naval yard', era: 2, sci: 10, place: 'city', needsWater: true, cost: { lumber: 20, metal: 20, tools: 10, machinery: 4, rubber: 6, mp: 4 }, builds: ['freighter', 'warship'] },
 
     railroad: { name: 'Railroad', abbr: 'Rail', era: 2, sci: 6, place: 'infra', cost: { lumber: 2, metal: 4, tools: 1, mp: 1 } },
-    bridge: { name: 'Bridge', abbr: 'Br', era: 2, sci: 5, place: 'infra', cost: { lumber: 15, metal: 10, tools: 6, mp: 3 } },
+    bridge: { name: 'Bridge', abbr: 'Br', era: 1, sci: 0, place: 'infra', cost: { lumber: 15, metal: 10, tools: 6, mp: 3 } },
     railBridge: { name: 'Rail bridge', abbr: 'RB', era: 2, sci: 6, place: 'infra', cost: { lumber: 17, metal: 14, tools: 7, mp: 4 } },
 
     walls: { name: 'Walls', era: 1, sci: 4, place: 'city', limit: 1, cost: { lumber: 15, metal: 5, tools: 4, mp: 3 }, hp: 10 },
@@ -116,11 +121,11 @@ const RULES = (() => {
      repair: 'bio' (manpower), 'mech' (metal + tools), 'sail' (lumber); repairHorses = 1 horse per N HP
      carryTypes: which units a transport may carry and how many slots each takes */
   const UNITS = {
-    infantry: { name: 'Infantry', abbr: 'I', cls: 'land', role: 'combat', hp: 5, move: 2, range: 1, ammo: 1, idle: { food: 1 }, perTile: { food: 1 }, repair: 'bio', capture: true, cost: { mp: 4, clothing: 2, smallArms: 2 }, builtAt: ['barracks'], unlock: 'barracks' },
-    cavalry: { name: 'Cavalry', abbr: 'C', cls: 'land', role: 'combat', hp: 7, move: 3, range: 1, ammo: 1, idle: { food: 2 }, perTile: { food: 1 }, repair: 'bio', repairHorses: 3, capture: true, cost: { mp: 4, clothing: 2, smallArms: 2, horses: 3 }, builtAt: ['barracks'], unlock: 'stables' },
+    infantry: { name: 'Infantry', abbr: 'I', cls: 'land', role: 'combat', hp: 5, move: 2, range: 1, ammo: 1, idle: { food: 1 }, perTile: { food: 1 }, repair: 'bio', capture: true, ford: true, cost: { mp: 4, clothing: 2, smallArms: 2 }, builtAt: ['barracks'], unlock: 'barracks' },
+    cavalry: { name: 'Cavalry', abbr: 'C', cls: 'land', role: 'combat', hp: 7, move: 3, range: 1, ammo: 1, idle: { food: 2 }, perTile: { food: 1 }, repair: 'bio', repairHorses: 3, capture: true, ford: true, cost: { mp: 4, clothing: 2, smallArms: 2, horses: 3 }, builtAt: ['barracks'], unlock: 'stables' },
     artillery: { name: 'Artillery', abbr: 'A', cls: 'land', role: 'combat', hp: 5, move: 2, range: 2, ammo: 3, idle: { food: 1 }, perTile: { fuel: 1 }, repair: 'mech', cost: { mp: 4, clothing: 2, metal: 4, tools: 2, machinery: 2, rubber: 2 }, builtAt: ['machineryWorkshop', 'machineryFactory'], unlock: 'machineryWorkshop' },
     tank: { name: 'Tank', abbr: 'T', cls: 'land', role: 'combat', hp: 15, move: 4, range: 1, ammo: 2, idle: { food: 1 }, perTile: { fuel: 2 }, repair: 'mech', capture: true, cost: { mp: 6, clothing: 3, metal: 10, tools: 4, machinery: 4, rubber: 4 }, builtAt: ['machineryFactory'], unlock: 'machineryFactory' },
-    caravan: { name: 'Caravan', abbr: 'Ca', cls: 'land', role: 'logistic', hp: 1, move: 3, idle: { food: 1 }, perTile: { food: 1 }, repair: 'bio', cargo: 20, carry: 0, cost: { mp: 2, clothing: 1, horses: 4, lumber: 4 }, builtAt: ['stables'], unlock: 'stables' },
+    caravan: { name: 'Caravan', abbr: 'Ca', cls: 'land', role: 'logistic', hp: 1, move: 3, idle: { food: 1 }, perTile: {}, repair: 'bio', ford: true, cargo: 20, carry: 0, cost: { mp: 2, clothing: 1, horses: 4, lumber: 4 }, builtAt: ['stables'], unlock: 'stables' },
     supplyTruck: { name: 'Supply truck', abbr: 'ST', cls: 'land', role: 'logistic', hp: 5, move: 4, idle: { food: 1 }, perTile: { fuel: 0.5 }, repair: 'mech', cargo: 40, carry: 2, carryTypes: { infantry: 1, artillery: 2 }, cost: { mp: 2, clothing: 1, metal: 6, tools: 2, machinery: 1, rubber: 2 }, builtAt: ['machineryWorkshop', 'machineryFactory'], unlock: 'machineryWorkshop' },
     train: { name: 'Train', abbr: 'Tr', cls: 'rail', role: 'logistic', hp: 10, move: 6, idle: { fuel: 1 }, perTile: { fuel: 1 }, repair: 'mech', cargo: 120, carry: 4, cost: { mp: 4, clothing: 2, lumber: 4, metal: 12, tools: 4, machinery: 3 }, builtAt: ['machineryWorkshop', 'machineryFactory'], unlock: 'machineryWorkshop' },
     merchantman: { name: 'Merchantman', abbr: 'Me', cls: 'ship', power: 'sail', role: 'logistic', hp: 10, move: 3, idle: { food: 1 }, perTile: { food: 0.5 }, repair: 'sail', cargo: 100, carry: 3, cost: { mp: 4, clothing: 2, cloth: 6, lumber: 16, metal: 2, tools: 2 }, builtAt: ['shipyard'], unlock: 'shipyard' },
@@ -175,8 +180,19 @@ const RULES = (() => {
     // Rubber and oil are concentrated: most tiles sit in one region of the map
     // (placed away from the starting cities), the rest are scattered.
     rubber: { perPlayerMin: 2, perPlayerMax: 3, regionShare: 0.7 },
+    // Silver and gold veins are scattered at random (never clustered): per player, rounded (10 players = 6 silver, 3 gold)
+    silver: { perPlayer: 0.6 },
+    gold: { perPlayer: 0.3 },
     oil: { perPlayerMin: 3, perPlayerMax: 4, regionShare: 0.7 },
   };
+
+  // Credits per turn to keep a combat unit ready (paid at the end of each turn). Logistics units cost nothing,
+  // and neither do units resting in base (infantry and cavalry in a city with barracks, ships in a port).
+  const PAY = { land: 5, ship: 10 };
+  // Share of a destroyed logistics unit's cargo that goes to the nation that destroyed it
+  const LOOT = 0.5;
+  const PLAYERS = { min: 4, max: 12 };
+  const MINE_LABOR = 2; // workers a new silver or gold mine starts with
 
   const STACK = { logistics: 2 }; // per tile, besides one combat unit (city tiles are exempt)
   const DEMOLISH = { mp: 2, refund: 0.5 };
@@ -190,16 +206,16 @@ const RULES = (() => {
   const DEFAULT_PRIORITY = [
     'farm', 'fishery', 'residence', 'lumberYard', 'oreMine', 'coalMine', 'charcoalRefinery', 'oilField', 'fiberFarm', 'rubberPlantation', 'stables',
     'metalForge', 'metalFactory', 'workshop', 'toolsFactory', 'smallArmsFactory', 'ammoFactory',
-    'textileWorkshop', 'clothFactory', 'clothingFactory', 'machineryWorkshop', 'machineryFactory', 'university', 'taxOffice',
+    'textileWorkshop', 'clothFactory', 'clothingFactory', 'machineryWorkshop', 'machineryFactory', 'university', 'taxOffice', 'silverMine', 'goldMine',
   ];
 
-  const PLAYER_COLORS = ['#d7263d', '#1b998b', '#3a6ea5', '#f49d37', '#7b2cbf', '#e0c341', '#ff6f91', '#2e4057', '#8cb369', '#a0522d'];
+  const PLAYER_COLORS = ['#d7263d', '#1b998b', '#3a6ea5', '#f49d37', '#7b2cbf', '#e0c341', '#ff6f91', '#2e4057', '#8cb369', '#a0522d', '#00b4d8', '#b8b8ff'];
 
   const ERA_NAMES = { 1: 'Foundations', 2: 'Steel and Steam', 3: 'Industry' };
 
   return {
     GOODS, GOOD_NAMES, GOOD_COLORS, BASE_PRICE, MARKET, SPECIAL_STORAGE, TILES, BUILDINGS, UNITS, DAMAGE, WEAPON_AMMO, WEAPON_RANGE,
-    dmg, CITY, REPAIR, MAP, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
+    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = RULES;
