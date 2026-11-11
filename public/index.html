@@ -371,10 +371,16 @@ function computeHL() {
   if (UI.mode) {
     const md = UI.mode;
     if (md.kind === 'build') {
-      const d = BLD[md.key], c = Q.cityById(S, md.city);
+      const d = BLD[md.key], c = md.city != null ? Q.cityById(S, md.city) : null;
       const pool = d.place === 'tile' ? S.map.tiles.map((x, i) => i).filter((i) => S.map.tiles[i].owner === c.id) : S.map.tiles.map((x, i) => i);
       const taken = new Set(draft().builds.filter((b) => b.t != null && (BLD[b.key].place !== 'infra' || b.key === md.key)).map((b) => b.t));
-      for (const t of pool) if (!taken.has(t) && !Q.checkBuild(S, UI.me, { city: c.id, key: md.key, t })) hl.build.add(t);
+      const who = md.unit != null ? { unit: md.unit } : { city: c.id };
+      if (md.unit != null) { // stop highlighting once the unit's cargo can't pay for another one
+        const u = Q.unitById(S, md.unit), left = Object.assign({}, u ? u.cargo : {});
+        for (const b of draft().builds.filter((x) => x.unit === md.unit)) for (const [g, v] of Object.entries(BLD[b.key].cost)) if (g !== 'mp') left[g] = (left[g] || 0) - v;
+        if (Object.entries(d.cost).some(([g, v]) => g !== 'mp' && (left[g] || 0) < v)) return;
+      }
+      for (const t of pool) if (!taken.has(t) && !Q.checkBuild(S, UI.me, Object.assign({ key: md.key, t }, who))) hl.build.add(t);
     } else if (md.kind === 'weapon') {
       for (const t of Q.cityWeaponTargets(S, Q.cityById(S, md.city), md.w)) hl.attack.add(t);
     } else if (md.kind === 'unload') {
@@ -636,7 +642,7 @@ function onTileClick(t) {
   if (UI.mode) {
     const md = UI.mode;
     if (md.kind === 'build' && UI.hl.build.has(t)) {
-      mutate((d) => d.builds.push({ city: md.city, key: md.key, t }));
+      mutate((d) => d.builds.push(md.unit != null ? { unit: md.unit, key: md.key, t } : { city: md.city, key: md.key, t }));
       if (md.key !== 'railroad') UI.mode = null;
       computeHL(); render(); return;
     }
@@ -923,6 +929,17 @@ function unitPanel(u) {
         if (!err) acts.push(`<button class="btn small danger" data-act="sabotage" data-unit="${u.id}" data-t="${t}">Destroy ${esc(pname(tg.owner))}'s ${esc(BLD[tg.what].name.toLowerCase())} at ${tl(t)}</button>`);
       }
     }
+  }
+  if (dd.role === 'logistic' && dd.cls !== 'ship' && dd.cargo && u.carriedBy == null) {
+    const queuedHere = d.builds.filter((b) => b.unit === u.id);
+    const left = Object.assign({}, u.cargo);
+    for (const b of queuedHere) for (const [g, v] of Object.entries(BLD[b.key].cost)) if (g !== 'mp') left[g] = (left[g] || 0) - v;
+    for (const b of queuedHere) ord.push(`<li>Build ${esc(BLD[b.key].name.toLowerCase())} at ${tl(b.t)} with its cargo<button class="x" data-act="rm" data-list="builds" data-idx="${d.builds.indexOf(b)}" aria-label="Cancel">✕</button></li>`);
+    const infra = Object.entries(BLD).filter(([k, b]) => b.place === 'infra' && Q.isUnlocked(S, UI.me, k));
+    if (infra.length) acts.push(`<h4>Build in the field</h4><p class="small muted">Railroads and bridges within ${RR.CITY.unitSupplyRadius} tiles, paid from this unit's cargo.</p>${infra.map(([k, b]) => {
+      const short = Object.entries(b.cost).filter(([g, v]) => g !== 'mp' && (left[g] || 0) < v).map(([g, v]) => `${v} ${gl(g)}`);
+      return `<div class="opt ${short.length ? 'no' : ''}"><span>${esc(b.name)}${short.length ? ` <span class="small warn">needs ${esc(short.join(', '))} aboard</span>` : ''}</span><button class="btn small" data-act="mode-build-unit" data-unit="${u.id}" data-key="${k}" ${short.length ? 'disabled' : ''}>Place…</button><span class="cost">${esc(costText(b.cost))}</span></div>`;
+    }).join('')}`);
   }
   if (dd.role === 'logistic' && u.carriedBy == null) {
     const err = Q.checkFound(S, UI.me, u.id);
@@ -1263,7 +1280,7 @@ function orderGroups() {
   d.clear.forEach((o, i) => add('Buildings', 'clear', i, `Clear the forest at ${tl(o.t)} (+${RR.CLEAR_FOREST.lumber} lumber)`));
   d.demolish.forEach((o, i) => add('Buildings', 'demolish', i, `Demolish ${o.what === 'building' ? (Q.tileBuilding(S, o.t) ? BLD[Q.tileBuilding(S, o.t).key].name.toLowerCase() : 'building') : o.what === 'trap' ? 'tank trap' : o.what === 'rail' ? 'railroad' : 'bridge'} at ${tl(o.t)}`));
   d.found.forEach((o, i) => add('Buildings', 'found', i, `Found ${o.name} with ${uname(o.unit)}`));
-  d.builds.forEach((o, i) => add('Buildings', 'builds', i, `Build ${BLD[o.key].name} for ${cityName(o.city)}${o.t != null ? ` at ${tl(o.t)}` : ''}`));
+  d.builds.forEach((o, i) => add('Buildings', 'builds', i, `Build ${BLD[o.key].name} ${o.unit != null ? `with ${uname(o.unit)}'s cargo` : `for ${cityName(o.city)}`}${o.t != null ? ` at ${tl(o.t)}` : ''}`));
   d.trains.forEach((o, i) => add('Units', 'trains', i, `Build ${UNI[o.type].name} in ${cityName(o.city)}`));
   if (d.settings && (d.settings.priority || ['products', 'halt', 'labor'].some((k) => d.settings[k] && Object.keys(d.settings[k]).length))) add('Production', 'settings', 0, 'Production priority, products, workers or on/off switches changed');
   if (d.settings && d.settings.pay) for (const [uid, on] of Object.entries(d.settings.pay)) add('Logistics', 'settings', 0, `${on ? 'Pay' : 'Stop paying'} ${uname(Number(uid))}`);
@@ -1304,6 +1321,7 @@ const ACT = {
   'rm-op'(el) { mutate((d) => d.routeOps.splice(Number(el.dataset.idx), 1)); },
   'clear-all'() { if (confirm('Clear every order for this turn?')) { UI._d = Engine.normalizeOrders({}); saveDraft(); render(); } },
   'build-city'(el) { mutate((d) => d.builds.push({ city: Number(el.dataset.city), key: el.dataset.key })); toast(`${BLD[el.dataset.key].name} queued`); },
+  'mode-build-unit'(el) { UI.mode = { kind: 'build', unit: Number(el.dataset.unit), key: el.dataset.key }; computeHL(); if (!UI.hl.build.size) { UI.mode = null; toast(`No valid tile for ${BLD[el.dataset.key].name.toLowerCase()} within reach of this unit.`); } render(); },
   'mode-build'(el) { UI.mode = { kind: 'build', city: Number(el.dataset.city), key: el.dataset.key }; computeHL(); if (!UI.hl.build.size) { UI.mode = null; toast(`No valid tile for ${BLD[el.dataset.key].name.toLowerCase()} right now.`); } render(); },
   'mode-weapon'(el) { UI.mode = { kind: 'weapon', city: Number(el.dataset.city), w: el.dataset.w }; computeHL(); if (!UI.hl.attack.size) { UI.mode = null; toast('No enemy in range.'); } render(); },
   'mode-unload'(el) { UI.mode = { kind: 'unload', unit: Number(el.dataset.unit) }; render(); },

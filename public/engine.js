@@ -734,10 +734,29 @@ const Engine = ((R) => {
   }
 
   /* ---------------- validation shared by UI and engine ---------------- */
+  // Who supplies an infrastructure build: a city within its supply range of the tile, or a land
+  // logistics unit (caravan, supply truck, train) within its supply range that carries the goods.
+  function infraBuilderError(S, pid, o) {
+    const t = o.t;
+    if (o.unit != null) {
+      const u = unitById(S, o.unit);
+      if (!u || u.owner !== pid) return 'Not your unit';
+      const ud = U[u.type];
+      if (ud.role !== 'logistic' || ud.cls === 'ship' || !ud.cargo) return 'Only caravans, supply trucks and trains can build in the field';
+      if (u.carriedBy != null) return 'Unload it first';
+      if (dist(S.map, u.t, t) > R.CITY.unitSupplyRadius) return `Must be within ${R.CITY.unitSupplyRadius} tiles of the ${ud.name.toLowerCase()}`;
+      return null;
+    }
+    const c = cityById(S, o.city);
+    if (!c || c.owner !== pid) return 'Not your city';
+    if (dist(S.map, c.t, t) > supplyRadius(S, c)) return `Outside ${c.name}'s supply range (${supplyRadius(S, c)} tiles); bring the goods with a caravan, supply truck or train`;
+    return null;
+  }
   function checkBuild(S, pid, o) {
     const c = cityById(S, o.city), d = B[o.key];
     if (!d) return 'Unknown building';
-    if (!c || c.owner !== pid) return 'Not your city';
+    if (d.place === 'infra' && o.unit != null) { if (!isUnlocked(S, pid, o.key)) return 'Not researched yet'; }
+    else if (!c || c.owner !== pid) return 'Not your city';
     if (!isUnlocked(S, pid, o.key)) return 'Not researched yet';
     if (d.place === 'city') {
       if (d.limit && countB(S, c.id, o.key) >= d.limit) return `Only ${d.limit} per city`;
@@ -764,6 +783,8 @@ const Engine = ((R) => {
     // infrastructure
     const own = tileOwner(S, t);
     if (own != null && !friendly(S, own, pid)) return "Inside another nation's territory";
+    const who = infraBuilderError(S, pid, o);
+    if (who) return who;
     if (o.key === 'railroad') {
       if (tile.rail != null) return 'Already has a railroad';
       if (terrain(S, t) === 'mountain') return 'Mountains are impassable';
@@ -1540,10 +1561,11 @@ const Engine = ((R) => {
       const err = checkBuild(S, p.id, o);
       const d = B[o.key];
       if (err) { rep(p.id, 'construction', `Could not build ${d ? d.name : o.key}: ${err}.`); continue; }
-      const c = cityById(S, o.city);
-      if (!hasGoods(c.stock, d.cost)) { rep(p.id, 'construction', `Could not build ${d.name} in ${c.name}: needs ${goodsText(goodsOnly(d.cost))} in the city.`); continue; }
+      const c = cityById(S, o.city), bu = d.place === 'infra' && o.unit != null ? unitById(S, o.unit) : null;
+      const store = bu ? bu.cargo : c.stock, from = bu ? unitName(bu) : c.name;
+      if (!hasGoods(store, d.cost)) { rep(p.id, 'construction', `Could not build ${d.name} ${bu ? 'from' : 'in'} ${from}: needs ${goodsText(goodsOnly(d.cost))} ${bu ? 'aboard' : 'in the city'}.`); continue; }
       if (p.manpower < (d.cost.mp || 0)) { rep(p.id, 'construction', `Could not build ${d.name}: needs ${d.cost.mp} manpower.`); continue; }
-      takeGoods(c.stock, d.cost); p.manpower -= d.cost.mp || 0;
+      takeGoods(store, d.cost); p.manpower -= d.cost.mp || 0;
       if (d.place === 'infra') {
         const tile = S.map.tiles[o.t];
         if (o.key === 'railroad') tile.rail = p.id;
@@ -1558,7 +1580,7 @@ const Engine = ((R) => {
         if (o.key === 'townHall') claim(S, c);
         if (d.hp) c.hp = Math.min(maxHp(S, c), c.hp + d.hp);
       }
-      rep(p.id, 'construction', `Built ${d.name}${d.place === 'city' ? ` in ${c.name}` : ` at ${tileLabel(S, o.t)}`}.`);
+      rep(p.id, 'construction', `Built ${d.name}${d.place === 'city' ? ` in ${c.name}` : ` at ${tileLabel(S, o.t)}`}${bu ? ` with goods from ${unitName(bu)}` : ''}.`);
     }
 
     /* ----- 8. units ----- */
