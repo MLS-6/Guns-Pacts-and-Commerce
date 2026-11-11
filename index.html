@@ -238,6 +238,8 @@ const RULES = (() => {
     rubber: { name: 'Rubber trees', terrain: 'land', color: '#2f8a6d', glyph: '✿' },
     ore: { name: 'Ore vein', terrain: 'land', color: '#a8998a', glyph: '◆' },
     coal: { name: 'Coal vein', terrain: 'land', color: '#6a625d', glyph: '■' },
+    silver: { name: 'Silver vein', terrain: 'land', color: '#c3c8ce', glyph: '◇' },
+    gold: { name: 'Gold vein', terrain: 'land', color: '#d9b441', glyph: '✦' },
     oil: { name: 'Oil field', terrain: 'land', color: '#24211f', glyph: '▼', glyphColor: 'rgba(235,225,200,0.75)' },
     river: { name: 'River', terrain: 'water', color: '#4b92c3', glyph: '' },
     lake: { name: 'Lake', terrain: 'water', color: '#63a9d0', glyph: '' },
@@ -263,6 +265,9 @@ const RULES = (() => {
     stables: { name: 'Stables', abbr: 'St', era: 1, sci: 3, place: 'tile', tiles: ['grassland'], cost: { lumber: 10, tools: 2, mp: 1 }, recipes: { horses: { mp: 1, in: { food: 3 }, out: { horses: 3 } } } },
     lumberYard: { name: 'Lumber yard', abbr: 'Lm', era: 1, sci: 0, place: 'tile', tiles: ['forest'], cost: { lumber: 4, tools: 2, mp: 1 }, recipes: { lumber: { mp: 1, out: { lumber: 8 } } }, riverMult: 1.5 },
     oreMine: { name: 'Ore mine', abbr: 'Om', era: 1, sci: 0, place: 'tile', tiles: ['ore'], cost: { lumber: 8, tools: 4, mp: 2 }, recipes: { ore: { mp: 1, out: { ore: 6 } } } },
+    // Silver and gold mines turn manpower into credits: assign workers (manpower per turn) up to maxLabor.
+    silverMine: { name: 'Silver mine', abbr: 'Ag', era: 1, sci: 2, place: 'tile', tiles: ['silver'], cost: { lumber: 8, tools: 4, mp: 2 }, recipes: { credits: { labor: true, creditsPerMp: 50, maxLabor: 15 } } },
+    goldMine: { name: 'Gold mine', abbr: 'Au', era: 1, sci: 3, place: 'tile', tiles: ['gold'], cost: { lumber: 10, metal: 4, tools: 6, mp: 3 }, recipes: { credits: { labor: true, creditsPerMp: 100, maxLabor: 10 } } },
     coalMine: { name: 'Coal mine', abbr: 'Cm', era: 1, sci: 0, place: 'tile', tiles: ['coal'], cost: { lumber: 8, tools: 4, mp: 2 }, recipes: { fuel: { mp: 1, out: { fuel: 6 } } } },
     charcoalRefinery: { name: 'Charcoal refinery', abbr: 'Ch', era: 1, sci: 2, place: 'tile', tiles: ['grassland'], cost: { lumber: 8, tools: 3, mp: 2 }, recipes: { fuel: { mp: 1, in: { lumber: 3 }, out: { fuel: 1 } } } },
     oilField: { name: 'Oil field', abbr: 'Ol', era: 3, sci: 12, place: 'tile', tiles: ['oil'], cost: { lumber: 4, metal: 10, tools: 6, machinery: 4, rubber: 4, mp: 4 }, recipes: { fuel: { mp: 2, out: { fuel: 15 } } } },
@@ -296,7 +301,7 @@ const RULES = (() => {
     machineryFactory: { name: 'Machinery factory', era: 3, sci: 15, place: 'city', cost: { lumber: 15, metal: 25, tools: 12, machinery: 6, rubber: 6, mp: 5 }, recipes: { machinery: { mp: 4, in: { metal: 4, tools: 2, fuel: 1 }, out: { machinery: 3 } } }, builds: ['artillery', 'tank', 'train', 'supplyTruck'] , riverFuel: 1 },
 
     university: { name: 'University', era: 1, sci: 0, place: 'city', cost: { lumber: 12, metal: 4, tools: 6, mp: 3 }, recipes: { science: { mp: 6, credits: 50, sciOut: 1 } } },
-    taxOffice: { name: 'Tax office', era: 1, sci: 3, place: 'city', limit: 1, cost: { lumber: 20, metal: 6, tools: 6, mp: 3 }, recipes: { credits: { creditsPerResidence: 20 } } },
+    taxOffice: { name: 'Tax office', era: 1, sci: 3, place: 'city', limit: 1, cost: { lumber: 20, metal: 6, tools: 6, mp: 3 }, recipes: { credits: { creditsPerResidence: 50 } } },
     townHall: { name: 'Town hall', era: 1, sci: 4, place: 'city', limit: 1, cost: { lumber: 30, metal: 10, tools: 8, mp: 4 }, territoryBonus: 1 },
 
     barracks: { name: 'Barracks', era: 1, sci: 0, place: 'city', cost: { lumber: 12, metal: 4, tools: 4, mp: 2 }, builds: ['infantry', 'cavalry'] },
@@ -306,7 +311,7 @@ const RULES = (() => {
     navalYard: { name: 'Naval yard', era: 2, sci: 10, place: 'city', needsWater: true, cost: { lumber: 20, metal: 20, tools: 10, machinery: 4, rubber: 6, mp: 4 }, builds: ['freighter', 'warship'] },
 
     railroad: { name: 'Railroad', abbr: 'Rail', era: 2, sci: 6, place: 'infra', cost: { lumber: 2, metal: 4, tools: 1, mp: 1 } },
-    bridge: { name: 'Bridge', abbr: 'Br', era: 2, sci: 5, place: 'infra', cost: { lumber: 15, metal: 10, tools: 6, mp: 3 } },
+    bridge: { name: 'Bridge', abbr: 'Br', era: 1, sci: 0, place: 'infra', cost: { lumber: 15, metal: 10, tools: 6, mp: 3 } },
     railBridge: { name: 'Rail bridge', abbr: 'RB', era: 2, sci: 6, place: 'infra', cost: { lumber: 17, metal: 14, tools: 7, mp: 4 } },
 
     walls: { name: 'Walls', era: 1, sci: 4, place: 'city', limit: 1, cost: { lumber: 15, metal: 5, tools: 4, mp: 3 }, hp: 10 },
@@ -321,11 +326,11 @@ const RULES = (() => {
      repair: 'bio' (manpower), 'mech' (metal + tools), 'sail' (lumber); repairHorses = 1 horse per N HP
      carryTypes: which units a transport may carry and how many slots each takes */
   const UNITS = {
-    infantry: { name: 'Infantry', abbr: 'I', cls: 'land', role: 'combat', hp: 5, move: 2, range: 1, ammo: 1, idle: { food: 1 }, perTile: { food: 1 }, repair: 'bio', capture: true, cost: { mp: 4, clothing: 2, smallArms: 2 }, builtAt: ['barracks'], unlock: 'barracks' },
-    cavalry: { name: 'Cavalry', abbr: 'C', cls: 'land', role: 'combat', hp: 7, move: 3, range: 1, ammo: 1, idle: { food: 2 }, perTile: { food: 1 }, repair: 'bio', repairHorses: 3, capture: true, cost: { mp: 4, clothing: 2, smallArms: 2, horses: 3 }, builtAt: ['barracks'], unlock: 'stables' },
+    infantry: { name: 'Infantry', abbr: 'I', cls: 'land', role: 'combat', hp: 5, move: 2, range: 1, ammo: 1, idle: { food: 1 }, perTile: { food: 1 }, repair: 'bio', capture: true, ford: true, cost: { mp: 4, clothing: 2, smallArms: 2 }, builtAt: ['barracks'], unlock: 'barracks' },
+    cavalry: { name: 'Cavalry', abbr: 'C', cls: 'land', role: 'combat', hp: 7, move: 3, range: 1, ammo: 1, idle: { food: 2 }, perTile: { food: 1 }, repair: 'bio', repairHorses: 3, capture: true, ford: true, cost: { mp: 4, clothing: 2, smallArms: 2, horses: 3 }, builtAt: ['barracks'], unlock: 'stables' },
     artillery: { name: 'Artillery', abbr: 'A', cls: 'land', role: 'combat', hp: 5, move: 2, range: 2, ammo: 3, idle: { food: 1 }, perTile: { fuel: 1 }, repair: 'mech', cost: { mp: 4, clothing: 2, metal: 4, tools: 2, machinery: 2, rubber: 2 }, builtAt: ['machineryWorkshop', 'machineryFactory'], unlock: 'machineryWorkshop' },
     tank: { name: 'Tank', abbr: 'T', cls: 'land', role: 'combat', hp: 15, move: 4, range: 1, ammo: 2, idle: { food: 1 }, perTile: { fuel: 2 }, repair: 'mech', capture: true, cost: { mp: 6, clothing: 3, metal: 10, tools: 4, machinery: 4, rubber: 4 }, builtAt: ['machineryFactory'], unlock: 'machineryFactory' },
-    caravan: { name: 'Caravan', abbr: 'Ca', cls: 'land', role: 'logistic', hp: 1, move: 3, idle: { food: 1 }, perTile: { food: 1 }, repair: 'bio', cargo: 20, carry: 0, cost: { mp: 2, clothing: 1, horses: 4, lumber: 4 }, builtAt: ['stables'], unlock: 'stables' },
+    caravan: { name: 'Caravan', abbr: 'Ca', cls: 'land', role: 'logistic', hp: 1, move: 3, idle: { food: 1 }, perTile: {}, repair: 'bio', ford: true, cargo: 20, carry: 0, cost: { mp: 2, clothing: 1, horses: 4, lumber: 4 }, builtAt: ['stables'], unlock: 'stables' },
     supplyTruck: { name: 'Supply truck', abbr: 'ST', cls: 'land', role: 'logistic', hp: 5, move: 4, idle: { food: 1 }, perTile: { fuel: 0.5 }, repair: 'mech', cargo: 40, carry: 2, carryTypes: { infantry: 1, artillery: 2 }, cost: { mp: 2, clothing: 1, metal: 6, tools: 2, machinery: 1, rubber: 2 }, builtAt: ['machineryWorkshop', 'machineryFactory'], unlock: 'machineryWorkshop' },
     train: { name: 'Train', abbr: 'Tr', cls: 'rail', role: 'logistic', hp: 10, move: 6, idle: { fuel: 1 }, perTile: { fuel: 1 }, repair: 'mech', cargo: 120, carry: 4, cost: { mp: 4, clothing: 2, lumber: 4, metal: 12, tools: 4, machinery: 3 }, builtAt: ['machineryWorkshop', 'machineryFactory'], unlock: 'machineryWorkshop' },
     merchantman: { name: 'Merchantman', abbr: 'Me', cls: 'ship', power: 'sail', role: 'logistic', hp: 10, move: 3, idle: { food: 1 }, perTile: { food: 0.5 }, repair: 'sail', cargo: 100, carry: 3, cost: { mp: 4, clothing: 2, cloth: 6, lumber: 16, metal: 2, tools: 2 }, builtAt: ['shipyard'], unlock: 'shipyard' },
@@ -380,8 +385,19 @@ const RULES = (() => {
     // Rubber and oil are concentrated: most tiles sit in one region of the map
     // (placed away from the starting cities), the rest are scattered.
     rubber: { perPlayerMin: 2, perPlayerMax: 3, regionShare: 0.7 },
+    // Silver and gold veins are scattered at random (never clustered): per player, rounded (10 players = 6 silver, 3 gold)
+    silver: { perPlayer: 0.6 },
+    gold: { perPlayer: 0.3 },
     oil: { perPlayerMin: 3, perPlayerMax: 4, regionShare: 0.7 },
   };
+
+  // Credits per turn to keep a combat unit ready (paid at the end of each turn). Logistics units cost nothing,
+  // and neither do units resting in base (infantry and cavalry in a city with barracks, ships in a port).
+  const PAY = { land: 5, ship: 10 };
+  // Share of a destroyed logistics unit's cargo that goes to the nation that destroyed it
+  const LOOT = 0.5;
+  const PLAYERS = { min: 4, max: 12 };
+  const MINE_LABOR = 2; // workers a new silver or gold mine starts with
 
   const STACK = { logistics: 2 }; // per tile, besides one combat unit (city tiles are exempt)
   const DEMOLISH = { mp: 2, refund: 0.5 };
@@ -395,16 +411,16 @@ const RULES = (() => {
   const DEFAULT_PRIORITY = [
     'farm', 'fishery', 'residence', 'lumberYard', 'oreMine', 'coalMine', 'charcoalRefinery', 'oilField', 'fiberFarm', 'rubberPlantation', 'stables',
     'metalForge', 'metalFactory', 'workshop', 'toolsFactory', 'smallArmsFactory', 'ammoFactory',
-    'textileWorkshop', 'clothFactory', 'clothingFactory', 'machineryWorkshop', 'machineryFactory', 'university', 'taxOffice',
+    'textileWorkshop', 'clothFactory', 'clothingFactory', 'machineryWorkshop', 'machineryFactory', 'university', 'taxOffice', 'silverMine', 'goldMine',
   ];
 
-  const PLAYER_COLORS = ['#d7263d', '#1b998b', '#3a6ea5', '#f49d37', '#7b2cbf', '#e0c341', '#ff6f91', '#2e4057', '#8cb369', '#a0522d'];
+  const PLAYER_COLORS = ['#d7263d', '#1b998b', '#3a6ea5', '#f49d37', '#7b2cbf', '#e0c341', '#ff6f91', '#2e4057', '#8cb369', '#a0522d', '#00b4d8', '#b8b8ff'];
 
   const ERA_NAMES = { 1: 'Foundations', 2: 'Steel and Steam', 3: 'Industry' };
 
   return {
     GOODS, GOOD_NAMES, GOOD_COLORS, BASE_PRICE, MARKET, SPECIAL_STORAGE, TILES, BUILDINGS, UNITS, DAMAGE, WEAPON_AMMO, WEAPON_RANGE,
-    dmg, CITY, REPAIR, MAP, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
+    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = RULES;
@@ -808,6 +824,20 @@ const Engine = ((R) => {
     };
     placeRegional('rubber', R.MAP.rubber);
     placeRegional('oil', R.MAP.oil);
+    // Silver and gold: scattered one at a time anywhere on open land, well apart from each other
+    const precious = [];
+    for (const [type, spec] of [['gold', R.MAP.gold], ['silver', R.MAP.silver]]) {
+      const want = Math.max(1, Math.round(nPlayers * spec.perPlayer));
+      const pool = shuffle([...Array(n).keys()].filter((j) => (isG(j) || ['forest', 'ore', 'coal'].includes(m.tiles[j].type)) && !reserved.has(j) && !starts.some((st) => dist(m, st, j) <= 2)), rng)
+        .sort((a, b) => (isG(a) ? 0 : 1) - (isG(b) ? 0 : 1));
+      let placed = 0;
+      for (const gap of [4, 3, 2, 1]) for (const j of pool) {
+        if (placed >= want) break;
+        if (!isG(j) && !['forest', 'ore', 'coal'].includes(m.tiles[j].type)) continue;
+        if (precious.some((q) => dist(m, q, j) < gap)) continue;
+        m.tiles[j].type = type; precious.push(j); placed++;
+      }
+    }
     return { map: m, starts };
   }
 
@@ -868,11 +898,14 @@ const Engine = ((R) => {
     if (d.riverMult && nbrs(S.map, b.t).some((j) => S.map.tiles[j].type === 'river')) for (const g of Object.keys(out)) out[g] = Math.floor(out[g] * d.riverMult);
     return out;
   }
+  // Workers (manpower per turn) assigned to a silver or gold mine
+  const laborOf = (b) => { const rc = recipeOf(b), n = b.labor == null ? R.MINE_LABOR : b.labor; return rc && rc.maxLabor ? Math.min(n, rc.maxLabor) : n; };
   // Credits a building makes. A tax office pays per residence in its city that worked this turn;
   // without a turn number it estimates from the residences that are switched on.
   function creditsOutOf(S, b, turn) {
     const rc = recipeOf(b);
     if (!rc) return 0;
+    if (rc.labor) return laborOf(b) * rc.creditsPerMp;
     if (rc.creditsPerResidence) {
       const n = S.buildings.filter((x) => x.city === b.city && x.key === 'residence' && (turn == null ? !x.halted : x.ranTurn === turn)).length;
       return n * rc.creditsPerResidence;
@@ -946,7 +979,10 @@ const Engine = ((R) => {
         return false; // claimed ocean is open to every ship; claimed rivers and lakes are not
       }
     } else {
-      if (ter === 'water' && !tile.bridge) return false;
+      if (ter === 'water' && !tile.bridge) {
+        // Infantry, cavalry and caravans can wade a river; entering it ends their move. Trade routes always need a bridge.
+        if (!(tile.type === 'river' && d.ford && !opt.noFord && opt.final)) return false;
+      }
       if (d.cls === 'rail') {
         const railOwner = city ? city.owner : tile.rail;
         if (railOwner == null) return false;
@@ -999,6 +1035,7 @@ const Engine = ((R) => {
         prev.set(j, t);
         const c = cityAt(S, j);
         if (c && !friendly(S, c.owner, u.owner)) continue; // capture tile: may end there, not pass through
+        if (fording(S, u, j)) continue; // wading into a river uses up the rest of the move
         next.push(j);
       }
       frontier = next;
@@ -1012,6 +1049,13 @@ const Engine = ((R) => {
     }
     return res;
   }
+
+  // A land unit standing in (or wading into) a river with no bridge
+  const fording = (S, u, t) => U[u.type].cls !== 'ship' && S.map.tiles[t].type === 'river' && !S.map.tiles[t].bridge;
+  const inRiver = (S, u) => u.carriedBy == null && fording(S, u, u.t);
+  // Combat units act only if they were paid (or resting free in base) at the end of last turn
+  const isReady = (u) => U[u.type].role !== 'combat' || u.ready !== false;
+  const payOf = (u) => (U[u.type].role !== 'combat' ? 0 : U[u.type].cls === 'ship' ? R.PAY.ship : R.PAY.land);
 
   /* ---------------- stacking & carrying ----------------
      Each tile holds one combat unit and up to STACK.logistics logistics units,
@@ -1059,7 +1103,7 @@ const Engine = ((R) => {
   }
   function attackTargets(S, u) {
     const d = U[u.type];
-    if (d.role !== 'combat' || u.carriedBy != null) return [];
+    if (d.role !== 'combat' || u.carriedBy != null || inRiver(S, u) || !isReady(u)) return [];
     return within(S.map, u.t, d.range).filter((t) => t !== u.t && pickTarget(S, u.type, u.owner, t));
   }
   function cityWeaponTargets(S, c, w) {
@@ -1217,6 +1261,32 @@ const Engine = ((R) => {
     if (S.players[pid].manpower < R.CLEAR_FOREST.mp) return `Needs ${R.CLEAR_FOREST.mp} manpower`;
     return null;
   }
+  // Sabotage orders: { unit, t } — a ready land combat unit wrecks the railroad, bridge or rail bridge on its
+  // own tile or next to it, outside every nation's territory, built by a nation it is at war with.
+  function sabotageTarget(S, t) {
+    const tile = S.map.tiles[t];
+    if (!tile || cityAt(S, t) || tileOwner(S, t) != null) return null;
+    if (tile.bridge) return { what: tile.bridge === 'rail' ? 'railBridge' : 'bridge', owner: tile.bridgeBy };
+    if (tile.rail != null) return { what: 'railroad', owner: tile.rail };
+    return null;
+  }
+  function checkSabotage(S, pid, o) {
+    const u = unitById(S, o.unit), t = Number(o.t);
+    if (!u || u.owner !== pid) return 'Not your unit';
+    const d = U[u.type];
+    if (d.role !== 'combat' || d.cls !== 'land') return 'Only land combat units can sabotage';
+    if (u.carriedBy != null) return 'Unload it first';
+    if (!isReady(u)) return 'This unit is in reserve (unpaid)';
+    if (!(t >= 0 && t < S.map.tiles.length) || dist(S.map, u.t, t) > 1) return 'Must be on or next to the target';
+    const tg = sabotageTarget(S, t);
+    if (!tg) return 'Nothing to destroy there outside every nation\'s territory';
+    if (tg.owner == null || !atWar(S, pid, tg.owner)) return 'You can only sabotage the works of a nation you are at war with';
+    if (tg.what !== 'railroad') {
+      if (t === u.t) return 'Stand next to the bridge, not on it';
+      if (S.units.some((x) => x.t === t && x.carriedBy == null && U[x.type].cls !== 'ship')) return 'Units are on the bridge';
+    }
+    return null;
+  }
   const PEACE_PART = () => ({ credits: 0, science: 0, cities: [], tiles: [] });
   function normPeace(pl) {
     const out = { term: Math.round(Number(pl && pl.term) || R.PEACE.minTerm), give: PEACE_PART(), get: PEACE_PART() };
@@ -1270,7 +1340,7 @@ const Engine = ((R) => {
     for (const id of r.transports) {
       const u = unitById(S, id);
       if (!u) continue;
-      const p = findPath(S, u, from.t, toT, { partner: r.partner, ignoreUnits: true });
+      const p = findPath(S, u, from.t, toT, { partner: r.partner, ignoreUnits: true, noFord: true });
       if (!p) { ok = false; continue; }
       len = p.length - 1;
       const rt = Math.max(1, Math.ceil((2 * len) / U[u.type].move));
@@ -1310,7 +1380,7 @@ const Engine = ((R) => {
   }
   function newGame(opts) {
     const list = opts.players || [];
-    if (list.length < 2 || list.length > 10) throw new Error('The game needs between 2 and 10 players.');
+    if (list.length < 2 || list.length > R.PLAYERS.max) throw new Error(`The game needs between 2 and ${R.PLAYERS.max} players.`);
     const seed = opts.seed != null && opts.seed !== '' ? hashSeed(opts.seed) : (Math.floor(Math.random() * 4294967296) >>> 0);
     const rng = makeRng(seed);
     const { map, starts } = genMap(list.length, rng, { mapType: opts.mapType, tilesPerPlayer: opts.tilesPerPlayer });
@@ -1340,7 +1410,7 @@ const Engine = ((R) => {
      -> research -> production -> buildings -> units -> logistics (routes,
      supply & upkeep, repairs) -> end of turn
      ===================================================================== */
-  const ORDER_LISTS = ['attacks', 'moves', 'board', 'unload', 'buys', 'sells', 'research', 'demolish', 'clear', 'builds', 'trains', 'found', 'cargo', 'routeOps', 'diplo'];
+  const ORDER_LISTS = ['attacks', 'sabotage', 'moves', 'board', 'unload', 'buys', 'sells', 'research', 'demolish', 'clear', 'builds', 'trains', 'found', 'cargo', 'routeOps', 'diplo'];
 
   // Bring a saved game from an older version up to date.
   function migrate(S) {
@@ -1350,6 +1420,7 @@ const Engine = ((R) => {
       for (const k of ['annexed', 'vassalOf', 'approvals', 'lastTributeTurn', 'tributeDemand', 'refusedTribute', 'libPending']) delete p[k];
     }
     for (const t of S.map.tiles) { if (t.bridgeBy === undefined) t.bridgeBy = null; }
+    for (const u of S.units || []) { if (u.ready === undefined) u.ready = true; if (u.pay === undefined) u.pay = true; }
     S.proposals = (S.proposals || []).filter((pr) => ['peace', 'treaty', 'blueprint', 'route'].includes(pr.kind));
     S.version = 2;
     return S;
@@ -1375,11 +1446,23 @@ const Engine = ((R) => {
     const prices = computePrices(S); // fixed for the whole turn
     const pname = (id) => S.players[id].name;
 
-    function destroyUnit(u, why) {
-      for (const x of carried(S, u)) destroyUnit(x, `lost aboard ${unitName(u)}`);
+    function destroyUnit(u, why, byPid) {
+      const at = posOf(S, u);
+      for (const x of carried(S, u)) destroyUnit(x, `lost aboard ${unitName(u)}`, byPid);
       S.units = S.units.filter((x) => x !== u);
       for (const r of S.routes) r.transports = r.transports.filter((id) => id !== u.id);
       rep(u.owner, 'combat', `${unitName(u)} was destroyed (${why}).`);
+      // the destroyer takes half the cargo, delivered home like a market purchase
+      if (byPid != null && byPid !== u.owner && S.players[byPid] && !S.players[byPid].eliminated && u.cargo) {
+        const got = {}, lost = {};
+        const homes = citiesOf(S, byPid).sort((a, b) => dist(S.map, a.t, at) - dist(S.map, b.t, at));
+        for (const [g, v] of Object.entries(u.cargo)) {
+          let left = Math.floor((v || 0) * R.LOOT);
+          for (const c of homes) { if (left <= 0) break; const a = addToCity(S, c, g, left); if (a) { got[g] = (got[g] || 0) + a; left -= a; } }
+          if (left > 0) lost[g] = left;
+        }
+        if (Object.keys(got).length) rep(byPid, 'combat', `Captured ${goodsText(got)} from ${pname(u.owner)}'s ${unitName(u)}${Object.keys(lost).length ? ` (${goodsText(lost)} more would not fit in storage)` : ''}.`);
+      }
     }
     function removeRoute(id, why) {
       const r = S.routes.find((x) => x.id === id);
@@ -1469,6 +1552,14 @@ const Engine = ((R) => {
       if (st.products) for (const [bid, prod] of Object.entries(st.products)) {
         const b = S.buildings.find((x) => x.id === Number(bid));
         if (b && buildingOwner(S, b) === p.id && B[b.key].recipes && B[b.key].recipes[prod]) b.product = prod;
+      }
+      if (st.pay) for (const [uid, on] of Object.entries(st.pay)) {
+        const u = unitById(S, Number(uid));
+        if (u && u.owner === p.id && U[u.type].role === 'combat') u.pay = !!on;
+      }
+      if (st.labor) for (const [bid, n] of Object.entries(st.labor)) {
+        const b = S.buildings.find((x) => x.id === Number(bid));
+        if (b && buildingOwner(S, b) === p.id && recipeOf(b) && recipeOf(b).labor) b.labor = Math.min(recipeOf(b).maxLabor || Infinity, Math.max(0, Math.floor(Number(n) || 0)));
       }
       if (st.halt) for (const [bid, on] of Object.entries(st.halt)) {
         const b = S.buildings.find((x) => x.id === Number(bid));
@@ -1575,6 +1666,8 @@ const Engine = ((R) => {
       if (a.unit != null) {
         const u = unitById(S, a.unit);
         if (!u || u.owner !== p.id || u.carriedBy != null || U[u.type].role !== 'combat') { rep(p.id, 'conflict', `Attack order skipped: unit #${a.unit} is not available.`); continue; }
+        if (!isReady(u)) { rep(p.id, 'conflict', `${unitName(u)} is in reserve (unpaid) and cannot attack this turn.`); continue; }
+        if (inRiver(S, u)) { rep(p.id, 'conflict', `${unitName(u)} cannot attack while wading a river.`); continue; }
         if (attacks.some((x) => x.src.unit === u.id)) continue;
         if (dist(S.map, u.t, a.t) > U[u.type].range) { rep(p.id, 'conflict', `${unitName(u)} could not attack ${tileLabel(S, a.t)}: out of range.`); continue; }
         const tgt = pickTarget(S, u.type, p.id, a.t);
@@ -1594,8 +1687,12 @@ const Engine = ((R) => {
         attacks.push({ owner: p.id, key: w, src: { city: c.id }, name: `${c.name} ${B[w].name.toLowerCase()}`, from: c.t, tgt });
       }
     }
-    const dmgU = new Map(), dmgC = new Map();
-    const addD = (map, id, v) => map.set(id, (map.get(id) || 0) + v);
+    const dmgU = new Map(), dmgC = new Map(), dealtBy = new Map(); // unit id -> Map(attacker -> damage)
+    const addD = (map, id, v, by) => {
+      map.set(id, (map.get(id) || 0) + v);
+      if (map === dmgU && by != null) { if (!dealtBy.has(id)) dealtBy.set(id, new Map()); const m = dealtBy.get(id); m.set(by, (m.get(by) || 0) + v); }
+    };
+    const killer = (uid) => { const m = dealtBy.get(uid); if (!m) return null; return [...m.entries()].sort((a, b) => b[1] - a[1])[0][0]; };
     for (const at of attacks) {
       if (at.tgt.city) {
         const v = R.dmg(at.key, 'city');
@@ -1603,23 +1700,40 @@ const Engine = ((R) => {
         both(at.owner, at.tgt.city.owner, 'combat', `${pname(at.owner)}'s ${at.name} hit ${at.tgt.city.name} for ${v}.`);
       } else {
         const tu = at.tgt.unit, v = R.dmg(at.key, tu.type);
-        addD(dmgU, tu.id, v);
+        addD(dmgU, tu.id, v, at.owner);
         both(at.owner, tu.owner, 'combat', `${pname(at.owner)}'s ${at.name} hit ${pname(tu.owner)}'s ${unitName(tu)} for ${v}.`);
         if (at.src.unit != null && dist(S.map, at.from, tu.t) <= 1) {
           const rv = Math.floor(R.dmg(tu.type, at.key) / 2);
-          if (rv > 0) { addD(dmgU, at.src.unit, rv); both(at.owner, tu.owner, 'combat', `${unitName(tu)} struck back at ${at.name} for ${rv}.`); }
+          if (rv > 0) { addD(dmgU, at.src.unit, rv, tu.owner); both(at.owner, tu.owner, 'combat', `${unitName(tu)} struck back at ${at.name} for ${rv}.`); }
         }
       }
     }
     for (const [cid, v] of dmgC) { const c = cityById(S, cid); c.hp = Math.max(0, c.hp - v); c.attacked = true; if (c.hp === 0) rep(c.owner, 'combat', `${c.name}'s defenses are down (0 HP). Its garrison is now exposed.`); }
     for (const [uid, v] of dmgU) { const u = unitById(S, uid); if (u) u.hp -= v; }
-    for (const u of S.units.slice()) if (u.hp <= 0 && S.units.includes(u)) destroyUnit(u, 'killed in combat');
+    for (const u of S.units.slice()) if (u.hp <= 0 && S.units.includes(u)) destroyUnit(u, 'killed in combat', killer(u.id));
+
+    // sabotage: wreck enemy railroads and bridges outside every nation's territory
+    const attackedWith = new Set(attacks.filter((a) => a.src.unit != null).map((a) => a.src.unit));
+    const saboteurs = new Set();
+    for (const p of active) for (const o of O[p.id].sabotage) {
+      const u = unitById(S, o.unit);
+      if (!u || saboteurs.has(u.id)) continue;
+      if (attackedWith.has(u.id)) { rep(p.id, 'conflict', `${unitName(u)} attacked this turn, so it could not also sabotage.`); continue; }
+      const err = checkSabotage(S, p.id, o);
+      if (err) { rep(p.id, 'conflict', `${unitName(u)} could not sabotage at ${tileLabel(S, o.t)}: ${err}.`); continue; }
+      const t = Number(o.t), tile = S.map.tiles[t], tg = sabotageTarget(S, t);
+      if (tg.what === 'railroad') tile.rail = null;
+      else { if (tile.bridge === 'rail') tile.rail = null; tile.bridge = false; tile.bridgeBy = null; }
+      saboteurs.add(u.id);
+      both(p.id, tg.owner, 'combat', `${pname(p.id)}'s ${unitName(u)} destroyed ${pname(tg.owner)}'s ${B[tg.what].name.toLowerCase()} at ${tileLabel(S, t)}.`);
+    }
 
     /* ----- 2. movement ----- */
     // boarding
     for (const p of active) for (const b of O[p.id].board) {
       const u = unitById(S, b.unit), tr = unitById(S, b.transport);
       if (!u || !tr || u.owner !== p.id || tr.owner !== p.id || u.carriedBy != null || tr.carriedBy != null || u.route != null) continue;
+      if (!isReady(u) || saboteurs.has(u.id)) { rep(p.id, 'conflict', `${unitName(u)} cannot board this turn${!isReady(u) ? ': it is in reserve (unpaid)' : ''}.`); continue; }
       const why = canCarry(S, tr, u);
       if (why) { rep(p.id, 'conflict', `${unitName(tr)} cannot carry ${unitName(u)}: ${why}.`); continue; }
       if (dist(S.map, u.t, tr.t) > 1) { rep(p.id, 'conflict', `${unitName(u)} must be next to ${unitName(tr)} to board.`); continue; }
@@ -1635,6 +1749,8 @@ const Engine = ((R) => {
       if (movers.some((x) => x.u === u)) continue;
       if (u.carriedBy != null) { rep(p.id, 'conflict', `${unitName(u)} is aboard a transport and moves with it.`); continue; }
       if (u.route != null) { rep(p.id, 'conflict', `${unitName(u)} is assigned to route #${u.route}; remove it from the route to move it by hand.`); continue; }
+      if (!isReady(u)) { rep(p.id, 'conflict', `${unitName(u)} is in reserve (unpaid) and cannot move this turn.`); continue; }
+      if (saboteurs.has(u.id)) { rep(p.id, 'conflict', `${unitName(u)} spent the turn on sabotage and did not move.`); continue; }
       const path = Array.isArray(mv.path) ? mv.path.map(Number) : [];
       if (path.length < 2 || path[0] !== u.t) { rep(p.id, 'conflict', `${unitName(u)}'s move order no longer starts where it stands; it stayed put.`); continue; }
       if (path.length - 1 > U[u.type].move) { rep(p.id, 'conflict', `${unitName(u)} cannot move that far.`); continue; }
@@ -1689,7 +1805,7 @@ const Engine = ((R) => {
       const defenders = unitsAt(S, c.t).filter((x) => x !== m.u && U[x.type].role === 'combat' && U[x.type].cls === 'land');
       if (!U[m.u.type].capture || !atWar(S, c.owner, m.u.owner) || c.hp > 0 || defenders.length) continue;
       const loser = S.players[c.owner], by = m.u.owner;
-      for (const x of unitsAt(S, c.t)) if (!friendly(S, x.owner, by)) destroyUnit(x, `caught when ${c.name} fell`);
+      for (const x of unitsAt(S, c.t)) if (!friendly(S, x.owner, by)) destroyUnit(x, `caught when ${c.name} fell`, by);
       const old = c.owner, last = citiesOf(S, loser.id).length <= 1;
       c.owner = by; c.hp = 0;
       for (const tile of S.map.tiles) if (tile.owner === c.id) { if (tile.rail === old) tile.rail = by; if (tile.bridgeBy === old) tile.bridgeBy = by; }
@@ -1701,6 +1817,7 @@ const Engine = ((R) => {
     for (const p of active) for (const o of O[p.id].unload) {
       const u = unitById(S, o.unit);
       if (!u || u.owner !== p.id || u.carriedBy == null) continue;
+      if (!isReady(u)) { rep(p.id, 'conflict', `${unitName(u)} is in reserve (unpaid) and cannot unload this turn.`); continue; }
       const tr = unitById(S, u.carriedBy), t = Number(o.t);
       if (!tr || dist(S.map, tr.t, t) > 1) { rep(p.id, 'conflict', `${unitName(u)} must unload next to its transport.`); continue; }
       const probe = Object.assign({}, u, { carriedBy: null });
@@ -1762,6 +1879,14 @@ const Engine = ((R) => {
       for (const b of blds) {
         const c = cityById(S, b.city), rc = recipeOf(b), d = B[b.key];
         if (b.halted) { b.status = 'Halted'; b.lastOut = {}; continue; }
+        if (rc.labor) {
+          const want = laborOf(b), used = Math.min(want, p.manpower), cr = used * rc.creditsPerMp;
+          p.manpower -= used; p.credits += cr; b.ranTurn = turn;
+          b.lastOut = cr ? { credits: cr } : {};
+          b.status = !want ? 'No workers assigned' : used < want ? `Short of manpower: ${used} of ${want} workers` : 'Running';
+          if (used < want) rep(p.id, 'shortfall', `${c.name}: ${d.name} had only ${used} of ${want} workers (out of manpower).`);
+          continue;
+        }
         const out = buildingOutput(S, b);
         const why = [];
         if ((rc.mp || 0) > p.manpower) why.push(`${rc.mp} manpower`);
@@ -1971,7 +2096,7 @@ const Engine = ((R) => {
         if (!u) continue;
         const d = U[u.type];
         let moves = d.move;
-        const rt = (() => { const pth = findPath(S, u, from.t, dest.t, { partner: r.partner, ignoreUnits: true }); return pth ? Math.max(1, Math.ceil((2 * (pth.length - 1)) / d.move)) : 1; })();
+        const rt = (() => { const pth = findPath(S, u, from.t, dest.t, { partner: r.partner, ignoreUnits: true, noFord: true }); return pth ? Math.max(1, Math.ceil((2 * (pth.length - 1)) / d.move)) : 1; })();
         const arrive = () => {
           if (u.leg === 'out') {
             const delivered = {};
@@ -2019,7 +2144,7 @@ const Engine = ((R) => {
           const there = u.t === target || (u.leg === 'out' && r.to.type === 'unit' && dist(S.map, u.t, target) <= 1);
           if (there) { arrive(); if (from.t === dest.t) break; continue; }
           if (moves <= 0) break;
-          const path = findPath(S, u, u.t, target, { partner: r.partner });
+          const path = findPath(S, u, u.t, target, { partner: r.partner, noFord: true });
           if (!path) { notes.push(`${unitName(u)} has no open path`); break; }
           let steps = Math.min(moves, path.length - 1);
           if (u.leg === 'out' && r.to.type === 'unit') steps = Math.min(steps, Math.max(0, path.length - 2));
@@ -2068,6 +2193,20 @@ const Engine = ((R) => {
         if (done) { u.hp += done; rep(u.owner, 'supply', `${unitName(u)} repaired ${done} HP.`); }
       }
     }
+    // military pay: combat units outside base cost credits to keep ready; unpaid units sit in reserve next turn
+    {
+      const paid = {}, short = {};
+      for (const u of S.units.slice().sort((a, b) => a.id - b.id)) {
+        if (U[u.type].role !== 'combat') continue;
+        const p = S.players[u.owner], cost = payOf(u);
+        if (inBase(S, u)) { u.ready = true; u.payStatus = 'In base: free and ready'; continue; }
+        if (u.pay === false) { u.ready = false; u.payStatus = 'In reserve (pay switched off)'; continue; }
+        if (p.credits >= cost) { p.credits -= cost; u.ready = true; u.payStatus = `Paid ${cost} credits: ready`; paid[p.id] = (paid[p.id] || 0) + cost; }
+        else { u.ready = false; u.payStatus = 'Unpaid (not enough credits): in reserve'; short[p.id] = (short[p.id] || 0) + 1; }
+      }
+      for (const [pid, v] of Object.entries(paid)) rep(Number(pid), 'supply', `Paid ${v} credits to keep your army and navy ready.`);
+      for (const [pid, n] of Object.entries(short)) rep(Number(pid), 'shortfall', `${n} unit${n > 1 ? 's' : ''} could not be paid and will sit in reserve next turn.`);
+    }
     // city regeneration
     for (const c of S.cities) if (!c.attacked && c.hp < maxHp(S, c)) c.hp = Math.min(maxHp(S, c), c.hp + R.CITY.regen);
 
@@ -2093,7 +2232,7 @@ const Engine = ((R) => {
       garrisonOf, posOf, carried, atWar, friendly, hasTreaty, isUnlocked, unitUnlocked, territoryRadius, supplyRadius, maxHp,
       capacity, freeSpace, recipeOf, recipeKey, buildingOutput, creditsOutOf, buildingOwner, reachable, findPath, canEnter, pickTarget, attackTargets,
       cityWeaponTargets, supplySources, sourceName, upkeepOf, inBase, checkBuild, checkTrain, checkFound, routeEstimate, describeProposal,
-      cargoUsed, cargoFree, portOk, dockable, slotFree, canCarry, carrySlots, demolishable, checkDemolish, checkClear, normPeace, checkPeace, peaceTerms, isWater, isLand, nearWater, tileLabel, goodsText, terrain,
+      cargoUsed, cargoFree, portOk, dockable, slotFree, canCarry, carrySlots, demolishable, checkDemolish, checkClear, checkSabotage, sabotageTarget, fording, inRiver, isReady, payOf, laborOf, normPeace, checkPeace, peaceTerms, isWater, isLand, nearWater, tileLabel, goodsText, terrain,
     },
   };
 })(typeof RULES !== 'undefined' ? RULES : require('./rules.js'));
@@ -2236,7 +2375,7 @@ function draft() {
 function saveDraft() { try { localStorage.setItem(UI._dk, JSON.stringify(UI._d)); } catch (e) { /* storage full or blocked */ } }
 function mutate(fn) { fn(draft()); saveDraft(); render(); }
 function settings() { const d = draft(); if (!d.settings) d.settings = {}; return d.settings; }
-function draftCount(d) { return ['attacks', 'moves', 'board', 'unload', 'buys', 'sells', 'research', 'demolish', 'clear', 'builds', 'trains', 'found', 'cargo', 'routeOps', 'diplo'].reduce((n, k) => n + d[k].length, 0) + (d.settings && (d.settings.priority || (d.settings.products && Object.keys(d.settings.products).length) || (d.settings.halt && Object.keys(d.settings.halt).length)) ? 1 : 0); }
+function draftCount(d) { return ['attacks', 'sabotage', 'moves', 'board', 'unload', 'buys', 'sells', 'research', 'demolish', 'clear', 'builds', 'trains', 'found', 'cargo', 'routeOps', 'diplo'].reduce((n, k) => n + d[k].length, 0) + (d.settings && (d.settings.priority || ['products', 'halt', 'pay', 'labor'].some((k) => d.settings[k] && Object.keys(d.settings[k]).length)) ? 1 : 0); }
 // goods and manpower already committed by this turn's orders, per city
 function reserved(cityId) {
   const d = draft(), goods = {};
@@ -2273,6 +2412,7 @@ function center(m, i) { const c = i % m.w, r = Math.floor(i / m.w); return [HS *
 const hexPts = (x, y, s = 1) => CORN.map(([dx, dy]) => `${(x + dx * s).toFixed(1)},${(y + dy * s).toFixed(1)}`).join(' ');
 function mapSize(m) { return [HS * SQ3 * (m.w + 0.5) + PAD * 2, HS * 1.5 * (m.h - 1) + HS * 2 + PAD * 2]; }
 
+const d0 = () => draft();
 function computeHL() {
   const S = st(), hl = { move: new Map(), attack: new Set(), build: new Set() };
   UI.hl = hl;
@@ -2303,7 +2443,8 @@ function computeHL() {
     return;
   }
   const u = UI.sel && UI.sel.unit != null ? Q.unitById(S, UI.sel.unit) : null;
-  if (!u || u.owner !== UI.me || u.carriedBy != null || S.gameOver) return;
+  if (!u || u.owner !== UI.me || u.carriedBy != null || S.gameOver || !Q.isReady(u)) return;
+  if (d0().sabotage.some((o) => o.unit === u.id)) return;
   if (u.route == null) {
     for (const [t, path] of Q.reachable(S, u)) {
       if (!Q.slotFree(S, u, t)) continue;
@@ -2359,6 +2500,15 @@ function buildMapSvg(kind) {
       const [x1, y1] = center(m, i), [x2, y2] = center(m, j);
       out.push(`<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#2b221b" stroke-width="4" stroke-linecap="round"/><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#c8b59a" stroke-width="1.4" stroke-dasharray="2 3"/>`);
     }
+  }
+  // who built the railroads and bridges that lie outside every nation's territory
+  for (let i = 0; i < n; i++) {
+    const tile = m.tiles[i];
+    if (tileOwnerP(i) != null || Q.cityAt(S, i)) continue;
+    const owner = tile.bridge ? tile.bridgeBy : tile.rail;
+    if (owner == null) continue;
+    const [x, y] = center(m, i);
+    out.push(`<g transform="translate(${x + 9},${y - 10})"><line x1="0" y1="0" x2="0" y2="9" stroke="#2b2b2b" stroke-width="1.2"/><path d="M0 0 L8 2.5 L0 5 Z" fill="${pcol(owner)}" stroke="#2b2b2b" stroke-width="0.6"><title>Built by ${esc(pname(owner))}</title></path></g>`);
   }
   // borders
   for (let i = 0; i < n; i++) {
@@ -2704,14 +2854,15 @@ function sidePanel() {
     const caps = Q.citiesOf(S, UI.me);
     return `<h2>Your turn</h2><p class="muted">Click a tile to inspect it. Click one of your units, then a highlighted tile to move or a red tile to attack. Click one of your cities to build and recruit.</p>
       <h3>Your cities</h3><ul class="list">${caps.map((c) => `<li><button class="linkbtn" data-act="goto" data-t="${c.t}">${esc(c.name)}</button><span class="num">${c.hp}/${Q.maxHp(S, c)} HP</span></li>`).join('') || '<li class="muted">None</li>'}</ul>
-      <h3>Your units</h3><ul class="list">${Q.unitsOf(S, UI.me).map((u) => `<li><button class="linkbtn" data-act="goto-unit" data-id="${u.id}">${esc(Q.unitName(u))}</button><span class="small muted">${tl(Q.posOf(S, u))}</span></li>`).join('') || '<li class="muted">None yet. Build a barracks to raise infantry.</li>'}</ul>`;
+      <h3>Your units</h3><ul class="list">${Q.unitsOf(S, UI.me).map((u) => `<li><button class="linkbtn" data-act="goto-unit" data-id="${u.id}">${esc(Q.unitName(u))}</button><span class="small muted">${tl(Q.posOf(S, u))}</span>${!Q.isReady(u) ? ' <span class="tag">reserve</span>' : ''}</li>`).join('') || '<li class="muted">None yet. Build a barracks to raise infantry.</li>'}</ul>`;
   }
   const t = UI.sel.t, tile = S.map.tiles[t], city = Q.cityAt(S, t), oc = Q.tileOwnerCity(S, t), tb = Q.tileBuilding(S, t);
   const parts = [];
   parts.push(`<section><h2>${esc(RR.TILES[tile.type].name)} <span class="muted small">at ${tl(t)}</span></h2><dl class="kv">
     <dt>Territory</dt><dd>${oc ? `<span class="pdot" style="background:${pcol(oc.owner)}"></span>${esc(oc.name)} (${esc(pname(oc.owner))})` : 'Unclaimed'}</dd>
     ${tb ? `<dt>Building</dt><dd>${esc(BLD[tb.key].name)}${tb.status ? ` <span class="small ${tb.status.startsWith('Idle') ? 'warn' : 'muted'}">${esc(tb.status)}</span>` : ''}</dd>` : ''}
-    ${tile.rail != null ? `<dt>Railroad</dt><dd>${esc(pname(tile.rail))}</dd>` : ''}${tile.bridge ? '<dt>Bridge</dt><dd>Yes</dd>' : ''}
+    ${tile.rail != null && tile.bridge !== 'rail' ? `<dt>Railroad</dt><dd><span class="pdot" style="background:${pcol(tile.rail)}"></span>built by ${esc(pname(tile.rail))}</dd>` : ''}${tile.bridge ? `<dt>${tile.bridge === 'rail' ? 'Rail bridge' : 'Bridge'}</dt><dd>${tile.bridgeBy != null ? `<span class="pdot" style="background:${pcol(tile.bridgeBy)}"></span>built by ${esc(pname(tile.bridgeBy))}` : 'Yes'}</dd>` : ''}
+    ${tile.type === 'river' && !tile.bridge ? '<dt>Crossing</dt><dd class="small">Infantry, cavalry and caravans can wade in; it ends their move, and they cannot attack from the river.</dd>' : ''}
     ${tile.trap != null ? `<dt>Tank trap</dt><dd>${esc(cityName(tile.trap))}</dd>` : ''}</dl>${clearBlock(t)}${demolishBlock(t)}</section>`);
   if (city) parts.push(cityPanel(city));
   const units = Q.unitsAt(S, t);
@@ -2786,6 +2937,8 @@ function unitPanel(u) {
     ${dd.carry ? `<dt>Carrying</dt><dd>${aboard.reduce((a, x) => a + Q.carrySlots(u, x), 0)} / ${dd.carry} slots${dd.carryTypes ? ` (${Object.entries(dd.carryTypes).map(([k, n]) => `${UNI[k].name.toLowerCase()} ${n}`).join(', ')})` : ''}${aboard.length ? `: ${aboard.map((x) => esc(Q.unitName(x))).join(', ')}` : ''}</dd>` : ''}
     ${tr ? `<dt>Aboard</dt><dd>${esc(Q.unitName(tr))}</dd>` : ''}
     ${u.route != null ? `<dt>Route</dt><dd>#${u.route} (${esc(u.leg || '')})</dd>` : ''}
+    ${own && dd.role === 'combat' ? `<dt>Status</dt><dd class="small">${Q.isReady(u) ? '<b>Ready</b>' : '<b class="warn">In reserve</b>: cannot move or attack this turn'}${u.payStatus ? ` · ${esc(u.payStatus)}` : ''}</dd>` : ''}
+    ${Q.inRiver(S, u) ? '<dt>River</dt><dd class="small">Wading: cannot attack until it climbs out.</dd>' : ''}
     ${own ? `<dt>Supply</dt><dd class="small">${esc(u.supply || '—')}</dd><dt>Upkeep</dt><dd class="small">${esc(fmtGoods(Q.upkeepOf(S, u, mv ? mv.path.length - 1 : 0)) || 'none (in base)')}</dd>` : ''}</dl></section>`];
   if (!own) return out.join('');
   const ord = [];
@@ -2803,6 +2956,22 @@ function unitPanel(u) {
     for (const x of trs) acts.push(`<button class="btn small" data-act="board" data-unit="${u.id}" data-tr="${x.id}">Board ${esc(Q.unitName(x))}</button>`);
   }
   if (u.carriedBy != null) acts.push(`<button class="btn small" data-act="mode-unload" data-unit="${u.id}">Unload…</button>`);
+  if (dd.role === 'combat') {
+    const pend = d.settings && d.settings.pay && d.settings.pay[u.id] !== undefined ? d.settings.pay[u.id] : null;
+    const on = pend != null ? pend : u.pay !== false;
+    const free = Q.inBase(S, u);
+    acts.push(`<label class="ck small"><input type="checkbox" data-chg="pay" data-id="${u.id}" ${on ? 'checked' : ''}> Pay this unit (${Q.payOf(u)} credits a turn${free ? '; free while in base' : ''})</label>
+      <p class="small muted">${on ? (Q.isReady(u) ? 'Paid at the end of each turn to stay ready.' : 'It will be paid at the end of this turn and be ready next turn.') : 'Unpaid units sit in reserve: no pay, no moving or attacking, but they can still be attacked.'}</p>`);
+    const sab = d.sabotage.find((o) => o.unit === u.id);
+    if (sab) ord.push(`<li>Sabotage at ${tl(sab.t)}<button class="x" data-act="clear" data-list="sabotage" data-unit="${u.id}" aria-label="Cancel sabotage">✕</button></li>`);
+    else if (dd.cls === 'land' && u.carriedBy == null) {
+      for (const t of [u.t, ...HX.nbrs(S.map, u.t)]) {
+        const tg = Q.sabotageTarget(S, t); if (!tg) continue;
+        const err = Q.checkSabotage(S, UI.me, { unit: u.id, t });
+        if (!err) acts.push(`<button class="btn small danger" data-act="sabotage" data-unit="${u.id}" data-t="${t}">Destroy ${esc(pname(tg.owner))}'s ${esc(BLD[tg.what].name.toLowerCase())} at ${tl(t)}</button>`);
+      }
+    }
+  }
   if (dd.role === 'logistic' && u.carriedBy == null) {
     const err = Q.checkFound(S, UI.me, u.id);
     acts.push(err ? `<p class="small muted">Found a city: ${esc(err)}.</p>` : `<div class="row"><input type="text" id="found-name" placeholder="City name" aria-label="New city name"><button class="btn small brass" data-act="found" data-unit="${u.id}">Found city here</button></div>`);
@@ -2956,6 +3125,7 @@ TAB_RENDER.production = function () {
   const prio = st0.priority || p.priority;
   const products = st0.products || {};
   const halts = st0.halt || {};
+  const labors = (draft().settings && draft().settings.labor) || {};
   const isHalted = (b) => (halts[b.id] != null ? !!halts[b.id] : !!b.halted);
   const usedKeys = new Set(S.buildings.filter((b) => Q.buildingOwner(S, b) === UI.me && BLD[b.key].recipes).map((b) => b.key));
   const prioList = prio.filter((k) => usedKeys.has(k)).map((k, i, arr) => `<li class="row" style="margin:0;justify-content:space-between"><span><span class="num muted">${i + 1}.</span> ${esc(BLD[k].short || BLD[k].name)}</span><span><button class="btn small" data-act="prio" data-key="${k}" data-dir="-1" ${i === 0 ? 'disabled' : ''} aria-label="Move up">↑</button> <button class="btn small" data-act="prio" data-key="${k}" data-dir="1" ${i === arr.length - 1 ? 'disabled' : ''} aria-label="Move down">↓</button></span></li>`).join('');
@@ -2967,15 +3137,18 @@ TAB_RENDER.production = function () {
       const cur = products[b.id] || Q.recipeKey(b);
       const rc = d.recipes[cur], out = Q.buildingOutput(S, Object.assign({}, b, { product: cur }));
       const off = isHalted(b);
+      const labor = rc.labor ? (labors[b.id] != null ? labors[b.id] : Q.laborOf(b)) : 0;
+      const credOut = rc.labor ? labor * rc.creditsPerMp : Q.creditsOutOf(S, b);
+      const mpUse = rc.labor ? labor : (rc.mp || 0);
       if (!off) {
         for (const [g, v] of Object.entries(rc.in || {})) totIn[g] = (totIn[g] || 0) + v;
         for (const [g, v] of Object.entries(out)) totOut[g] = (totOut[g] || 0) + v;
-        mp += rc.mp || 0; mpOut += rc.mpOut || 0; cr += rc.credits || 0; crOut += Q.creditsOutOf(S, b); sci += rc.sciOut || 0;
+        mp += mpUse; mpOut += rc.mpOut || 0; cr += rc.credits || 0; crOut += credOut; sci += rc.sciOut || 0;
       }
       const sel = keys.length > 1 ? `<select data-chg="product" data-id="${b.id}" aria-label="Product">${keys.map((k) => `<option value="${k}" ${k === cur ? 'selected' : ''}>${GN(k) || k}</option>`).join('')}</select>` : '';
-      const outs = [fmtGoods(out), rc.mpOut ? `${rc.mpOut} manpower` : '', rc.sciOut ? `${rc.sciOut} science` : '', Q.creditsOutOf(S, b) || rc.creditsPerResidence ? `${Q.creditsOutOf(S, b)} credits${rc.creditsPerResidence ? ` (${rc.creditsPerResidence} × residences)` : ''}` : ''].filter(Boolean).join(', ');
+      const outs = [fmtGoods(out), rc.mpOut ? `${rc.mpOut} manpower` : '', rc.sciOut ? `${rc.sciOut} science` : '', credOut || rc.creditsPerResidence || rc.labor ? `${credOut} credits${rc.creditsPerResidence ? ` (${rc.creditsPerResidence} × residences)` : rc.labor ? ` (${rc.creditsPerMp} per worker, up to ${rc.maxLabor})` : ''}` : ''].filter(Boolean).join(', ');
       const toggle = `<label class="ck small"><input type="checkbox" data-chg="halt" data-id="${b.id}" ${off ? '' : 'checked'}> On</label>`;
-      return `<tr class="${off ? 'muted' : ''}"><td>${toggle}</td><td>${esc(d.short || d.name)}${d.place === 'tile' ? ` <span class="small muted">${tl(b.t)}</span>` : ''}</td><td>${sel}</td><td class="small">${esc(fmtGoods(rc.in) || '—')}${rc.credits ? `${rc.in ? ', ' : ''}${rc.credits} credits` : ''}</td><td class="small">${esc(outs)}</td><td class="n">${rc.mp || 0}</td><td class="small ${b.status && b.status.startsWith('Idle') ? 'warn' : 'muted'}">${esc(off ? (b.halted ? 'Halted' : 'Halts this turn') : b.halted ? 'Restarts this turn' : (b.status || 'New'))}</td></tr>`;
+      return `<tr class="${off ? 'muted' : ''}"><td>${toggle}</td><td>${esc(d.short || d.name)}${d.place === 'tile' ? ` <span class="small muted">${tl(b.t)}</span>` : ''}</td><td>${sel}</td><td class="small">${esc(fmtGoods(rc.in) || '—')}${rc.credits ? `${rc.in ? ', ' : ''}${rc.credits} credits` : ''}</td><td class="small">${esc(outs)}</td><td class="n">${rc.labor ? `<input type="number" min="0" max="${rc.maxLabor || ''}" step="1" class="w-sm" data-chg="labor" data-id="${b.id}" value="${labor}" aria-label="Workers" title="Manpower put to work each turn${rc.maxLabor ? ` (up to ${rc.maxLabor})` : ''}" style="width:64px">` : (rc.mp || 0)}</td><td class="small ${b.status && b.status.startsWith('Idle') ? 'warn' : 'muted'}">${esc(off ? (b.halted ? 'Halted' : 'Halts this turn') : b.halted ? 'Restarts this turn' : (b.status || 'New'))}</td></tr>`;
     }).join('');
     return `<div class="ledger"><table><thead><tr><th colspan="7">${esc(c.name)}</th></tr><tr><th>Running</th><th>Production line</th><th>Making</th><th>Uses per turn</th><th>Makes per turn</th><th class="n">Manpower</th><th>Last turn</th></tr></thead><tbody>
       ${rows || '<tr><td colspan="7" class="muted">No production buildings yet.</td></tr>'}
@@ -3134,12 +3307,14 @@ function orderGroups() {
   d.buys.forEach((o, i) => add('Market buys', 'buys', i, `Buy ${o.amount} ${gl(o.good)} for ${cityName(o.city)}`));
   d.sells.forEach((o, i) => add('Market sells', 'sells', i, `Sell ${o.amount} ${gl(o.good)} from ${cityName(o.city)}`));
   d.research.forEach((k, i) => add('Research', 'research', i, `Research ${BLD[k].name} (${BLD[k].sci} science)`));
+  d.sabotage.forEach((o, i) => add('Combat', 'sabotage', i, `${uname(o.unit)} sabotages ${tl(o.t)}`));
   d.clear.forEach((o, i) => add('Buildings', 'clear', i, `Clear the forest at ${tl(o.t)} (+${RR.CLEAR_FOREST.lumber} lumber)`));
   d.demolish.forEach((o, i) => add('Buildings', 'demolish', i, `Demolish ${o.what === 'building' ? (Q.tileBuilding(S, o.t) ? BLD[Q.tileBuilding(S, o.t).key].name.toLowerCase() : 'building') : o.what === 'trap' ? 'tank trap' : o.what === 'rail' ? 'railroad' : 'bridge'} at ${tl(o.t)}`));
   d.found.forEach((o, i) => add('Buildings', 'found', i, `Found ${o.name} with ${uname(o.unit)}`));
   d.builds.forEach((o, i) => add('Buildings', 'builds', i, `Build ${BLD[o.key].name} for ${cityName(o.city)}${o.t != null ? ` at ${tl(o.t)}` : ''}`));
   d.trains.forEach((o, i) => add('Units', 'trains', i, `Build ${UNI[o.type].name} in ${cityName(o.city)}`));
-  if (d.settings && (d.settings.priority || (d.settings.products && Object.keys(d.settings.products).length) || (d.settings.halt && Object.keys(d.settings.halt).length))) add('Production', 'settings', 0, 'Production priority, products or on/off switches changed');
+  if (d.settings && (d.settings.priority || ['products', 'halt', 'labor'].some((k) => d.settings[k] && Object.keys(d.settings[k]).length))) add('Production', 'settings', 0, 'Production priority, products, workers or on/off switches changed');
+  if (d.settings && d.settings.pay) for (const [uid, on] of Object.entries(d.settings.pay)) add('Logistics', 'settings', 0, `${on ? 'Pay' : 'Stop paying'} ${uname(Number(uid))}`);
   d.cargo.forEach((o, i) => add('Logistics', 'cargo', i, `${uname(o.unit)} ${o.amount > 0 ? 'loads' : 'unloads'} ${Math.abs(o.amount)} ${gl(o.good)}`));
   d.routeOps.forEach((o, i) => add('Logistics', 'routeOps', i, o.op === 'remove' ? `Close route #${o.id}` : o.op === 'update' ? `Change route #${o.id}` : `New route ${cityName(o.from)} → ${o.to.type === 'city' ? cityName(o.to.id) : uname(o.to.id)}`));
   const order = ['Diplomacy', 'Combat', 'Movement', 'Market buys', 'Market sells', 'Research', 'Production', 'Buildings', 'Units', 'Logistics'];
@@ -3218,6 +3393,7 @@ const ACT = {
     UI.peace = null; toast('Peace treaty queued'); render();
   },
   'clear-forest'(el) { const t = Number(el.dataset.t); mutate((d) => { if (!d.clear.some((x) => x.t === t)) d.clear.push({ t }); }); },
+  sabotage(el) { const unit = Number(el.dataset.unit), t = Number(el.dataset.t); mutate((d) => { d.sabotage = d.sabotage.filter((x) => x.unit !== unit); d.sabotage.push({ unit, t }); d.moves = d.moves.filter((x) => x.unit !== unit); d.attacks = d.attacks.filter((x) => x.unit !== unit); }); computeHL(); render(); },
   demolish(el) { const t = Number(el.dataset.t), what = el.dataset.what; mutate((d) => { d.demolish = d.demolish.filter((x) => !(x.t === t && x.what === what)); d.demolish.push({ t, what }); }); },
   treaty(el) { mutate((d) => d.diplo.push({ type: 'propose', kind: 'treaty', to: Number(el.dataset.to), payload: { type: el.dataset.type } })); },
   credits(el) { const to = Number(el.dataset.to), amount = Math.floor(Number($(`#cr-${to}`).value) || 0); if (amount > 0) mutate((d) => d.diplo.push({ type: 'credits', to, amount })); },
@@ -3315,6 +3491,8 @@ const CHG = {
   'rf-goods'(el) { const v = Math.floor(Number(el.value) || 0); if (v > 0) UI.routeEdit.goods[el.dataset.good] = v; else delete UI.routeEdit.goods[el.dataset.good]; render(); },
   'rf-back'(el) { const v = Math.floor(Number(el.value) || 0); if (v > 0) UI.routeEdit.back[el.dataset.good] = v; else delete UI.routeEdit.back[el.dataset.good]; render(); },
   'rf-prio'(el) { UI.routeEdit.priority = el.value; render(); },
+  pay(el) { const s = settings(); s.pay = s.pay || {}; const u = Q.unitById(st(), Number(el.dataset.id)); if (u && (u.pay !== false) === el.checked) delete s.pay[el.dataset.id]; else s.pay[el.dataset.id] = el.checked; saveDraft(); render(); },
+  labor(el) { const s = settings(); s.labor = s.labor || {}; const b = st().buildings.find((x) => x.id === Number(el.dataset.id)); const rcl = b ? Q.recipeOf(b) : null; const v = Math.min((rcl && rcl.maxLabor) || Infinity, Math.max(0, Math.floor(Number(el.value) || 0))); if (b && Q.laborOf(b) === v) delete s.labor[el.dataset.id]; else s.labor[el.dataset.id] = v; saveDraft(); render(); },
   halt(el) { const s = settings(); s.halt = s.halt || {}; const b = st().buildings.find((x) => x.id === Number(el.dataset.id)); const want = !el.checked; if (b && !!b.halted === want) delete s.halt[el.dataset.id]; else s.halt[el.dataset.id] = want; saveDraft(); render(); },
   product(el) { const s = settings(); s.products = s.products || {}; s.products[el.dataset.id] = el.value; saveDraft(); render(); },
   research(el) { mutate((d) => { d.research = d.research.filter((k) => k !== el.value); if (el.checked) d.research.push(el.value); }); },
@@ -3351,10 +3529,10 @@ function renderSetup() {
   if (isCampaign()) { SETUP.pins = SETUP.pins || []; for (let i = 0; i < SETUP.n; i++) if (!SETUP.pins[i]) { let p; do { p = String(100000 + Math.floor(Math.random() * 900000)); } while (SETUP.pins.includes(p)); SETUP.pins[i] = p; } }
   const pinBox = (i) => (isCampaign() ? `<input type="text" inputmode="numeric" id="sp-pin-${i}" value="${esc(SETUP.pins[i])}" style="width:90px" aria-label="Player ${i + 1} PIN" title="This player's PIN">` : '');
   const rows = Array.from({ length: SETUP.n }, (_, i) => `<div class="prow"><span class="num muted">${i + 1}</span><input type="text" id="sp-name-${i}" value="${esc(SETUP.names[i] || `Player ${i + 1}`)}" aria-label="Player ${i + 1} name"><input type="text" id="sp-city-${i}" value="${esc(SETUP.names[`c${i}`] || '')}" placeholder="Capital name (optional)" aria-label="Player ${i + 1} capital">${pinBox(i)}<input type="color" id="sp-col-${i}" value="${SETUP.colors[i] || RR.PLAYER_COLORS[i]}" aria-label="Player ${i + 1} color"></div>`).join('');
-  $('#app').innerHTML = `<div class="setup"><h1>${esc(CONFIG.title)}</h1><p class="lede">A game of diplomacy, trade and supply lines for 4 to 10 nations, one turn a day.</p>
+  $('#app').innerHTML = `<div class="setup"><h1>${esc(CONFIG.title)}</h1><p class="lede">A game of diplomacy, trade and supply lines for ${RR.PLAYERS.min} to ${RR.PLAYERS.max} nations, one turn a day.</p>
     ${Sync.mode === 'file' && UI.loadError ? `<div class="notice bad">Could not load ${esc(CONFIG.STATE_URL)}: ${esc(UI.loadError)}. The host can create the game here and commit the downloaded state.json.</div>` : ''}
     <div class="row"><label>Game name <input type="text" id="sp-game" value="${esc(SETUP.game || CONFIG.title)}"></label>
-    <label>Players <select id="sp-n" data-act="noop">${[4, 5, 6, 7, 8, 9, 10].map((n) => `<option ${n === SETUP.n ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+    <label>Players <select id="sp-n" data-act="noop">${Array.from({ length: RR.PLAYERS.max - RR.PLAYERS.min + 1 }, (_, i) => RR.PLAYERS.min + i).map((n) => `<option ${n === SETUP.n ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
     <label>Map seed <input type="text" id="sp-seed" value="${esc(SETUP.seed || '')}" placeholder="random" style="width:110px"></label></div>
     <div class="row"><label>Map type <select id="sp-type">${Object.entries(RR.MAP.types).map(([k, v]) => `<option value="${k}" ${k === SETUP.mapType ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></label>
     <label>Tiles per player <select id="sp-tpp">${RR.MAP.sizes.map((n) => `<option ${n === SETUP.tpp ? 'selected' : ''}>${n}</option>`).join('')}</select></label></div>
