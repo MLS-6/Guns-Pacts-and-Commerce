@@ -227,7 +227,7 @@ const RULES = (() => {
     cloth: 800, metal: 1000, clothing: 1000, tools: 1400, smallArms: 1400, machinery: 4000,
   };
   // trickle: share of each turn's world production of goods that appears in the market pool (no one loses anything)
-  const MARKET = { scale: 4, buyRatio: 0.8, trickle: 0.05 };
+  const MARKET = { scale: 4, buyRatio: 0.8, trickle: 0.05, maxBidX: 10 };
 
   // Goods that warehouses and supply depots do NOT store
   const SPECIAL_STORAGE = ['food', 'fuel'];
@@ -448,10 +448,11 @@ const RULES = (() => {
     bombardment: { group: 'naval', name: 'Naval bombardment', era: 2, sci: 8, text: 'Combat ships: +75% damage against land units and cities.' },
     quantity: { group: 'army', name: 'Quantity', era: 1, sci: 4, text: 'Land combat units: -20% max HP, half idle supply, cheaper pay.' },
     quality: { group: 'army', name: 'Quality', era: 1, sci: 4, text: 'Land combat units: +20% max HP, +1 move, dearer pay.' },
-    entrenchment: { group: 'warfare', name: 'Entrenchment', era: 2, sci: 6, text: 'Infantry that did not move last turn and has no move order, at full mobilization, is entrenched: -25% damage from infantry, cavalry and artillery, +25% from tanks, +50% damage to cavalry.' },
-    mobileWarfare: { group: 'warfare', name: 'Mobile warfare', era: 3, sci: 10, text: 'Tanks, artillery, trains and supply trucks: +1 move. Tanks and artillery that moved last turn: +25% damage.' },
+    entrenchment: { group: 'warfare', name: 'Entrenchment', era: 2, sci: 6, text: 'At full mobilization, infantry dig in one level for each turn in a row they do not move (up to 5): -10% damage taken per level (tanks ignore this and deal +25%). Entrenched infantry deal +25% damage, +50% to cavalry.' },
+    mobileWarfare: { group: 'warfare', name: 'Mobile warfare', era: 3, sci: 10, text: 'At full mobilization: tanks, artillery, trains and supply trucks +1 move; tanks and artillery that moved last turn +25% damage.' },
   };
   const DOCTRINE_GROUPS = { naval: 'Naval', army: 'Army size', warfare: 'Warfare' };
+  const ENTRENCH = { max: 5, perLevel: 0.1, fire: 0.25, vsCavalry: 0.5, tankBonus: 0.25 };
   const DOCTRINE_LOCK = 10;
   const SUPPLY_PRIORITY = ['tank', 'artillery', 'infantry', 'cavalry', 'warship', 'frigate'];
   const DEPOT = { storage: { food: 200, fuel: 200, ammo: 200 }, other: 50, supplyRange: 3 };
@@ -483,7 +484,7 @@ const RULES = (() => {
 
   return {
     GOODS, GOOD_NAMES, GOOD_COLORS, BASE_PRICE, MARKET, SPECIAL_STORAGE, TILES, BUILDINGS, UNITS, DAMAGE, WEAPON_AMMO, WEAPON_RANGE,
-    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
+    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, ENTRENCH, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = RULES;
@@ -1212,7 +1213,7 @@ const Engine = ((R) => {
     const d = U[u.type];
     let m = d.move;
     if (landCombat(u) && doctrineOf(S, u.owner, 'army') === 'quality') m += 1;
-    if (MECH.includes(u.type) && doctrineOf(S, u.owner, 'warfare') === 'mobileWarfare') m += 1;
+    if (MECH.includes(u.type) && doctrineOf(S, u.owner, 'warfare') === 'mobileWarfare' && mobOf(S, u.owner) === 'full') m += 1;
     if (!canAct(S, u)) return 0;
     if (landCombat(u) && mobOf(S, u.owner) === 'partial') m = Math.max(1, Math.floor(m * R.MOBILIZE.partialSpeed));
     return m;
@@ -1226,13 +1227,17 @@ const Engine = ((R) => {
     return table[mobOf(S, u.owner)];
   }
   const stars = (u) => ((u.xp || 0) >= R.XP.elite ? 2 : (u.xp || 0) >= R.XP.veteran ? 1 : 0);
-  // Entrenched: infantry, Entrenchment doctrine, full mobilization, did not move last turn and has no move order this turn
-  function entrenched(S, u, moving) {
-    if (u.type !== 'infantry' || u.carriedBy != null) return false;
-    if (doctrineOf(S, u.owner, 'warfare') !== 'entrenchment' || mobOf(S, u.owner) !== 'full') return false;
-    if (u.lastMoveTurn === S.turn - 1) return false;
-    return !(moving && moving.has(u.id));
+  // Entrenchment level 0-5: infantry of a nation with the Entrenchment doctrine at full mobilization gains a level
+  // for each turn in a row it does not move (u.dig, counted at the end of each turn). A move order this turn cancels it.
+  function entrenchLevel(S, u, moving) {
+    if (u.type !== 'infantry' || u.carriedBy != null) return 0;
+    if (doctrineOf(S, u.owner, 'warfare') !== 'entrenchment' || mobOf(S, u.owner) !== 'full') return 0;
+    if (moving && moving.has(u.id)) return 0;
+    return Math.min(R.ENTRENCH.max, u.dig || 0);
   }
+  const entrenched = (S, u, moving) => entrenchLevel(S, u, moving) > 0;
+  // Mobile warfare: tanks and artillery that moved last turn, at full mobilization
+  const blitzing = (S, u) => (u.type === 'tank' || u.type === 'artillery') && doctrineOf(S, u.owner, 'warfare') === 'mobileWarfare' && mobOf(S, u.owner) === 'full' && u.lastMoveTurn === S.turn - 1;
   const isShip = (type) => U[type] && U[type].cls === 'ship';
   /* Combat modifiers. All that apply (attacker's and target's) are summed: damage = base x (1 + sum), sum >= floor.
      att: { unit } or { weapon, owner };  tgt: { unit } or { city };  opts.counter = a defender striking back */
@@ -1252,14 +1257,16 @@ const Engine = ((R) => {
         if (nav === 'navalWarfare' && tu && isShip(tu.type)) add('Naval warfare', 0.5);
         if (nav === 'bombardment' && (tgt.city || (tu && !isShip(tu.type)))) add('Naval bombardment', 0.75);
       }
-      if ((u.type === 'tank' || u.type === 'artillery') && doctrineOf(S, u.owner, 'warfare') === 'mobileWarfare' && u.lastMoveTurn === S.turn - 1) add('Mobile warfare', 0.25);
-      if (tu && tu.type === 'cavalry' && entrenched(S, u, opts.moving)) add('Entrenched vs cavalry', 0.5);
+      if (blitzing(S, u)) add('Mobile warfare', 0.25);
+      if (entrenched(S, u, opts.moving)) { if (tu && tu.type === 'cavalry') add('Entrenched vs cavalry', R.ENTRENCH.vsCavalry); else add('Firing from trenches', R.ENTRENCH.fire); }
     }
-    if (tu && entrenched(S, tu, opts.moving)) {
+    const lvl = tu ? entrenchLevel(S, tu, opts.moving) : 0;
+    if (lvl) {
       const k = u ? u.type : att.weapon;
-      if (['infantry', 'cavalry', 'artillery'].includes(k)) add('Target entrenched', -0.25);
-      if (k === 'tank') add('Entrenched vs tanks', 0.25);
+      if (k === 'tank') add('Tanks vs trenches', R.ENTRENCH.tankBonus);
+      else add(`Target entrenched (level ${lvl})`, -R.ENTRENCH.perLevel * lvl);
     }
+
     const total = Math.max(R.MODS.floor, mods.reduce((a, m) => a + m.v, 0));
     return { mods, total };
   }
@@ -1494,6 +1501,19 @@ const Engine = ((R) => {
     if (!d.builtAt.some((k) => countB(S, c.id, k))) return `Needs a ${d.builtAt.map((k) => B[k].name.toLowerCase()).join(' or ')}`;
     return null;
   }
+  // Where the goods for a new city can come from: your logistics units on the site or next to it (the ordering
+  // unit first), then your field depots next to it.
+  function foundSources(S, pid, u) {
+    const units = S.units.filter((x) => x.owner === pid && x.carriedBy == null && U[x.type].role === 'logistic' && U[x.type].cargo && dist(S.map, x.t, u.t) <= 1)
+      .sort((a, b) => (a === u ? -1 : b === u ? 1 : a.id - b.id)).map((x) => x.cargo);
+    const depots = (S.depots || []).filter((d) => d.owner === pid && dist(S.map, d.t, u.t) <= 1).map((d) => d.stock);
+    return units.concat(depots);
+  }
+  function foundPool(S, pid, u) {
+    const tot = {};
+    for (const st of foundSources(S, pid, u)) for (const g of Object.keys(R.CITY.foundCost)) tot[g] = (tot[g] || 0) + (st[g] || 0);
+    return tot;
+  }
   function checkFound(S, pid, unitId) {
     const u = unitById(S, unitId);
     if (!u || u.owner !== pid) return 'Not your unit';
@@ -1503,7 +1523,9 @@ const Engine = ((R) => {
     if (depotAt(S, u.t)) return 'There is a field depot here';
     if (S.map.tiles[u.t].owner != null) return "Can't found a city inside another city's territory";
     const fc = R.CITY.foundCost;
-    if (!hasGoods(u.cargo, fc)) return `Unit must carry ${goodsText(fc)}`;
+    const pool = foundPool(S, pid, u);
+    const short = {}; for (const [g, v] of Object.entries(fc)) if ((pool[g] || 0) < v) short[g] = round1(v - (pool[g] || 0));
+    if (Object.keys(short).length) return `Needs ${goodsText(fc)} carried by your logistics units on this tile or next to it, or in a field depot next to it (short ${goodsText(short)})`;
     if (S.players[pid].manpower < R.CITY.foundMp) return `Needs ${R.CITY.foundMp} manpower`;
     return null;
   }
@@ -2121,7 +2143,7 @@ const Engine = ((R) => {
       if (why) { rep(p.id, 'conflict', `${unitName(tr)} cannot carry ${unitName(u)}: ${why}.`); continue; }
       if (dist(S.map, u.t, tr.t) > 1) { rep(p.id, 'conflict', `${unitName(u)} must be next to ${unitName(tr)} to board.`); continue; }
       if (u.t !== tr.t) u.moved += 1;
-      u.carriedBy = tr.id; u.t = tr.t;
+      u.carriedBy = tr.id; u.t = tr.t; u.lastMoveTurn = turn;
       rep(p.id, 'movement', `${unitName(u)} boarded ${unitName(tr)}.`);
     }
     // moves
@@ -2224,31 +2246,57 @@ const Engine = ((R) => {
       const probe = Object.assign({}, u, { carriedBy: null });
       if (!canEnter(S, probe, t, { final: true }) || cityAtHostile(t, p.id)) { rep(p.id, 'conflict', `${unitName(u)} cannot unload onto ${tileLabel(S, t)}.`); continue; }
       if (!slotFree(S, u, t)) { rep(p.id, 'conflict', `${unitName(u)} cannot unload: ${tileLabel(S, t)} is full.`); continue; }
-      u.carriedBy = null; u.t = t; u.moved += t === tr.t ? 0 : 1;
+      u.carriedBy = null; u.t = t; u.moved += t === tr.t ? 0 : 1; u.lastMoveTurn = turn;
       rep(p.id, 'movement', `${unitName(u)} unloaded at ${tileLabel(S, t)}.`);
     }
     function cityAtHostile(t, pid) { const c = cityAt(S, t); return c && !friendly(S, c.owner, pid); }
 
     /* ----- 3 & 4. global market: buys, then sells ----- */
-    const buysBy = {};
+    // Buys are a sealed-bid auction per good. Each order may name a maximum price per unit (default: the
+    // market price). Higher bids fill first; equal bids share what is left in proportion to their size.
+    // An order pays 1 credit more than the highest other bid left short of supply, never more than its own
+    // bid and never less than the market price; when supply covers every order, everyone pays the market price.
+    const buysBy = {}, reserved = {}, roomLeft = new Map();
     for (const p of active) for (const o of O[p.id].buys) {
       const g = o.good, amt = Math.floor(Number(o.amount) || 0), c = cityById(S, o.city);
       if (!GOODS.includes(g) || amt <= 0 || !c || c.owner !== p.id) continue;
-      (buysBy[g] = buysBy[g] || []).push({ p, g, amt, c });
+      const P = prices[g].sell, cap = R.BASE_PRICE[g] * R.MARKET.maxBidX;
+      const bid = o.maxPrice == null || o.maxPrice === '' ? P : Math.min(cap, Math.floor(Number(o.maxPrice) || 0));
+      if (bid < P) { rep(p.id, 'market', `Market bid for ${R.GOOD_NAMES[g].toLowerCase()} (${bid} each) was below the market price of ${P}; nothing bought.`); continue; }
+      // what the order can actually take: credits (at its own bid) and storage room in the city
+      const rk = `${c.id}:${g}`, room = roomLeft.has(rk) ? roomLeft.get(rk) : freeSpace(S, c, g);
+      const cash = p.credits - (reserved[p.id] || 0), q = Math.max(0, Math.min(amt, Math.floor(cash / bid), room));
+      if (q <= 0) { rep(p.id, 'market', `Market purchase of ${R.GOOD_NAMES[g].toLowerCase()} for ${c.name} could not be placed (credits or storage).`); continue; }
+      reserved[p.id] = (reserved[p.id] || 0) + q * bid; roomLeft.set(rk, room - q);
+      (buysBy[g] = buysBy[g] || []).push({ p, g, amt, want: q, c, bid, got: 0 });
     }
+    S.market.last = {};
     for (const g of GOODS) {
       const list = buysBy[g];
       if (!list) continue;
-      const pool = S.market.pool[g] || 0, total = list.reduce((a, x) => a + x.amt, 0);
-      const scale = total > pool ? pool / total : 1;
-      for (const x of list) {
-        let q = Math.floor(x.amt * scale);
-        const price = prices[g].sell;
-        q = Math.min(q, Math.floor(x.p.credits / price), freeSpace(S, x.c, g), S.market.pool[g] || 0);
-        if (q <= 0) { rep(x.p.id, 'market', `Market purchase of ${R.GOOD_NAMES[g].toLowerCase()} for ${x.c.name} could not be filled (supply, credits or storage).`); continue; }
-        x.p.credits -= q * price; S.market.pool[g] -= q; addToCity(S, x.c, g, q);
-        rep(x.p.id, 'market', `Bought ${q} ${R.GOOD_NAMES[g].toLowerCase()} for ${q * price} credits, delivered to ${x.c.name}${q < x.amt ? ` (ordered ${x.amt})` : ''}.`);
+      const P = prices[g].sell;
+      let left = S.market.pool[g] || 0;
+      const bids = [...new Set(list.map((x) => x.bid))].sort((a, b) => b - a);
+      for (const b of bids) {
+        const grp = list.filter((x) => x.bid === b), need = grp.reduce((a, x) => a + x.want, 0);
+        if (need <= left) { for (const x of grp) x.got = x.want; left -= need; continue; }
+        let given = 0;
+        for (const x of grp) { x.got = Math.floor((x.want * left) / need); given += x.got; }
+        for (const x of grp.slice().sort((a, b2) => b2.want - a.want)) { if (given >= left) break; if (x.got < x.want) { x.got++; given++; } }
+        left -= given;
       }
+      const short = list.filter((x) => x.got < x.want);
+      let sold = 0, spent = 0, high = 0;
+      for (const x of list) {
+        const ctxt = `${R.GOOD_NAMES[g].toLowerCase()} for ${x.c.name}`;
+        if (x.got <= 0) { rep(x.p.id, 'market', `Market purchase of ${ctxt} could not be filled: higher bids took the supply${x.bid > P ? ` (your bid was ${x.bid})` : ''}.`); continue; }
+        const rival = short.filter((y) => y !== x).reduce((m, y) => Math.max(m, y.bid), 0);
+        const price = Math.max(P, Math.min(x.bid, rival ? rival + 1 : P));
+        x.p.credits -= x.got * price; S.market.pool[g] -= x.got; addToCity(S, x.c, g, x.got);
+        sold += x.got; spent += x.got * price; high = Math.max(high, price);
+        rep(x.p.id, 'market', `Bought ${x.got} ${ctxt} at ${price} each (${x.got * price} credits)${x.got < x.amt ? `; ordered ${x.amt}` : ''}.`);
+      }
+      if (sold) S.market.last[g] = { qty: sold, avg: Math.round(spent / sold), high, turn };
     }
     for (const p of active) for (const o of O[p.id].sells) {
       const g = o.good, c = cityById(S, o.city);
@@ -2386,7 +2434,9 @@ const Engine = ((R) => {
       const err = checkFound(S, p.id, f.unit);
       if (err) { rep(p.id, 'construction', `Could not found a city: ${err}.`); continue; }
       const u = unitById(S, f.unit);
-      takeGoods(u.cargo, R.CITY.foundCost); p.manpower -= R.CITY.foundMp;
+      const need = Object.assign({}, R.CITY.foundCost);
+      for (const st0 of foundSources(S, p.id, u)) for (const g of Object.keys(need)) { const q = Math.min(need[g], st0[g] || 0); if (q > 0) { st0[g] = round1(st0[g] - q); need[g] = round1(need[g] - q); } }
+      p.manpower -= R.CITY.foundMp;
       const name = String(f.name || '').trim().slice(0, 40) || `${p.name} ${citiesOf(S, p.id).length + 1}`;
       const c = foundCityAt(S, p.id, u.t, name);
       rep(p.id, 'construction', `Founded ${c.name} at ${tileLabel(S, c.t)}.`);
@@ -2652,6 +2702,13 @@ const Engine = ((R) => {
         if (done) { u.hp = round1(u.hp + done); rep(u.owner, 'supply', `${unitName(u)} repaired ${done} HP.`); }
       }
     }
+    // entrenchment: infantry that stayed put this turn dig in one level deeper (paused when out of supply,
+    // below full mobilization or without the doctrine); moving, boarding or riding a transport resets it
+    for (const u of S.units) {
+      if (u.type !== 'infantry') continue;
+      if (u.lastMoveTurn === turn || u.carriedBy != null) { u.dig = 0; continue; }
+      if (doctrineOf(S, u.owner, 'warfare') === 'entrenchment' && mobOf(S, u.owner) === 'full' && u.supplied !== false) u.dig = Math.min(R.ENTRENCH.max, (u.dig || 0) + 1);
+    }
     // mobilization changes take effect as the turn resolves
     for (const p of active) {
       const before = p.mob;
@@ -2708,7 +2765,7 @@ const Engine = ((R) => {
       garrisonOf, posOf, carried, atWar, friendly, hasTreaty, isUnlocked, unitUnlocked, territoryRadius, supplyRadius, maxHp,
       capacity, freeSpace, recipeOf, recipeKey, buildingOutput, creditsOutOf, mpOf, mpOutOf, buildingOwner, reachable, findPath, canEnter, pickTarget, attackTargets,
       cityWeaponTargets, supplySources, sourceName, upkeepOf, inBase, checkBuild, checkTrain, checkFound, routeEstimate, describeProposal,
-      cargoUsed, cargoFree, portOk, dockable, slotFree, canCarry, carrySlots, demolishable, checkDemolish, checkDisband, giftError, depotAt, depotById, depotCap, depotFree, depotName, routeDest, checkClear, checkSabotage, sabotageTarget, fording, inRiver, canAct, whyIdle, moveOf, payOf, laborOf, maxHpU, cargoCap, carryCap, stars, entrenched, attackDamage, previewAttack, landCombat, mobOf, doctrineOf, supplyMoveLimit, normPeace, checkPeace, peaceTerms, isWater, isLand, nearWater, tileLabel, goodsText, terrain,
+      cargoUsed, cargoFree, portOk, dockable, slotFree, canCarry, carrySlots, demolishable, checkDemolish, checkDisband, foundPool, giftError, depotAt, depotById, depotCap, depotFree, depotName, routeDest, checkClear, checkSabotage, sabotageTarget, fording, inRiver, canAct, whyIdle, moveOf, payOf, laborOf, maxHpU, cargoCap, carryCap, stars, entrenched, entrenchLevel, blitzing, attackDamage, previewAttack, landCombat, mobOf, doctrineOf, supplyMoveLimit, normPeace, checkPeace, peaceTerms, isWater, isLand, nearWater, tileLabel, goodsText, terrain,
     },
   };
 })(typeof RULES !== 'undefined' ? RULES : require('./rules.js'));
@@ -2946,7 +3003,17 @@ function unitToken(u, x, y, small) {
   else shape = `<circle r="${small ? 7 : 9.5}" fill="${col}" stroke="#141a16" stroke-width="1.3"/>`;
   const bar = hp < 1 ? `<rect x="-9" y="${small ? 8 : 10}" width="18" height="3" fill="#1e2620"/><rect x="-9" y="${small ? 8 : 10}" width="${(18 * Math.max(0, hp)).toFixed(1)}" height="3" fill="${hp > 0.5 ? '#6fbf7f' : hp > 0.25 ? '#e2b33c' : '#d6463e'}"/>` : '';
   const cargo = Q.carried(st(), u).length ? `<circle cx="9" cy="-7" r="5" fill="#fff" stroke="#141a16" stroke-width="0.8"/><text class="tok" x="9" y="-7" fill="#141a16" style="font-size:7px">${Q.carried(st(), u).length}</text>` : '';
-  return `<g transform="translate(${x.toFixed(1)},${y.toFixed(1)})">${ring}${shape}<text class="tok" fill="${fg}" style="font-size:${small ? 7.5 : 9}px">${d.abbr}</text>${bar}${cargo}</g>`;
+  let badges = '';
+  if (d.role === 'combat') {
+    const S = st(), sl = Q.stars(u);
+    if (sl) badges += `<text class="tok" y="${small ? -11 : -14}" fill="#f2d37a" stroke="#141a16" stroke-width="0.5" style="font-size:8px" aria-label="${RR.XP.names[sl]}">${'★'.repeat(sl)}</text>`;
+    let moving = null;
+    try { if (u.owner === UI.me) moving = new Set((d0().moves || []).map((o) => o.unit)); } catch (e) { moving = null; }
+    const lvl = Q.entrenchLevel(S, u, moving);
+    if (lvl) badges += `<g transform="translate(-16,-9)"><title>Entrenched, level ${lvl} (−${lvl * 10}% damage taken)</title><rect x="-5" y="-4.5" width="15" height="9" rx="2" fill="#5a4326" stroke="#141a16" stroke-width="0.6"/><path d="M-3.2,-1.8 L-3.2,2 L2.2,2 L2.2,-1.8" fill="none" stroke="#e8d9b0" stroke-width="1.2"/><text class="tok" x="6" fill="#fff" style="font-size:7px">${lvl}</text></g>`;
+    if (Q.blitzing(S, u)) badges += `<g transform="translate(14,-9)"><title>Mobile warfare: moved last turn (+25% damage)</title><circle r="5" fill="#f2d37a" stroke="#141a16" stroke-width="0.6"/><path d="M0.9,-3.6 L-2.1,0.6 L-0.1,0.6 L-0.9,3.6 L2.1,-0.6 L0.1,-0.6 Z" fill="#141a16"/></g>`;
+  }
+  return `<g transform="translate(${x.toFixed(1)},${y.toFixed(1)})">${ring}${shape}<text class="tok" fill="${fg}" style="font-size:${small ? 7.5 : 9}px">${d.abbr}</text>${bar}${cargo}${badges}</g>`;
 }
 
 function buildMapSvg(kind) {
@@ -3426,7 +3493,8 @@ function unitStatus(S, u) {
   else if (u.payStatus) bits.push(esc(u.payStatus));
   if (u.supplied === false) bits.push('<span class="warn">out of supply (−25%)</span>');
   if (u.mpShort) bits.push('<span class="warn">no manpower: −1 HP, no healing</span>');
-  if (Q.entrenched(S, u)) bits.push('<b>Entrenched</b>');
+  { const lv = Q.entrenchLevel(S, u); if (lv) bits.push(`<b>Entrenched, level ${lv}</b>: −${lv * 10}% damage taken (not from tanks), +25% damage dealt (+50% to cavalry)`); else if (u.type === 'infantry' && Q.doctrineOf(S, u.owner, 'warfare') === 'entrenchment') bits.push(Q.mobOf(S, u.owner) === 'full' ? '<span class="muted">Not dug in yet: starts after a turn without moving</span>' : '<span class="muted">Entrenchment needs full mobilization</span>'); }
+  if (Q.blitzing(S, u)) bits.push('<b>⚡ Mobile warfare</b>: moved last turn, +25% damage');
   return bits.join(' · ');
 }
 function unitPanel(u) {
@@ -3722,14 +3790,15 @@ TAB_RENDER.market = function () {
   const blocked = false;
   const rows = RR.GOODS.map((g) => {
     const pr = S.market.prices[g] || { sell: RR.BASE_PRICE[g], pays: Math.round(RR.BASE_PRICE[g] * 0.8), pool: 0, world: 0, r: 0 };
-    return `<tr><td><i class="swatch" style="background:${RR.GOOD_COLORS[g]}"></i>${GN(g)}</td><td class="n">${RR.BASE_PRICE[g]}</td><td class="n"><strong>${pr.sell}</strong></td><td class="n">${pr.pays}</td><td class="n">${pr.pool}</td><td class="n">${pr.world}</td><td class="n">${Math.round(pr.r * 100)}%</td>
+    return `<tr><td><i class="swatch" style="background:${RR.GOOD_COLORS[g]}"></i>${GN(g)}</td><td class="n">${RR.BASE_PRICE[g]}</td><td class="n"><strong>${pr.sell}</strong></td><td class="n">${pr.pays}</td><td class="n">${pr.pool}</td><td class="n">${pr.world}</td><td class="n">${Math.round(pr.r * 100)}%</td><td class="n small">${(S.market.last || {})[g] ? `${S.market.last[g].qty} at ${S.market.last[g].avg}${S.market.last[g].high > S.market.last[g].avg ? ` (top ${S.market.last[g].high})` : ''}` : '<span class="muted">—</span>'}</td>
       <td>${c ? `<span class="small muted">${c.stock[g] || 0}</span>` : ''}</td>
-      <td><div class="row" style="margin:0;flex-wrap:nowrap"><input type="number" min="1" class="w-sm" id="mk-${g}" value="10" aria-label="${GN(g)} amount"><button class="btn small" data-act="buy" data-good="${g}" ${!c || blocked || !pr.pool ? 'disabled' : ''}>Buy</button><button class="btn small" data-act="sell" data-good="${g}" ${!c || blocked ? 'disabled' : ''}>Sell</button></div></td></tr>`;
+      <td><div class="row" style="margin:0;flex-wrap:nowrap"><input type="number" min="1" class="w-sm" id="mk-${g}" value="10" aria-label="${GN(g)} amount"><input type="number" min="${pr.sell}" max="${RR.BASE_PRICE[g] * RR.MARKET.maxBidX}" class="w-sm" id="mkb-${g}" placeholder="max price" title="Optional: the most you will pay per unit if other nations bid for the same supply" aria-label="${GN(g)} maximum price per unit"><button class="btn small" data-act="buy" data-good="${g}" ${!c || blocked || !pr.pool ? 'disabled' : ''}>Buy</button><button class="btn small" data-act="sell" data-good="${g}" ${!c || blocked ? 'disabled' : ''}>Sell</button></div></td></tr>`;
   }).join('');
-  const lines = [...d.buys.map((o, i) => ['buys', i, `Buy ${o.amount} ${gl(o.good)} for ${cityName(o.city)} (about ${o.amount * (S.market.prices[o.good] || {}).sell} credits)`]), ...d.sells.map((o, i) => ['sells', i, `Sell ${o.amount} ${gl(o.good)} from ${cityName(o.city)} (about ${o.amount * (S.market.prices[o.good] || {}).pays} credits)`])];
+  const lines = [...d.buys.map((o, i) => ['buys', i, o.maxPrice ? `Buy ${o.amount} ${gl(o.good)} for ${cityName(o.city)}, bidding up to ${o.maxPrice} each (at most ${o.amount * o.maxPrice} credits)` : `Buy ${o.amount} ${gl(o.good)} for ${cityName(o.city)} at the market price (about ${o.amount * (S.market.prices[o.good] || {}).sell} credits)`]), ...d.sells.map((o, i) => ['sells', i, `Sell ${o.amount} ${gl(o.good)} from ${cityName(o.city)} (about ${o.amount * (S.market.prices[o.good] || {}).pays} credits)`])];
   return `<div class="page"><h2>Global market</h2><p class="muted">The market holds what players sell to it, plus ${Math.round(RR.MARKET.trickle * 100)}% of everything the world produces each turn (taken from no one). Its price for a good falls as more of the world's supply sits in the market: price = base ÷ (1 + 4 × share). It pays sellers 80% of its selling price. No transport is needed; goods arrive in the city you choose. Buys fill before sells, and prices hold for the whole turn.</p>
+    <p class="small muted"><b>Bidding.</b> When several nations order more of a good than the market holds, it is auctioned. You may set a maximum price per unit (up to ${RR.MARKET.maxBidX}× base); without one you bid the market price. Higher bids fill first, and each buyer pays 1 credit more than the best bid that was left short, never more than its own bid. If there is enough for everyone, everyone pays the market price. Bids are secret; last turn's results are shown in "Last turn".</p>
     <div class="row"><label>Deliver to and sell from <select data-chg="mk-city">${cities.map((x) => `<option value="${x.id}" ${x.id === UI.marketCity ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label><span class="small muted">Credits: <b class="num">${p.credits}</b></span></div>
-    <div class="ledger"><table><thead><tr><th>Good</th><th class="n">Base</th><th class="n">Market sells at</th><th class="n">Market pays</th><th class="n">In market</th><th class="n">World total</th><th class="n">Share</th><th>In city</th><th>Order</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="ledger"><table><thead><tr><th>Good</th><th class="n">Base</th><th class="n">Market sells at</th><th class="n">Market pays</th><th class="n">In market</th><th class="n">World total</th><th class="n">Share</th><th class="n">Last turn</th><th>In city</th><th>Order</th></tr></thead><tbody>${rows}</tbody></table></div>
     ${S.market.lastTrickle && Object.keys(S.market.lastTrickle).length ? `<p class="small muted">Added to the market from last turn's world production: ${esc(fmtGoods(S.market.lastTrickle))}.</p>` : ''}
     <h3>This turn's market orders</h3><ul class="list">${lines.map(([l, i, t]) => `<li>${esc(t)}<button class="x" data-act="rm" data-list="${l}" data-idx="${i}">✕</button></li>`).join('') || '<li class="muted">None</li>'}</ul></div>`;
 };
@@ -3772,13 +3841,14 @@ TAB_RENDER.war = function () {
     let v = RR.XP.bonus[Q.stars(u)];
     if (Q.landCombat(u) && Q.mobOf(S, u.owner) === 'partial') v += RR.MOBILIZE.partialDamage;
     if (u.paid === false) v += RR.MODS.unpaid; else if (u.supplied === false) v += RR.MODS.unsupplied;
-    const mult = Math.round(Math.max(1 + RR.MODS.floor, 1 + v) * 100);
     const status = [];
+    { const lv = Q.entrenchLevel(S, u); if (lv) { status.push(`entrenched ${lv} (−${lv * 10}% taken)`); v += RR.ENTRENCH.fire; } }
+    if (Q.blitzing(S, u)) { status.push('⚡ mobile warfare'); v += 0.25; }
+    const mult = Math.round(Math.max(1 + RR.MODS.floor, 1 + v) * 100);
     if (!Q.canAct(S, u)) status.push('<span class="warn">idle</span>');
     if (u.paid === false) status.push('<span class="warn">unpaid</span>');
     if (u.supplied === false) status.push('<span class="warn">no supply</span>');
     if (u.mpShort) status.push('<span class="warn">no manpower</span>');
-    if (Q.entrenched(S, u)) status.push('entrenched');
     if (Q.inRiver(S, u)) status.push('in a river');
     const dis = d.disband.some((o) => o.unit === u.id);
     return `<tr><td><button class="linkbtn" data-act="goto-unit" data-id="${u.id}">${esc(Q.unitName(u))}</button></td><td class="small">${tl(Q.posOf(S, u))}</td><td class="n">${u.hp} / ${Q.maxHpU(S, u)}</td><td>${['', '★', '★★'][Q.stars(u)]} <span class="small">${RR.XP.names[Q.stars(u)]}</span></td><td class="n">${Q.canAct(S, u) ? `${mult}%` : '—'}</td><td class="n">${Q.moveOf(S, u)}</td><td class="n">${Q.payOf(S, u)}</td><td class="small">${status.join(', ') || 'ready'}</td><td>${dis ? '<span class="tag war">disbanding</span>' : `<button class="btn small danger" data-act="disband" data-unit="${u.id}">Disband</button>`}</td></tr>`;
@@ -3898,7 +3968,7 @@ function orderGroups() {
   d.board.forEach((o, i) => add('Movement', 'board', i, `${uname(o.unit)} boards ${uname(o.transport)}`));
   d.moves.forEach((o, i) => add('Movement', 'moves', i, `${uname(o.unit)} moves to ${tl(o.path[o.path.length - 1])} (${o.path.length - 1} tiles)`));
   d.unload.forEach((o, i) => add('Movement', 'unload', i, `${uname(o.unit)} unloads at ${tl(o.t)}`));
-  d.buys.forEach((o, i) => add('Market buys', 'buys', i, `Buy ${o.amount} ${gl(o.good)} for ${cityName(o.city)}`));
+  d.buys.forEach((o, i) => add('Market buys', 'buys', i, `Buy ${o.amount} ${gl(o.good)} for ${cityName(o.city)}${o.maxPrice ? `, bidding up to ${o.maxPrice} each` : ''}`));
   d.sells.forEach((o, i) => add('Market sells', 'sells', i, `Sell ${o.amount} ${gl(o.good)} from ${cityName(o.city)}`));
   d.research.forEach((k, i) => add('Research', 'research', i, `Research ${BLD[k].name} (${BLD[k].sci} science)`));
   d.sabotage.forEach((o, i) => add('Combat', 'sabotage', i, `${uname(o.unit)} sabotages ${tl(o.t)}`));
@@ -3980,7 +4050,15 @@ const ACT = {
   },
   // research & diplomacy
   'bp-offer'() { const key = $('#bp-key').value, to = Number($('#bp-to').value), price = Math.max(0, Math.floor(Number($('#bp-price').value) || 0)); mutate((d) => d.diplo.push({ type: 'propose', kind: 'blueprint', to, payload: { key, price } })); },
-  buy(el) { const g = el.dataset.good, amount = Math.floor(Number($(`#mk-${g}`).value) || 0); if (amount > 0) mutate((d) => d.buys.push({ good: g, amount, city: UI.marketCity })); },
+  buy(el) {
+    const g = el.dataset.good, amount = Math.floor(Number($(`#mk-${g}`).value) || 0), bv = $(`#mkb-${g}`), S = st();
+    let maxPrice = bv && bv.value !== '' ? Math.floor(Number(bv.value) || 0) : null;
+    const P = (S.market.prices[g] || {}).sell || RR.BASE_PRICE[g], cap = RR.BASE_PRICE[g] * RR.MARKET.maxBidX;
+    if (maxPrice != null && maxPrice < P) { toast(`Your maximum must be at least the market price (${P})`); return; }
+    if (maxPrice != null && maxPrice > cap) { maxPrice = cap; toast(`Bids are capped at ${cap} for ${gl(g)}`); }
+    if (maxPrice === P) maxPrice = null;
+    if (amount > 0) mutate((d) => d.buys.push(Object.assign({ good: g, amount, city: UI.marketCity }, maxPrice ? { maxPrice } : {})));
+  },
   sell(el) { const g = el.dataset.good, amount = Math.floor(Number($(`#mk-${g}`).value) || 0); if (amount > 0) mutate((d) => d.sells.push({ good: g, amount, city: UI.marketCity })); },
   declare(el) { const to = Number(el.dataset.to); if (confirm(`Declare war on ${pname(to)}? It takes effect at the start of this turn's resolution.`)) mutate((d) => d.diplo.push({ type: 'declare', to })); },
   'pc-open'(el) { peaceDraft(Number(el.dataset.to)); render(); const pb = $('#peace-builder'); if (pb) pb.scrollIntoView({ block: 'nearest' }); },
