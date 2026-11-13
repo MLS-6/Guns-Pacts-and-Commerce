@@ -22,7 +22,7 @@ const RULES = (() => {
     cloth: 800, metal: 1000, clothing: 1000, tools: 1400, smallArms: 1400, machinery: 4000,
   };
   // trickle: share of each turn's world production of goods that appears in the market pool (no one loses anything)
-  const MARKET = { scale: 4, buyRatio: 0.8, trickle: 0.05 };
+  const MARKET = { scale: 4, buyRatio: 0.8, trickle: 0.05, maxBidX: 10 };
 
   // Goods that warehouses and supply depots do NOT store
   const SPECIAL_STORAGE = ['food', 'fuel'];
@@ -243,10 +243,11 @@ const RULES = (() => {
     bombardment: { group: 'naval', name: 'Naval bombardment', era: 2, sci: 8, text: 'Combat ships: +75% damage against land units and cities.' },
     quantity: { group: 'army', name: 'Quantity', era: 1, sci: 4, text: 'Land combat units: -20% max HP, half idle supply, cheaper pay.' },
     quality: { group: 'army', name: 'Quality', era: 1, sci: 4, text: 'Land combat units: +20% max HP, +1 move, dearer pay.' },
-    entrenchment: { group: 'warfare', name: 'Entrenchment', era: 2, sci: 6, text: 'Infantry that did not move last turn and has no move order, at full mobilization, is entrenched: -25% damage from infantry, cavalry and artillery, +25% from tanks, +50% damage to cavalry.' },
-    mobileWarfare: { group: 'warfare', name: 'Mobile warfare', era: 3, sci: 10, text: 'Tanks, artillery, trains and supply trucks: +1 move. Tanks and artillery that moved last turn: +25% damage.' },
+    entrenchment: { group: 'warfare', name: 'Entrenchment', era: 2, sci: 6, text: 'At full mobilization, infantry dig in one level for each turn in a row they do not move (up to 5): -10% damage taken per level (tanks ignore this and deal +25%). Entrenched infantry deal +25% damage, +50% to cavalry.' },
+    mobileWarfare: { group: 'warfare', name: 'Mobile warfare', era: 3, sci: 10, text: 'At full mobilization: tanks, artillery, trains and supply trucks +1 move; tanks and artillery that moved last turn +25% damage.' },
   };
   const DOCTRINE_GROUPS = { naval: 'Naval', army: 'Army size', warfare: 'Warfare' };
+  const ENTRENCH = { max: 5, perLevel: 0.1, fire: 0.25, vsCavalry: 0.5, tankBonus: 0.25 };
   const DOCTRINE_LOCK = 10;
   const SUPPLY_PRIORITY = ['tank', 'artillery', 'infantry', 'cavalry', 'warship', 'frigate'];
   const DEPOT = { storage: { food: 200, fuel: 200, ammo: 200 }, other: 50, supplyRange: 3 };
@@ -278,7 +279,7 @@ const RULES = (() => {
 
   return {
     GOODS, GOOD_NAMES, GOOD_COLORS, BASE_PRICE, MARKET, SPECIAL_STORAGE, TILES, BUILDINGS, UNITS, DAMAGE, WEAPON_AMMO, WEAPON_RANGE,
-    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
+    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, ENTRENCH, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = RULES;

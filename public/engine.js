@@ -721,7 +721,7 @@ const Engine = ((R) => {
     const d = U[u.type];
     let m = d.move;
     if (landCombat(u) && doctrineOf(S, u.owner, 'army') === 'quality') m += 1;
-    if (MECH.includes(u.type) && doctrineOf(S, u.owner, 'warfare') === 'mobileWarfare') m += 1;
+    if (MECH.includes(u.type) && doctrineOf(S, u.owner, 'warfare') === 'mobileWarfare' && mobOf(S, u.owner) === 'full') m += 1;
     if (!canAct(S, u)) return 0;
     if (landCombat(u) && mobOf(S, u.owner) === 'partial') m = Math.max(1, Math.floor(m * R.MOBILIZE.partialSpeed));
     return m;
@@ -735,13 +735,17 @@ const Engine = ((R) => {
     return table[mobOf(S, u.owner)];
   }
   const stars = (u) => ((u.xp || 0) >= R.XP.elite ? 2 : (u.xp || 0) >= R.XP.veteran ? 1 : 0);
-  // Entrenched: infantry, Entrenchment doctrine, full mobilization, did not move last turn and has no move order this turn
-  function entrenched(S, u, moving) {
-    if (u.type !== 'infantry' || u.carriedBy != null) return false;
-    if (doctrineOf(S, u.owner, 'warfare') !== 'entrenchment' || mobOf(S, u.owner) !== 'full') return false;
-    if (u.lastMoveTurn === S.turn - 1) return false;
-    return !(moving && moving.has(u.id));
+  // Entrenchment level 0-5: infantry of a nation with the Entrenchment doctrine at full mobilization gains a level
+  // for each turn in a row it does not move (u.dig, counted at the end of each turn). A move order this turn cancels it.
+  function entrenchLevel(S, u, moving) {
+    if (u.type !== 'infantry' || u.carriedBy != null) return 0;
+    if (doctrineOf(S, u.owner, 'warfare') !== 'entrenchment' || mobOf(S, u.owner) !== 'full') return 0;
+    if (moving && moving.has(u.id)) return 0;
+    return Math.min(R.ENTRENCH.max, u.dig || 0);
   }
+  const entrenched = (S, u, moving) => entrenchLevel(S, u, moving) > 0;
+  // Mobile warfare: tanks and artillery that moved last turn, at full mobilization
+  const blitzing = (S, u) => (u.type === 'tank' || u.type === 'artillery') && doctrineOf(S, u.owner, 'warfare') === 'mobileWarfare' && mobOf(S, u.owner) === 'full' && u.lastMoveTurn === S.turn - 1;
   const isShip = (type) => U[type] && U[type].cls === 'ship';
   /* Combat modifiers. All that apply (attacker's and target's) are summed: damage = base x (1 + sum), sum >= floor.
      att: { unit } or { weapon, owner };  tgt: { unit } or { city };  opts.counter = a defender striking back */
@@ -761,14 +765,16 @@ const Engine = ((R) => {
         if (nav === 'navalWarfare' && tu && isShip(tu.type)) add('Naval warfare', 0.5);
         if (nav === 'bombardment' && (tgt.city || (tu && !isShip(tu.type)))) add('Naval bombardment', 0.75);
       }
-      if ((u.type === 'tank' || u.type === 'artillery') && doctrineOf(S, u.owner, 'warfare') === 'mobileWarfare' && u.lastMoveTurn === S.turn - 1) add('Mobile warfare', 0.25);
-      if (tu && tu.type === 'cavalry' && entrenched(S, u, opts.moving)) add('Entrenched vs cavalry', 0.5);
+      if (blitzing(S, u)) add('Mobile warfare', 0.25);
+      if (entrenched(S, u, opts.moving)) { if (tu && tu.type === 'cavalry') add('Entrenched vs cavalry', R.ENTRENCH.vsCavalry); else add('Firing from trenches', R.ENTRENCH.fire); }
     }
-    if (tu && entrenched(S, tu, opts.moving)) {
+    const lvl = tu ? entrenchLevel(S, tu, opts.moving) : 0;
+    if (lvl) {
       const k = u ? u.type : att.weapon;
-      if (['infantry', 'cavalry', 'artillery'].includes(k)) add('Target entrenched', -0.25);
-      if (k === 'tank') add('Entrenched vs tanks', 0.25);
+      if (k === 'tank') add('Tanks vs trenches', R.ENTRENCH.tankBonus);
+      else add(`Target entrenched (level ${lvl})`, -R.ENTRENCH.perLevel * lvl);
     }
+
     const total = Math.max(R.MODS.floor, mods.reduce((a, m) => a + m.v, 0));
     return { mods, total };
   }
@@ -1003,6 +1009,19 @@ const Engine = ((R) => {
     if (!d.builtAt.some((k) => countB(S, c.id, k))) return `Needs a ${d.builtAt.map((k) => B[k].name.toLowerCase()).join(' or ')}`;
     return null;
   }
+  // Where the goods for a new city can come from: your logistics units on the site or next to it (the ordering
+  // unit first), then your field depots next to it.
+  function foundSources(S, pid, u) {
+    const units = S.units.filter((x) => x.owner === pid && x.carriedBy == null && U[x.type].role === 'logistic' && U[x.type].cargo && dist(S.map, x.t, u.t) <= 1)
+      .sort((a, b) => (a === u ? -1 : b === u ? 1 : a.id - b.id)).map((x) => x.cargo);
+    const depots = (S.depots || []).filter((d) => d.owner === pid && dist(S.map, d.t, u.t) <= 1).map((d) => d.stock);
+    return units.concat(depots);
+  }
+  function foundPool(S, pid, u) {
+    const tot = {};
+    for (const st of foundSources(S, pid, u)) for (const g of Object.keys(R.CITY.foundCost)) tot[g] = (tot[g] || 0) + (st[g] || 0);
+    return tot;
+  }
   function checkFound(S, pid, unitId) {
     const u = unitById(S, unitId);
     if (!u || u.owner !== pid) return 'Not your unit';
@@ -1012,7 +1031,9 @@ const Engine = ((R) => {
     if (depotAt(S, u.t)) return 'There is a field depot here';
     if (S.map.tiles[u.t].owner != null) return "Can't found a city inside another city's territory";
     const fc = R.CITY.foundCost;
-    if (!hasGoods(u.cargo, fc)) return `Unit must carry ${goodsText(fc)}`;
+    const pool = foundPool(S, pid, u);
+    const short = {}; for (const [g, v] of Object.entries(fc)) if ((pool[g] || 0) < v) short[g] = round1(v - (pool[g] || 0));
+    if (Object.keys(short).length) return `Needs ${goodsText(fc)} carried by your logistics units on this tile or next to it, or in a field depot next to it (short ${goodsText(short)})`;
     if (S.players[pid].manpower < R.CITY.foundMp) return `Needs ${R.CITY.foundMp} manpower`;
     return null;
   }
@@ -1630,7 +1651,7 @@ const Engine = ((R) => {
       if (why) { rep(p.id, 'conflict', `${unitName(tr)} cannot carry ${unitName(u)}: ${why}.`); continue; }
       if (dist(S.map, u.t, tr.t) > 1) { rep(p.id, 'conflict', `${unitName(u)} must be next to ${unitName(tr)} to board.`); continue; }
       if (u.t !== tr.t) u.moved += 1;
-      u.carriedBy = tr.id; u.t = tr.t;
+      u.carriedBy = tr.id; u.t = tr.t; u.lastMoveTurn = turn;
       rep(p.id, 'movement', `${unitName(u)} boarded ${unitName(tr)}.`);
     }
     // moves
@@ -1733,31 +1754,57 @@ const Engine = ((R) => {
       const probe = Object.assign({}, u, { carriedBy: null });
       if (!canEnter(S, probe, t, { final: true }) || cityAtHostile(t, p.id)) { rep(p.id, 'conflict', `${unitName(u)} cannot unload onto ${tileLabel(S, t)}.`); continue; }
       if (!slotFree(S, u, t)) { rep(p.id, 'conflict', `${unitName(u)} cannot unload: ${tileLabel(S, t)} is full.`); continue; }
-      u.carriedBy = null; u.t = t; u.moved += t === tr.t ? 0 : 1;
+      u.carriedBy = null; u.t = t; u.moved += t === tr.t ? 0 : 1; u.lastMoveTurn = turn;
       rep(p.id, 'movement', `${unitName(u)} unloaded at ${tileLabel(S, t)}.`);
     }
     function cityAtHostile(t, pid) { const c = cityAt(S, t); return c && !friendly(S, c.owner, pid); }
 
     /* ----- 3 & 4. global market: buys, then sells ----- */
-    const buysBy = {};
+    // Buys are a sealed-bid auction per good. Each order may name a maximum price per unit (default: the
+    // market price). Higher bids fill first; equal bids share what is left in proportion to their size.
+    // An order pays 1 credit more than the highest other bid left short of supply, never more than its own
+    // bid and never less than the market price; when supply covers every order, everyone pays the market price.
+    const buysBy = {}, reserved = {}, roomLeft = new Map();
     for (const p of active) for (const o of O[p.id].buys) {
       const g = o.good, amt = Math.floor(Number(o.amount) || 0), c = cityById(S, o.city);
       if (!GOODS.includes(g) || amt <= 0 || !c || c.owner !== p.id) continue;
-      (buysBy[g] = buysBy[g] || []).push({ p, g, amt, c });
+      const P = prices[g].sell, cap = R.BASE_PRICE[g] * R.MARKET.maxBidX;
+      const bid = o.maxPrice == null || o.maxPrice === '' ? P : Math.min(cap, Math.floor(Number(o.maxPrice) || 0));
+      if (bid < P) { rep(p.id, 'market', `Market bid for ${R.GOOD_NAMES[g].toLowerCase()} (${bid} each) was below the market price of ${P}; nothing bought.`); continue; }
+      // what the order can actually take: credits (at its own bid) and storage room in the city
+      const rk = `${c.id}:${g}`, room = roomLeft.has(rk) ? roomLeft.get(rk) : freeSpace(S, c, g);
+      const cash = p.credits - (reserved[p.id] || 0), q = Math.max(0, Math.min(amt, Math.floor(cash / bid), room));
+      if (q <= 0) { rep(p.id, 'market', `Market purchase of ${R.GOOD_NAMES[g].toLowerCase()} for ${c.name} could not be placed (credits or storage).`); continue; }
+      reserved[p.id] = (reserved[p.id] || 0) + q * bid; roomLeft.set(rk, room - q);
+      (buysBy[g] = buysBy[g] || []).push({ p, g, amt, want: q, c, bid, got: 0 });
     }
+    S.market.last = {};
     for (const g of GOODS) {
       const list = buysBy[g];
       if (!list) continue;
-      const pool = S.market.pool[g] || 0, total = list.reduce((a, x) => a + x.amt, 0);
-      const scale = total > pool ? pool / total : 1;
-      for (const x of list) {
-        let q = Math.floor(x.amt * scale);
-        const price = prices[g].sell;
-        q = Math.min(q, Math.floor(x.p.credits / price), freeSpace(S, x.c, g), S.market.pool[g] || 0);
-        if (q <= 0) { rep(x.p.id, 'market', `Market purchase of ${R.GOOD_NAMES[g].toLowerCase()} for ${x.c.name} could not be filled (supply, credits or storage).`); continue; }
-        x.p.credits -= q * price; S.market.pool[g] -= q; addToCity(S, x.c, g, q);
-        rep(x.p.id, 'market', `Bought ${q} ${R.GOOD_NAMES[g].toLowerCase()} for ${q * price} credits, delivered to ${x.c.name}${q < x.amt ? ` (ordered ${x.amt})` : ''}.`);
+      const P = prices[g].sell;
+      let left = S.market.pool[g] || 0;
+      const bids = [...new Set(list.map((x) => x.bid))].sort((a, b) => b - a);
+      for (const b of bids) {
+        const grp = list.filter((x) => x.bid === b), need = grp.reduce((a, x) => a + x.want, 0);
+        if (need <= left) { for (const x of grp) x.got = x.want; left -= need; continue; }
+        let given = 0;
+        for (const x of grp) { x.got = Math.floor((x.want * left) / need); given += x.got; }
+        for (const x of grp.slice().sort((a, b2) => b2.want - a.want)) { if (given >= left) break; if (x.got < x.want) { x.got++; given++; } }
+        left -= given;
       }
+      const short = list.filter((x) => x.got < x.want);
+      let sold = 0, spent = 0, high = 0;
+      for (const x of list) {
+        const ctxt = `${R.GOOD_NAMES[g].toLowerCase()} for ${x.c.name}`;
+        if (x.got <= 0) { rep(x.p.id, 'market', `Market purchase of ${ctxt} could not be filled: higher bids took the supply${x.bid > P ? ` (your bid was ${x.bid})` : ''}.`); continue; }
+        const rival = short.filter((y) => y !== x).reduce((m, y) => Math.max(m, y.bid), 0);
+        const price = Math.max(P, Math.min(x.bid, rival ? rival + 1 : P));
+        x.p.credits -= x.got * price; S.market.pool[g] -= x.got; addToCity(S, x.c, g, x.got);
+        sold += x.got; spent += x.got * price; high = Math.max(high, price);
+        rep(x.p.id, 'market', `Bought ${x.got} ${ctxt} at ${price} each (${x.got * price} credits)${x.got < x.amt ? `; ordered ${x.amt}` : ''}.`);
+      }
+      if (sold) S.market.last[g] = { qty: sold, avg: Math.round(spent / sold), high, turn };
     }
     for (const p of active) for (const o of O[p.id].sells) {
       const g = o.good, c = cityById(S, o.city);
@@ -1895,7 +1942,9 @@ const Engine = ((R) => {
       const err = checkFound(S, p.id, f.unit);
       if (err) { rep(p.id, 'construction', `Could not found a city: ${err}.`); continue; }
       const u = unitById(S, f.unit);
-      takeGoods(u.cargo, R.CITY.foundCost); p.manpower -= R.CITY.foundMp;
+      const need = Object.assign({}, R.CITY.foundCost);
+      for (const st0 of foundSources(S, p.id, u)) for (const g of Object.keys(need)) { const q = Math.min(need[g], st0[g] || 0); if (q > 0) { st0[g] = round1(st0[g] - q); need[g] = round1(need[g] - q); } }
+      p.manpower -= R.CITY.foundMp;
       const name = String(f.name || '').trim().slice(0, 40) || `${p.name} ${citiesOf(S, p.id).length + 1}`;
       const c = foundCityAt(S, p.id, u.t, name);
       rep(p.id, 'construction', `Founded ${c.name} at ${tileLabel(S, c.t)}.`);
@@ -2161,6 +2210,13 @@ const Engine = ((R) => {
         if (done) { u.hp = round1(u.hp + done); rep(u.owner, 'supply', `${unitName(u)} repaired ${done} HP.`); }
       }
     }
+    // entrenchment: infantry that stayed put this turn dig in one level deeper (paused when out of supply,
+    // below full mobilization or without the doctrine); moving, boarding or riding a transport resets it
+    for (const u of S.units) {
+      if (u.type !== 'infantry') continue;
+      if (u.lastMoveTurn === turn || u.carriedBy != null) { u.dig = 0; continue; }
+      if (doctrineOf(S, u.owner, 'warfare') === 'entrenchment' && mobOf(S, u.owner) === 'full' && u.supplied !== false) u.dig = Math.min(R.ENTRENCH.max, (u.dig || 0) + 1);
+    }
     // mobilization changes take effect as the turn resolves
     for (const p of active) {
       const before = p.mob;
@@ -2217,7 +2273,7 @@ const Engine = ((R) => {
       garrisonOf, posOf, carried, atWar, friendly, hasTreaty, isUnlocked, unitUnlocked, territoryRadius, supplyRadius, maxHp,
       capacity, freeSpace, recipeOf, recipeKey, buildingOutput, creditsOutOf, mpOf, mpOutOf, buildingOwner, reachable, findPath, canEnter, pickTarget, attackTargets,
       cityWeaponTargets, supplySources, sourceName, upkeepOf, inBase, checkBuild, checkTrain, checkFound, routeEstimate, describeProposal,
-      cargoUsed, cargoFree, portOk, dockable, slotFree, canCarry, carrySlots, demolishable, checkDemolish, checkDisband, giftError, depotAt, depotById, depotCap, depotFree, depotName, routeDest, checkClear, checkSabotage, sabotageTarget, fording, inRiver, canAct, whyIdle, moveOf, payOf, laborOf, maxHpU, cargoCap, carryCap, stars, entrenched, attackDamage, previewAttack, landCombat, mobOf, doctrineOf, supplyMoveLimit, normPeace, checkPeace, peaceTerms, isWater, isLand, nearWater, tileLabel, goodsText, terrain,
+      cargoUsed, cargoFree, portOk, dockable, slotFree, canCarry, carrySlots, demolishable, checkDemolish, checkDisband, foundPool, giftError, depotAt, depotById, depotCap, depotFree, depotName, routeDest, checkClear, checkSabotage, sabotageTarget, fording, inRiver, canAct, whyIdle, moveOf, payOf, laborOf, maxHpU, cargoCap, carryCap, stars, entrenched, entrenchLevel, blitzing, attackDamage, previewAttack, landCombat, mobOf, doctrineOf, supplyMoveLimit, normPeace, checkPeace, peaceTerms, isWater, isLand, nearWater, tileLabel, goodsText, terrain,
     },
   };
 })(typeof RULES !== 'undefined' ? RULES : require('./rules.js'));
