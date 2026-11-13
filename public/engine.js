@@ -2065,7 +2065,7 @@ const Engine = ((R) => {
       if (o.key === 'settlement') {
         const dp = { id: S.nextId++, owner: p.id, t: o.t, stock: goodsOnly(d.cost), kind: 'settlement', born: turn };
         S.depots.push(dp);
-        rep(p.id, 'construction', `Placed ${depotName(dp)} at ${tileLabel(S, o.t)}. Bring ${goodsText(settlementNeeds(S, dp))} by turn ${turn + R.SETTLEMENT.life - 1} and found the city, or it will be abandoned.`);
+        rep(p.id, 'construction', `Placed ${depotName(dp)} at ${tileLabel(S, o.t)}. Bring it ${goodsText(settlementNeeds(S, dp))} and found the city.`);
       } else if (d.place === 'depot') {
         S.depots.push({ id: S.nextId++, owner: p.id, t: o.t, stock: {} });
       } else if (d.place === 'infra') {
@@ -2205,13 +2205,25 @@ const Engine = ((R) => {
         if (!u) continue;
         const d = U[u.type];
         let moves = d.move;
-        const rt = (() => { const pth = findPath(S, u, from.t, dest.t, { partner: r.partner, ignoreUnits: true, noFord: true }); return pth ? Math.max(1, Math.ceil((2 * (pth.length - 1)) / d.move)) : 1; })();
+        const pth0 = findPath(S, u, from.t, dest.t, { partner: r.partner, ignoreUnits: true, noFord: true });
+        const legLen = pth0 ? pth0.length - 1 : 0;
+        const rt = pth0 ? Math.max(1, Math.ceil((2 * legLen) / d.move)) : 1;
+        // Provisions a transport carries for itself: its upkeep for `legs` trips along the route, plus one spare turn
+        const provisions = (legs) => {
+          const need = {};
+          const addUp = (o) => { for (const [g, v] of Object.entries(o)) need[g] = round1((need[g] || 0) + v); };
+          for (let k = 0; k < legs; k++) for (let left = legLen; left > 0; left -= d.move) addUp(upkeepOf(S, u, Math.min(d.move, left), { anywhere: true }));
+          addUp(upkeepOf(S, u, 0, { anywhere: true }));
+          for (const g of Object.keys(need)) need[g] = Math.ceil(need[g] - 1e-9);
+          return need;
+        };
         const arrive = () => {
           if (u.leg === 'out') {
-            const delivered = {};
+            const delivered = {}, keep = provisions(1);
             for (const g of Object.keys(u.cargo)) {
-              if (!(g in r.goods) || !(u.cargo[g] > 0)) continue;
-              const a = r.to.type === 'city' ? addToCity(S, dest, g, u.cargo[g]) : r.to.type === 'depot' ? addToDepot(dest, g, u.cargo[g], S) : addToUnit(dest, g, u.cargo[g]);
+              const give = round1((u.cargo[g] || 0) - (keep[g] || 0));
+              if (!(g in r.goods) || !(give > 0)) continue;
+              const a = r.to.type === 'city' ? addToCity(S, dest, g, give) : r.to.type === 'depot' ? addToDepot(dest, g, give, S) : addToUnit(dest, g, give);
               u.cargo[g] -= a; if (a) delivered[g] = a;
             }
             if (Object.keys(delivered).length) {
@@ -2231,7 +2243,12 @@ const Engine = ((R) => {
             const unloaded = {};
             for (const g of Object.keys(u.cargo)) { if (!(u.cargo[g] > 0)) continue; const a = addToCity(S, from, g, u.cargo[g]); u.cargo[g] -= a; if (a) unloaded[g] = a; }
             if (Object.keys(unloaded).length && r.partner != null) rep(r.owner, 'logistics', `Trade route #${r.id}: ${unitName(u)} brought home ${goodsText(unloaded)} to ${from.name}.`);
-            // load outbound goods
+            // first, provisions for the round trip (food or fuel the transport itself eats)
+            const prov = provisions(2), shortP = {};
+            for (const [g, v] of Object.entries(prov)) if ((from.stock[g] || 0) + (u.cargo[g] || 0) < v) shortP[g] = round1(v - (from.stock[g] || 0) - (u.cargo[g] || 0));
+            if (Object.keys(shortP).length) { notes.push(`${unitName(u)} is waiting in ${from.name} for provisions for the trip (short ${goodsText(shortP)})`); return false; }
+            for (const [g, v] of Object.entries(prov)) { const q = Math.min(cargoFree(u), Math.max(0, v - (u.cargo[g] || 0))); if (q > 0) { from.stock[g] = round1(from.stock[g] - q); addToUnit(u, g, q); } }
+            // then the outbound goods
             const want = {}; let tot = 0;
             for (const [g, x] of Object.entries(r.goods)) {
               let a;
@@ -2247,11 +2264,12 @@ const Engine = ((R) => {
             for (const [g, a] of Object.entries(want)) { const q = Math.floor(a * scale); if (q > 0) { from.stock[g] -= q; addToUnit(u, g, q); } }
             u.leg = 'out';
           }
+          return true;
         };
         for (let guard = 0; guard < 6; guard++) {
           const target = u.leg === 'out' ? dest.t : from.t;
           const there = u.t === target || (u.leg === 'out' && r.to.type === 'unit' && dist(S.map, u.t, target) <= 1);
-          if (there) { arrive(); if (from.t === dest.t) break; continue; }
+          if (there) { if (arrive() === false) break; if (from.t === dest.t) break; continue; }
           if (moves <= 0) break;
           const path = findPath(S, u, u.t, target, { partner: r.partner, noFord: true });
           if (!path) { notes.push(`${unitName(u)} has no open path`); break; }
@@ -2375,18 +2393,16 @@ const Engine = ((R) => {
     // city regeneration
     for (const c of S.cities) if (!c.attacked && c.hp < maxHp(S, c)) c.hp = Math.min(maxHp(S, c), c.hp + R.CITY.regen);
 
-    // settlements last R.SETTLEMENT.life turns from the turn they were placed; a warning comes one turn before
+    // a settlement whose tile has been claimed by a city (a city founded next to it, or a town hall) is taken
+    // over: it disappears and the claiming city gets whatever was stored in it
     for (const dp of (S.depots || []).slice()) {
-      if (!isSettlement(dp)) continue;
-      const lastTurn = dp.born + R.SETTLEMENT.life - 1;
-      if (turn >= lastTurn) {
-        S.depots = S.depots.filter((x) => x !== dp);
-        for (const r of S.routes.slice()) if (r.to.type === 'depot' && r.to.id === dp.id) removeRoute(r.id, 'its settlement was abandoned');
-        rep(dp.owner, 'construction', `${depotName(dp)} at ${tileLabel(S, dp.t)} was abandoned after ${R.SETTLEMENT.life} turns without becoming a city; its stores (${goodsText(dp.stock)}) were lost.`);
-      } else if (turn === lastTurn - 1) {
-        const short = {}; for (const [g, v] of Object.entries(settlementNeeds(S, dp))) if ((dp.stock[g] || 0) < v) short[g] = round1(v - (dp.stock[g] || 0));
-        rep(dp.owner, 'shortfall', `Warning: ${depotName(dp)} at ${tileLabel(S, dp.t)} will be abandoned at the end of next turn unless you found the city${Object.keys(short).length ? ` (still needs ${goodsText(short)})` : ' (it is ready)'}.`);
-      }
+      if (!isSettlement(dp) || S.map.tiles[dp.t].owner == null) continue;
+      const c = cityById(S, S.map.tiles[dp.t].owner);
+      S.depots = S.depots.filter((x) => x !== dp);
+      for (const r of S.routes.slice()) if (r.to.type === 'depot' && r.to.id === dp.id) removeRoute(r.id, 'its settlement was taken over');
+      const got = {};
+      if (c) for (const [g, v] of Object.entries(dp.stock)) { const a = addToCity(S, c, g, v); if (a) got[g] = a; }
+      both(dp.owner, c ? c.owner : dp.owner, 'construction', `${pname(dp.owner)}'s settlement at ${tileLabel(S, dp.t)} is now inside ${c ? `${c.name}'s territory` : 'a city\'s territory'}; it was dissolved${Object.keys(got).length ? ` and ${c.name} took ${goodsText(got)}` : ''}.`);
     }
     /* ----- end of turn ----- */
     const alive = S.players.filter((p) => !p.eliminated);

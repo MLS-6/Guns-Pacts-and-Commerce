@@ -253,8 +253,8 @@ const RULES = (() => {
   const DOCTRINE_LOCK = 10;
   // Combat units carry their own stores: 2 turns of supply at full speed and ammo for 2 attacks
   const UNIT_STORE = { turns: 2, attacks: 2 };
-  // A settlement becomes a city once it holds a city's founding goods; it is abandoned after `life` turns
-  const SETTLEMENT = { storage: { lumber: 50, food: 50, tools: 20 }, life: 10, tiles: ['grassland', 'forest'] };
+  // A settlement becomes a city once it holds a city's founding goods
+  const SETTLEMENT = { storage: { lumber: 50, food: 50, tools: 20 }, tiles: ['grassland', 'forest'] };
   // Lumber a building in the city itself uses each turn it runs
   const CITY_RUN_LUMBER = 0.5;
   const SUPPLY_PRIORITY = ['tank', 'artillery', 'infantry', 'cavalry', 'warship', 'frigate'];

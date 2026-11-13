@@ -857,11 +857,10 @@ function sidePanel() {
 }
 function settlementBlock(dp) {
   const S = st(), own = dp.owner === UI.me, need = Q.settlementNeeds(S, dp), d = draft();
-  const lastTurn = dp.born + RR.SETTLEMENT.life - 1, left = lastTurn - S.turn + 1;
   let body = `<dt>Settlement</dt><dd><span class="pdot" style="background:${pcol(dp.owner)}"></span>${esc(pname(dp.owner))}`;
   if (own) {
     body += `<div class="small">${Object.entries(need).map(([g, v]) => `${gl(g)} ${dp.stock[g] || 0} / ${v}`).join(' · ')}</div>
-      <div class="small ${left <= 2 ? 'warn' : 'muted'}">Abandoned after turn ${lastTurn} (${left} turn${left === 1 ? '' : 's'} left, counting this one) unless the city is founded.${S.map.tiles[dp.t].type === 'forest' ? ` Founding here clears the forest (+${RR.CLEAR_FOREST.mp} manpower, gives the city ${RR.CLEAR_FOREST.lumber} lumber).` : ''}</div>`;
+      <div class="small muted">Placed on turn ${dp.born}. If any city's territory grows over this tile, the settlement is dissolved and that city takes its stores.${S.map.tiles[dp.t].type === 'forest' ? ` Founding here clears the forest (+${RR.CLEAR_FOREST.mp} manpower, gives the city ${RR.CLEAR_FOREST.lumber} lumber).` : ''}</div>`;
     const qi = d.found.findIndex((f) => f.depot === dp.id);
     if (qi >= 0) body += `<div class="row small"><span class="tag brass">Founding ${esc(d.found[qi].name)} this turn</span><button class="x" data-act="rm" data-list="found" data-idx="${qi}" aria-label="Cancel">✕</button></div>`;
     else {
