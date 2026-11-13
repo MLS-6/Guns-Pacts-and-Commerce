@@ -327,7 +327,7 @@ function draft() {
 function saveDraft() { try { localStorage.setItem(UI._dk, JSON.stringify(UI._d)); } catch (e) { /* storage full or blocked */ } }
 function mutate(fn) { fn(draft()); saveDraft(); render(); }
 function settings() { const d = draft(); if (!d.settings) d.settings = {}; return d.settings; }
-function draftCount(d) { return ['attacks', 'sabotage', 'moves', 'board', 'unload', 'buys', 'sells', 'research', 'demolish', 'clear', 'builds', 'trains', 'found', 'cargo', 'routeOps', 'diplo'].reduce((n, k) => n + d[k].length, 0) + (d.settings && (d.settings.priority || ['products', 'halt', 'pay', 'labor'].some((k) => d.settings[k] && Object.keys(d.settings[k]).length)) ? 1 : 0); }
+function draftCount(d) { return ['attacks', 'sabotage', 'moves', 'board', 'unload', 'buys', 'sells', 'research', 'dump', 'disband', 'demolish', 'clear', 'builds', 'trains', 'found', 'cargo', 'routeOps', 'diplo'].reduce((n, k) => n + d[k].length, 0) + (d.settings && (d.settings.priority || d.settings.mobilize || d.settings.supplyPriority || ['products', 'halt', 'labor', 'fuel', 'doctrine'].some((k) => d.settings[k] && Object.keys(d.settings[k]).length)) ? 1 : 0); }
 // goods and manpower already committed by this turn's orders, per city
 function reserved(cityId) {
   const d = draft(), goods = {};
@@ -401,7 +401,7 @@ function computeHL() {
     return;
   }
   const u = UI.sel && UI.sel.unit != null ? Q.unitById(S, UI.sel.unit) : null;
-  if (!u || u.owner !== UI.me || u.carriedBy != null || S.gameOver || !Q.isReady(u)) return;
+  if (!u || u.owner !== UI.me || u.carriedBy != null || S.gameOver || !Q.canAct(S, u)) return;
   if (d0().sabotage.some((o) => o.unit === u.id)) return;
   if (u.route == null) {
     for (const [t, path] of Q.reachable(S, u)) {
@@ -486,6 +486,8 @@ function buildMapSvg(kind) {
     const idle = b.status && b.status.startsWith('Idle');
     out.push(`<g transform="translate(${x},${y - 11})"><rect x="-11" y="-6" width="22" height="12" rx="3" fill="${idle ? '#7a2b26' : '#1e2620'}" opacity="0.88"/><text class="blbl">${BLD[b.key].abbr}</text></g>`);
   }
+  for (const dp of S.depots || []) { const [x, y] = center(m, dp.t); out.push(`<g transform="translate(${x},${y - 10})"><rect x="-10" y="-7" width="20" height="13" rx="2" fill="${pcol(dp.owner)}" stroke="#141a16" stroke-width="1.2"/><text class="blbl" style="fill:${textOn(pcol(dp.owner))}">FD</text><title>${esc(pname(dp.owner))}'s field depot</title></g>`); }
+  for (let i = 0; i < n; i++) if (m.tiles[i].tunnel != null) { const [x, y] = center(m, i); out.push(`<g transform="translate(${x},${y})"><path d="M-9 6 L-9 -1 A9 9 0 0 1 9 -1 L9 6 Z" fill="#141a16" stroke="${pcol(m.tiles[i].tunnel)}" stroke-width="2"/><line x1="-6" y1="4" x2="6" y2="4" stroke="#c8b59a" stroke-width="1.4" stroke-dasharray="2 2"/><title>Rail tunnel (${esc(pname(m.tiles[i].tunnel))})</title></g>`); }
   for (let i = 0; i < n; i++) if (m.tiles[i].trap != null) { const [x, y] = center(m, i); out.push(`<text x="${x + 11}" y="${y - 6}" style="font-size:12px;font-weight:700" fill="#1e2620" text-anchor="middle">✕</text>`); }
   // cities
   for (const c of S.cities) {
@@ -511,7 +513,13 @@ function buildMapSvg(kind) {
     const sel = UI.sel;
     for (const t of UI.hl.build) { const [x, y] = center(m, t); out.push(`<polygon points="${hexPts(x, y, 0.9)}" fill="rgba(242,211,122,0.28)" stroke="#f2d37a" stroke-width="2"/>`); }
     for (const [t] of UI.hl.move) { const [x, y] = center(m, t); out.push(`<polygon points="${hexPts(x, y, 0.88)}" fill="rgba(255,255,255,0.18)" stroke="#fdf4d0" stroke-width="1.4"/>`); }
-    for (const t of UI.hl.attack) { const [x, y] = center(m, t); out.push(`<polygon points="${hexPts(x, y, 0.88)}" fill="rgba(214,70,62,0.25)" stroke="#ff6b5e" stroke-width="2"/>`); }
+    const su0 = UI.sel && UI.sel.unit != null ? Q.unitById(S, UI.sel.unit) : null;
+    for (const t of UI.hl.attack) {
+      const [x, y] = center(m, t);
+      out.push(`<polygon points="${hexPts(x, y, 0.88)}" fill="rgba(214,70,62,0.25)" stroke="#ff6b5e" stroke-width="2"/>`);
+      const pv = su0 && !UI.mode ? Q.previewAttack(S, su0, t) : null;
+      if (pv) out.push(`<g transform="translate(${x},${y + 15})"><rect x="-17" y="-7" width="34" height="13" rx="3" fill="#7a1f1a" opacity="0.92"/><text class="blbl" style="fill:#fff">−${pv.dmg}</text><title>${esc(`${pv.target}: ${pv.dmg} damage (base ${pv.base}${pv.mods.map((md) => `, ${md.label} ${md.v > 0 ? '+' : ''}${Math.round(md.v * 100)}%`).join('')})${pv.back ? `; it strikes back for ${pv.back.dmg}` : ''}`)}</title></g>`);
+    }
     if (sel) { const [x, y] = center(m, sel.t); out.push(`<polygon points="${hexPts(x, y, 0.97)}" fill="none" stroke="#fff" stroke-width="2.6"/>`); }
     // my planned orders
     const d = draft();
@@ -692,7 +700,7 @@ function onTileClick(t) {
    ===================================================================== */
 const TABS = [
   ['map', 'Map'], ['flow', 'Flow'], ['supply', 'Supply'], ['stock', 'Stockpiles'], ['buildings', 'Buildings'], ['production', 'Production'],
-  ['research', 'Research'], ['market', 'Market'], ['diplomacy', 'Diplomacy'], ['reports', 'Reports'], ['orders', 'Orders'],
+  ['research', 'Research'], ['market', 'Market'], ['war', 'War'], ['diplomacy', 'Diplomacy'], ['reports', 'Reports'], ['orders', 'Orders'],
 ];
 function renderHeader() {
   const S = st(), p = meP(), d = draft();
@@ -704,7 +712,7 @@ function renderHeader() {
     <div class="nation"><div><div class="title">${esc(CONFIG.title)}</div><div class="sub">${esc(S.name)}, ${esc(isCampaign() ? scheduleText().replace('Turns resolve automatically at', 'auto-resolves') : Sync.label.toLowerCase())}</div></div></div>
     <div class="turn">Turn ${S.turn}</div>
     <div>${sel}${vas}</div>
-    <div class="res"><span>Credits <b>${p.credits}</b></span><span>Manpower <b>${p.manpower}</b>${reservedMp() ? ` <span class="small muted">(−${reservedMp()} queued)</span>` : ''}</span><span>Science <b>${p.science}</b></span></div>
+    <div class="res"><span>Credits <b>${p.credits}</b></span><span>Manpower <b>${Math.round(p.manpower * 10) / 10}</b>${reservedMp() ? ` <span class="small muted">(−${reservedMp()} queued)</span>` : ''}</span><span>Science <b>${p.science}</b></span></div>
     <div class="spacer"></div>
     ${canPlay() ? `<button class="btn primary" data-act="submit" ${S.gameOver || p.eliminated ? 'disabled' : ''}>${submitted(UI.me) ? 'Resubmit orders' : 'Submit orders'} (${draftCount(d)})</button>` : '<span class="tag">Admin view: not playing</span>'}
     ${!isCampaign() || isAdmin() ? `<button class="btn ${allSubmitted() ? 'brass' : ''}" data-act="resolve" ${S.gameOver ? 'disabled' : ''} title="Resolve the turn for everyone">${isCampaign() ? 'Resolve turn now' : 'Resolve turn'}</button>` : ''}
@@ -812,7 +820,7 @@ function sidePanel() {
     const caps = Q.citiesOf(S, UI.me);
     return `<h2>Your turn</h2><p class="muted">Click a tile to inspect it. Click one of your units, then a highlighted tile to move or a red tile to attack. Click one of your cities to build and recruit.</p>
       <h3>Your cities</h3><ul class="list">${caps.map((c) => `<li><button class="linkbtn" data-act="goto" data-t="${c.t}">${esc(c.name)}</button><span class="num">${c.hp}/${Q.maxHp(S, c)} HP</span></li>`).join('') || '<li class="muted">None</li>'}</ul>
-      <h3>Your units</h3><ul class="list">${Q.unitsOf(S, UI.me).map((u) => `<li><button class="linkbtn" data-act="goto-unit" data-id="${u.id}">${esc(Q.unitName(u))}</button><span class="small muted">${tl(Q.posOf(S, u))}</span>${!Q.isReady(u) ? ' <span class="tag">reserve</span>' : ''}</li>`).join('') || '<li class="muted">None yet. Build a barracks to raise infantry.</li>'}</ul>`;
+      <h3>Your units</h3><ul class="list">${Q.unitsOf(S, UI.me).map((u) => `<li><button class="linkbtn" data-act="goto-unit" data-id="${u.id}">${esc(Q.unitName(u))}</button><span class="small muted">${tl(Q.posOf(S, u))}</span>${!Q.canAct(S, u) ? ' <span class="tag">idle</span>' : ''}</li>`).join('') || '<li class="muted">None yet. Build a barracks to raise infantry.</li>'}</ul>`;
   }
   const t = UI.sel.t, tile = S.map.tiles[t], city = Q.cityAt(S, t), oc = Q.tileOwnerCity(S, t), tb = Q.tileBuilding(S, t);
   const parts = [];
@@ -820,6 +828,8 @@ function sidePanel() {
     <dt>Territory</dt><dd>${oc ? `<span class="pdot" style="background:${pcol(oc.owner)}"></span>${esc(oc.name)} (${esc(pname(oc.owner))})` : 'Unclaimed'}</dd>
     ${tb ? `<dt>Building</dt><dd>${esc(BLD[tb.key].name)}${tb.status ? ` <span class="small ${tb.status.startsWith('Idle') ? 'warn' : 'muted'}">${esc(tb.status)}</span>` : ''}</dd>` : ''}
     ${tile.rail != null && tile.bridge !== 'rail' ? `<dt>Railroad</dt><dd><span class="pdot" style="background:${pcol(tile.rail)}"></span>built by ${esc(pname(tile.rail))}</dd>` : ''}${tile.bridge ? `<dt>${tile.bridge === 'rail' ? 'Rail bridge' : 'Bridge'}</dt><dd>${tile.bridgeBy != null ? `<span class="pdot" style="background:${pcol(tile.bridgeBy)}"></span>built by ${esc(pname(tile.bridgeBy))}` : 'Yes'}</dd>` : ''}
+    ${(() => { const dp = Q.depotAt(S, t); return dp ? `<dt>Field depot</dt><dd><span class="pdot" style="background:${pcol(dp.owner)}"></span>${esc(pname(dp.owner))}${dp.owner === UI.me ? `<div class="small">${esc(fmtGoods(dp.stock) || 'empty')}</div><div class="small muted">Holds ${RR.DEPOT.storage.food} food, fuel and ammo, ${RR.DEPOT.other} of other goods; supplies units within ${RR.DEPOT.supplyRange} tiles.</div>` : ''}</dd>` : ''; })()}
+    ${tile.tunnel != null ? `<dt>Rail tunnel</dt><dd><span class="pdot" style="background:${pcol(tile.tunnel)}"></span>built by ${esc(pname(tile.tunnel))}<div class="small muted">Only trains and infantry can pass.</div></dd>` : ''}
     ${tile.type === 'river' && !tile.bridge ? '<dt>Crossing</dt><dd class="small">Infantry, cavalry and caravans can wade in; it ends their move, and they cannot attack from the river.</dd>' : ''}
     ${tile.trap != null ? `<dt>Tank trap</dt><dd>${esc(cityName(tile.trap))}</dd>` : ''}</dl>${clearBlock(t)}${demolishBlock(t)}</section>`);
   if (city) parts.push(cityPanel(city));
@@ -847,7 +857,7 @@ function demolishBlock(t) {
   const S = st(), opts = Q.demolishable(S, UI.me, t);
   if (!opts.length || S.gameOver) return '';
   const tile = S.map.tiles[t], d = draft();
-  const keyOf = (w) => (w === 'building' ? Q.tileBuilding(S, t).key : w === 'trap' ? 'tankTrap' : w === 'rail' ? 'railroad' : tile.bridge === 'rail' ? 'railBridge' : 'bridge');
+  const keyOf = (w) => (w === 'building' ? Q.tileBuilding(S, t).key : w === 'trap' ? 'tankTrap' : w === 'rail' ? 'railroad' : w === 'depot' ? 'fieldDepot' : w === 'tunnel' ? 'railTunnel' : tile.bridge === 'rail' ? 'railBridge' : 'bridge');
   const back = (k) => Object.entries(BLD[k].cost).filter(([g]) => g !== 'mp').map(([g, v]) => [g, Math.floor(v * RR.DEMOLISH.refund)]).filter(([, v]) => v > 0).map(([g, v]) => `${v} ${gl(g)}`).join(', ');
   return `<div style="margin-top:6px">${opts.map((w) => {
     const k = keyOf(w), qi = d.demolish.findIndex((x) => x.t === t && x.what === w), err = Q.checkDemolish(S, UI.me, { t, what: w });
@@ -878,10 +888,22 @@ function cityPanel(c) {
   return `${head}</section>
     <section><h3>Stockpile</h3>${goodsGrid(c.stock, c)}<p class="small muted" style="margin-top:4px">Red arrows show what is left after this turn's orders.</p></section>
     <section><h3>Buildings (${blds.length})</h3><p class="small">${Object.entries(counts).map(([k, n]) => `${esc(BLD[k].short || BLD[k].name)}${n > 1 ? ` ×${n}` : ''}`).join(', ') || '<span class="muted">None yet</span>'}</p>
+      ${(() => { const cb = blds.filter((b) => BLD[b.key].place === 'city'); if (!cb.length) return ''; return `<details class="small"><summary>Demolish a building…</summary>${cb.map((b) => { const qi = d.demolish.findIndex((o) => o.what === 'city' && o.id === b.id); return qi >= 0 ? `<div class="row small"><span class="tag war">Demolishing ${esc(BLD[b.key].name.toLowerCase())}</span><button class="x" data-act="rm" data-list="demolish" data-idx="${qi}">✕</button></div>` : `<div class="row small"><button class="btn small danger" data-act="demolish-city" data-id="${b.id}">Demolish ${esc((BLD[b.key].short || BLD[b.key].name).toLowerCase())}</button><span class="muted">${RR.DEMOLISH.mp} manpower; half its goods back</span></div>`; }).join('')}</details>`; })()}
       ${queued.length ? `<p class="small">Queued: ${queued.map((b) => `${esc(BLD[b.key].name)}${b.t != null ? ` at ${tl(b.t)}` : ''}`).join(', ')}</p>` : ''}
       <h4>Build</h4><div class="buildlist">${opts}</div></section>
     <section><h3>Recruit</h3>${qTrain.length ? `<p class="small">Queued: ${qTrain.map((x) => esc(UNI[x.type].name)).join(', ')}</p>` : ''}<div class="buildlist">${trainOpts || '<p class="muted small">Research units first.</p>'}</div></section>
     ${weapons ? `<section><h3>Defenses</h3>${weapons}</section>` : ''}`;
+}
+function unitStatus(S, u) {
+  const bits = [];
+  if (!Q.canAct(S, u)) bits.push(`<b class="warn">Cannot move or attack</b>: ${esc(Q.whyIdle(S, u))}`);
+  else bits.push(Q.landCombat(u) && Q.mobOf(S, u.owner) === 'partial' ? '<b>Partial mobilization</b>: half speed, −50% attack' : '<b>Ready</b>');
+  if (u.paid === false) bits.push('<span class="warn">unpaid last turn (−50%)</span>');
+  else if (u.payStatus) bits.push(esc(u.payStatus));
+  if (u.supplied === false) bits.push('<span class="warn">out of supply (−25%)</span>');
+  if (u.mpShort) bits.push('<span class="warn">no manpower: −1 HP, no healing</span>');
+  if (Q.entrenched(S, u)) bits.push('<b>Entrenched</b>');
+  return bits.join(' · ');
 }
 function unitPanel(u) {
   const S = st(), dd = UNI[u.type], d = draft(), own = u.owner === UI.me;
@@ -889,13 +911,14 @@ function unitPanel(u) {
   const tr = u.carriedBy != null ? Q.unitById(S, u.carriedBy) : null;
   const aboard = Q.carried(S, u);
   const out = [`<section><h3>${esc(Q.unitName(u))} <span class="muted small">${esc(pname(u.owner))}</span></h3><dl class="kv">
-    <dt>HP</dt><dd class="num">${u.hp} / ${dd.hp}</dd><dt>Move</dt><dd>${dd.move} tiles${dd.cls === 'rail' ? ' (rail only)' : ''}</dd>
+    <dt>HP</dt><dd class="num">${u.hp} / ${Q.maxHpU(S, u)}</dd><dt>Move</dt><dd>${own ? `${Q.moveOf(S, u)} tiles this turn` : `${dd.move} tiles`}${dd.cls === 'rail' ? ' (rail only)' : ''}</dd>
     ${dd.range ? `<dt>Attack</dt><dd>range ${dd.range}, ${dd.ammo} ammo per attack</dd>` : ''}
-    ${dd.cargo ? `<dt>Cargo</dt><dd>${Q.cargoUsed(u)} / ${dd.cargo}${Q.cargoUsed(u) ? `: ${esc(fmtGoods(u.cargo))}` : ''}</dd>` : ''}
-    ${dd.carry ? `<dt>Carrying</dt><dd>${aboard.reduce((a, x) => a + Q.carrySlots(u, x), 0)} / ${dd.carry} slots${dd.carryTypes ? ` (${Object.entries(dd.carryTypes).map(([k, n]) => `${UNI[k].name.toLowerCase()} ${n}`).join(', ')})` : ''}${aboard.length ? `: ${aboard.map((x) => esc(Q.unitName(x))).join(', ')}` : ''}</dd>` : ''}
+    ${dd.role === 'combat' ? `<dt>Rank</dt><dd>${RR.XP.names[Q.stars(u)]}${Q.stars(u) ? ` (+${Math.round(RR.XP.bonus[Q.stars(u)] * 100)}% damage)` : ` <span class="small muted">${u.xp || 0} of ${RR.XP.veteran} battles to veteran</span>`}</dd>` : ''}
+    ${dd.cargo ? `<dt>Cargo</dt><dd>${Q.cargoUsed(u)} / ${Q.cargoCap(S, u)}${Q.cargoUsed(u) ? `: ${esc(fmtGoods(u.cargo))}` : ''}</dd>` : ''}
+    ${dd.carry ? `<dt>Carrying</dt><dd>${aboard.reduce((a, x) => a + Q.carrySlots(u, x), 0)} / ${Q.carryCap(S, u)} slots${dd.carryTypes ? ` (${Object.entries(dd.carryTypes).map(([k, n]) => `${UNI[k].name.toLowerCase()} ${n}`).join(', ')})` : ''}${aboard.length ? `: ${aboard.map((x) => esc(Q.unitName(x))).join(', ')}` : ''}</dd>` : ''}
     ${tr ? `<dt>Aboard</dt><dd>${esc(Q.unitName(tr))}</dd>` : ''}
     ${u.route != null ? `<dt>Route</dt><dd>#${u.route} (${esc(u.leg || '')})</dd>` : ''}
-    ${own && dd.role === 'combat' ? `<dt>Status</dt><dd class="small">${Q.isReady(u) ? '<b>Ready</b>' : '<b class="warn">In reserve</b>: cannot move or attack this turn'}${u.payStatus ? ` · ${esc(u.payStatus)}` : ''}</dd>` : ''}
+    ${own && dd.role === 'combat' ? `<dt>Status</dt><dd class="small">${unitStatus(S, u)}</dd>` : ''}
     ${Q.inRiver(S, u) ? '<dt>River</dt><dd class="small">Wading: cannot attack until it climbs out.</dd>' : ''}
     ${own ? `<dt>Supply</dt><dd class="small">${esc(u.supply || '—')}</dd><dt>Upkeep</dt><dd class="small">${esc(fmtGoods(Q.upkeepOf(S, u, mv ? mv.path.length - 1 : 0)) || 'none (in base)')}</dd>` : ''}</dl></section>`];
   if (!own) return out.join('');
@@ -914,12 +937,18 @@ function unitPanel(u) {
     for (const x of trs) acts.push(`<button class="btn small" data-act="board" data-unit="${u.id}" data-tr="${x.id}">Board ${esc(Q.unitName(x))}</button>`);
   }
   if (u.carriedBy != null) acts.push(`<button class="btn small" data-act="mode-unload" data-unit="${u.id}">Unload…</button>`);
+  // field depot here: load or unload
+  const dpHere = Q.depotAt(S, u.t);
+  if (dd.cargo && dpHere && dpHere.owner === UI.me && u.carriedBy == null) acts.push(`<h4>Field depot</h4><div class="row"><select id="dg-good" aria-label="Good">${RR.GOODS.map((g) => `<option value="${g}">${GN(g)} (depot ${dpHere.stock[g] || 0}, aboard ${u.cargo[g] || 0})</option>`).join('')}</select><input type="number" id="dg-amt" min="1" value="10" aria-label="Amount"></div>
+    <div class="row"><button class="btn small" data-act="dcargo" data-unit="${u.id}" data-depot="${dpHere.id}" data-dir="1">Load</button><button class="btn small" data-act="dcargo" data-unit="${u.id}" data-depot="${dpHere.id}" data-dir="-1">Unload</button></div>`);
+  // dump cargo (logistics units) and disband
+  if (dd.cargo && Q.cargoUsed(u)) acts.push(`<div class="row"><select id="dump-good" aria-label="Good to dump">${Object.entries(u.cargo).filter(([, v]) => v > 0).map(([g, v]) => `<option value="${g}">${GN(g)} (${v})</option>`).join('')}</select><button class="btn small" data-act="dump" data-unit="${u.id}">Dump it</button></div>`);
+  const dumps = d.dump.filter((o) => o.unit === u.id); for (const o of dumps) ord.push(`<li>Dump ${esc(gl(o.good))}<button class="x" data-act="rm" data-list="dump" data-idx="${d.dump.indexOf(o)}">✕</button></li>`);
+  if (d.disband.some((o) => o.unit === u.id)) ord.push(`<li>Disband<button class="x" data-act="clear" data-list="disband" data-unit="${u.id}" aria-label="Cancel disband">✕</button></li>`);
+  else acts.push(`<button class="btn small danger" data-act="disband" data-unit="${u.id}" title="Returns half its building goods (no manpower) and its cargo to storage in range">Disband…</button>`);
   if (dd.role === 'combat') {
-    const pend = d.settings && d.settings.pay && d.settings.pay[u.id] !== undefined ? d.settings.pay[u.id] : null;
-    const on = pend != null ? pend : u.pay !== false;
-    const free = Q.inBase(S, u);
-    acts.push(`<label class="ck small"><input type="checkbox" data-chg="pay" data-id="${u.id}" ${on ? 'checked' : ''}> Pay this unit (${Q.payOf(u)} credits a turn${free ? '; free while in base' : ''})</label>
-      <p class="small muted">${on ? (Q.isReady(u) ? 'Paid at the end of each turn to stay ready.' : 'It will be paid at the end of this turn and be ready next turn.') : 'Unpaid units sit in reserve: no pay, no moving or attacking, but they can still be attacked.'}</p>`);
+    const targets = [...UI.hl.attack].map((t) => [t, Q.previewAttack(S, u, t)]).filter(([, pv]) => pv);
+    if (targets.length) acts.push(`<h4>Attack preview</h4><ul class="list small">${targets.map(([t, pv]) => `<li><span><b>${esc(pv.target)}</b> at ${tl(t)}: <b>${pv.dmg}</b> damage <span class="muted">(base ${pv.base}${pv.mods.map((md) => `, ${esc(md.label)} ${md.v > 0 ? '+' : ''}${Math.round(md.v * 100)}%`).join('')})</span>${pv.back ? `; strikes back for ${pv.back.dmg}` : ''}</span></li>`).join('')}</ul>`);
     const sab = d.sabotage.find((o) => o.unit === u.id);
     if (sab) ord.push(`<li>Sabotage at ${tl(sab.t)}<button class="x" data-act="clear" data-list="sabotage" data-unit="${u.id}" aria-label="Cancel sabotage">✕</button></li>`);
     else if (dd.cls === 'land' && u.carriedBy == null) {
@@ -935,8 +964,8 @@ function unitPanel(u) {
     const left = Object.assign({}, u.cargo);
     for (const b of queuedHere) for (const [g, v] of Object.entries(BLD[b.key].cost)) if (g !== 'mp') left[g] = (left[g] || 0) - v;
     for (const b of queuedHere) ord.push(`<li>Build ${esc(BLD[b.key].name.toLowerCase())} at ${tl(b.t)} with its cargo<button class="x" data-act="rm" data-list="builds" data-idx="${d.builds.indexOf(b)}" aria-label="Cancel">✕</button></li>`);
-    const infra = Object.entries(BLD).filter(([k, b]) => b.place === 'infra' && Q.isUnlocked(S, UI.me, k));
-    if (infra.length) acts.push(`<h4>Build in the field</h4><p class="small muted">Railroads and bridges within ${RR.CITY.unitSupplyRadius} tiles, paid from this unit's cargo.</p>${infra.map(([k, b]) => {
+    const infra = Object.entries(BLD).filter(([k, b]) => (b.place === 'infra' || b.place === 'depot') && Q.isUnlocked(S, UI.me, k));
+    if (infra.length) acts.push(`<h4>Build in the field</h4><p class="small muted">Railroads, bridges and field depots within ${RR.CITY.unitSupplyRadius} tiles, paid from this unit's cargo.</p>${infra.map(([k, b]) => {
       const short = Object.entries(b.cost).filter(([g, v]) => g !== 'mp' && (left[g] || 0) < v).map(([g, v]) => `${v} ${gl(g)}`);
       return `<div class="opt ${short.length ? 'no' : ''}"><span>${esc(b.name)}${short.length ? ` <span class="small warn">needs ${esc(short.join(', '))} aboard</span>` : ''}</span><button class="btn small" data-act="mode-build-unit" data-unit="${u.id}" data-key="${k}" ${short.length ? 'disabled' : ''}>Place…</button><span class="cost">${esc(costText(b.cost))}</span></div>`;
     }).join('')}`);
@@ -1095,6 +1124,7 @@ TAB_RENDER.production = function () {
   const products = st0.products || {};
   const halts = st0.halt || {};
   const labors = (draft().settings && draft().settings.labor) || {};
+  const fuels = (draft().settings && draft().settings.fuel) || {};
   const isHalted = (b) => (halts[b.id] != null ? !!halts[b.id] : !!b.halted);
   const usedKeys = new Set(S.buildings.filter((b) => Q.buildingOwner(S, b) === UI.me && BLD[b.key].recipes).map((b) => b.key));
   const prioList = prio.filter((k) => usedKeys.has(k)).map((k, i, arr) => `<li class="row" style="margin:0;justify-content:space-between"><span><span class="num muted">${i + 1}.</span> ${esc(BLD[k].short || BLD[k].name)}</span><span><button class="btn small" data-act="prio" data-key="${k}" data-dir="-1" ${i === 0 ? 'disabled' : ''} aria-label="Move up">↑</button> <button class="btn small" data-act="prio" data-key="${k}" data-dir="1" ${i === arr.length - 1 ? 'disabled' : ''} aria-label="Move down">↓</button></span></li>`).join('');
@@ -1108,16 +1138,18 @@ TAB_RENDER.production = function () {
       const off = isHalted(b);
       const labor = rc.labor ? (labors[b.id] != null ? labors[b.id] : Q.laborOf(b)) : 0;
       const credOut = rc.labor ? labor * rc.creditsPerMp : Q.creditsOutOf(S, b);
-      const mpUse = rc.labor ? labor : (rc.mp || 0);
+      const mpUse = rc.labor ? labor : Q.mpOf(S, b);
+      const mpMade = rc.mpOut ? Q.mpOutOf(S, b) : 0;
       if (!off) {
         for (const [g, v] of Object.entries(rc.in || {})) totIn[g] = (totIn[g] || 0) + v;
         for (const [g, v] of Object.entries(out)) totOut[g] = (totOut[g] || 0) + v;
-        mp += mpUse; mpOut += rc.mpOut || 0; cr += rc.credits || 0; crOut += credOut; sci += rc.sciOut || 0;
+        mp += mpUse; mpOut += mpMade; cr += rc.credits || 0; crOut += credOut; sci += rc.sciOut || 0;
       }
       const sel = keys.length > 1 ? `<select data-chg="product" data-id="${b.id}" aria-label="Product">${keys.map((k) => `<option value="${k}" ${k === cur ? 'selected' : ''}>${GN(k) || k}</option>`).join('')}</select>` : '';
-      const outs = [fmtGoods(out), rc.mpOut ? `${rc.mpOut} manpower` : '', rc.sciOut ? `${rc.sciOut} science` : '', credOut || rc.creditsPerResidence || rc.labor ? `${credOut} credits${rc.creditsPerResidence ? ` (${rc.creditsPerResidence} × residences)` : rc.labor ? ` (${rc.creditsPerMp} per worker, up to ${rc.maxLabor})` : ''}` : ''].filter(Boolean).join(', ');
-      const toggle = `<label class="ck small"><input type="checkbox" data-chg="halt" data-id="${b.id}" ${off ? '' : 'checked'}> On</label>`;
-      return `<tr class="${off ? 'muted' : ''}"><td>${toggle}</td><td>${esc(d.short || d.name)}${d.place === 'tile' ? ` <span class="small muted">${tl(b.t)}</span>` : ''}</td><td>${sel}</td><td class="small">${esc(fmtGoods(rc.in) || '—')}${rc.credits ? `${rc.in ? ', ' : ''}${rc.credits} credits` : ''}</td><td class="small">${esc(outs)}</td><td class="n">${rc.labor ? `<input type="number" min="0" max="${rc.maxLabor || ''}" step="1" class="w-sm" data-chg="labor" data-id="${b.id}" value="${labor}" aria-label="Workers" title="Manpower put to work each turn${rc.maxLabor ? ` (up to ${rc.maxLabor})` : ''}" style="width:64px">` : (rc.mp || 0)}</td><td class="small ${b.status && b.status.startsWith('Idle') ? 'warn' : 'muted'}">${esc(off ? (b.halted ? 'Halted' : 'Halts this turn') : b.halted ? 'Restarts this turn' : (b.status || 'New'))}</td></tr>`;
+      const outs = [fmtGoods(out), mpMade ? `${mpMade} manpower` : '', rc.sciOut ? `${rc.sciOut} science` : '', credOut || rc.creditsPerResidence || rc.labor ? `${credOut} credits${rc.creditsPerResidence ? ` (${rc.creditsPerResidence} × residences)` : rc.labor ? ` (${rc.creditsPerMp} per worker, up to ${rc.maxLabor})` : ''}` : ''].filter(Boolean).join(', ');
+      const fuelPend = fuels[b.id] != null ? fuels[b.id] : b.fuelOn !== false;
+      const toggle = `<label class="ck small"><input type="checkbox" data-chg="halt" data-id="${b.id}" ${off ? '' : 'checked'}> On</label>${d.fuelUse ? `<br><label class="ck small" title="1 fuel a turn: +100% instead of +50%"><input type="checkbox" data-chg="fuel" data-id="${b.id}" ${fuelPend ? 'checked' : ''}> Fuel</label>` : ''}`;
+      return `<tr class="${off ? 'muted' : ''}"><td>${toggle}</td><td>${esc(d.short || d.name)}${d.place === 'tile' ? ` <span class="small muted">${tl(b.t)}</span>` : ''}</td><td>${sel}</td><td class="small">${esc(fmtGoods(rc.in) || '—')}${rc.credits ? `${rc.in ? ', ' : ''}${rc.credits} credits` : ''}</td><td class="small">${esc(outs)}</td><td class="n">${rc.labor ? `<input type="number" min="0" max="${rc.maxLabor || ''}" step="1" class="w-sm" data-chg="labor" data-id="${b.id}" value="${labor}" aria-label="Workers" title="Manpower put to work each turn${rc.maxLabor ? ` (up to ${rc.maxLabor})` : ''}" style="width:64px">` : mpUse}</td><td class="small ${b.status && b.status.startsWith('Idle') ? 'warn' : 'muted'}">${esc(off ? (b.halted ? 'Halted' : 'Halts this turn') : b.halted ? 'Restarts this turn' : (b.status || 'New'))}</td></tr>`;
     }).join('');
     return `<div class="ledger"><table><thead><tr><th colspan="7">${esc(c.name)}</th></tr><tr><th>Running</th><th>Production line</th><th>Making</th><th>Uses per turn</th><th>Makes per turn</th><th class="n">Manpower</th><th>Last turn</th></tr></thead><tbody>
       ${rows || '<tr><td colspan="7" class="muted">No production buildings yet.</td></tr>'}
@@ -1131,7 +1163,11 @@ TAB_RENDER.production = function () {
 /* ---------- Research ---------- */
 TAB_RENDER.research = function () {
   const S = st(), p = meP(), d = draft();
-  const queuedCost = d.research.reduce((a, k) => a + (BLD[k] ? BLD[k].sci : 0), 0);
+  const queuedCost = d.research.reduce((a, k) => a + (BLD[k] ? BLD[k].sci : RR.DOCTRINES[k] ? RR.DOCTRINES[k].sci : 0), 0);
+  const docs = Object.entries(RR.DOCTRINES).map(([k, dd]) => {
+    const res = p.researched.includes(k), q = d.research.includes(k);
+    return `<tr><td>${esc(dd.name)} <span class="small muted">${esc(RR.DOCTRINE_GROUPS[dd.group])}</span><div class="small muted">${esc(dd.text)}</div></td><td class="n">${dd.sci}</td><td>${res ? '<span class="tag ok">Researched</span>' : `<label class="ck"><input type="checkbox" data-chg="research" value="${k}" ${q ? 'checked' : ''}> Research</label>`}</td></tr>`;
+  }).join('');
   const eras = [1, 2, 3].map((era) => {
     const rows = Object.entries(BLD).filter(([, b]) => b.era === era).sort((a, b) => a[1].sci - b[1].sci).map(([k, b]) => {
       const free = b.sci === 0, res = p.researched.includes(k), bp = p.blueprints.includes(k), q = d.research.includes(k);
@@ -1144,9 +1180,9 @@ TAB_RENDER.research = function () {
   const sellable = p.researched.filter((k) => BLD[k]);
   const others = activePlayers().filter((x) => x.id !== UI.me);
   const offers = d.diplo.filter((o) => o.type === 'propose' && o.kind === 'blueprint');
-  return `<div class="page"><h2>Research</h2><p class="muted">Universities turn 6 manpower and 50 credits into 1 science each turn. Research any building in any order; later eras cost more. Science is never lost.</p>
+  return `<div class="page"><h2>Research</h2><p class="muted">Universities turn 6 manpower and 500 credits into 1 science each turn; research facilities turn 12 manpower and 1,000 credits into 3. Research any building in any order; later eras cost more. Science is never lost.</p>
     <div class="row" style="gap:24px"><span>Science available <b class="num" style="font-size:1.3rem">${p.science}</b></span><span>Queued this turn <b class="num ${queuedCost > p.science ? 'warn' : ''}" style="font-size:1.3rem">${queuedCost}</b></span></div>
-    <div class="cols" style="margin-top:12px"><div>${eras}</div>
+    <div class="cols" style="margin-top:12px"><div>${eras}<div class="ledger"><table><thead><tr><th colspan="3">Military doctrines (choose them on the War tab)</th></tr><tr><th>Doctrine</th><th class="n">Science</th><th></th></tr></thead><tbody>${docs}</tbody></table></div></div>
     <div class="panel"><h3 style="margin-top:0">Sell a blueprint</h3><p class="small muted">Only buildings you researched yourself can be sold. The buyer accepts next turn and pays on acceptance.</p>
       ${sellable.length && others.length ? `<div class="row"><select id="bp-key" aria-label="Blueprint">${sellable.map((k) => `<option value="${k}">${esc(BLD[k].name)}</option>`).join('')}</select><select id="bp-to" aria-label="Buyer">${others.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select><input type="number" id="bp-price" min="0" value="200" aria-label="Price in credits"><button class="btn small" data-act="bp-offer">Offer</button></div>` : '<p class="small muted">Nothing to sell yet.</p>'}
       ${offers.length ? `<ul class="list">${offers.map((o) => `<li>${esc(BLD[o.payload.key].name)} to ${esc(pname(o.to))} for ${o.payload.price}<button class="x" data-act="rm" data-list="diplo" data-idx="${d.diplo.indexOf(o)}">✕</button></li>`).join('')}</ul>` : ''}
@@ -1174,9 +1210,72 @@ TAB_RENDER.market = function () {
     <h3>This turn's market orders</h3><ul class="list">${lines.map(([l, i, t]) => `<li>${esc(t)}<button class="x" data-act="rm" data-list="${l}" data-idx="${i}">✕</button></li>`).join('') || '<li class="muted">None</li>'}</ul></div>`;
 };
 
+
+/* ---------- War ---------- */
+const MOB_NAMES = { peace: 'Peacetime', partial: 'Partial mobilization', full: 'Full mobilization' };
+function mobLabel(S, x) {
+  const cur = MOB_NAMES[x.mob || 'peace'];
+  if (x.mobPending) { const n = x.mobPending.at + 1 - S.turn; return `${cur} → ${MOB_NAMES[x.mobPending.to]} in ${n} turn${n === 1 ? '' : 's'}`; }
+  return cur;
+}
+TAB_RENDER.war = function () {
+  const S = st(), p = meP(), d = draft(), st0 = d.settings || {};
+  const L = RR.MOBILIZE.levels, cur = p.mob || 'peace', ci = L.indexOf(cur);
+  const chosen = st0.mobilize || null;
+  const mobRadio = L.map((lv, i) => {
+    const allowed = i <= ci + 1 && !(p.mobPending && i > ci);
+    const isCur = (chosen || (p.mobPending ? p.mobPending.to : cur)) === lv;
+    const note = i < ci ? 'stand down when the turn resolves' : i === ci ? (p.mobPending ? 'cancel the countdown' : 'current') : lv === 'partial' ? 'ready next turn' : `ready in ${RR.MOBILIZE.toFullTurns} turns counting this one; others see it next turn`;
+    return `<label class="ck" style="display:block;margin:4px 0"><input type="radio" name="mob" data-chg="mobilize" value="${lv}" ${isCur ? 'checked' : ''} ${allowed ? '' : 'disabled'}> <b>${MOB_NAMES[lv]}</b> <span class="small muted">${note}</span></label>`;
+  }).join('');
+  const docRows = Object.entries(RR.DOCTRINE_GROUPS).map(([g, gname]) => {
+    const curD = p.doctrine && p.doctrine[g], since = p.doctrineSince && p.doctrineSince[g];
+    const locked = curD && since != null && S.turn < since + RR.DOCTRINE_LOCK;
+    const want = st0.doctrine && st0.doctrine[g];
+    const keys = Object.entries(RR.DOCTRINES).filter(([, dd]) => dd.group === g);
+    return `<div style="margin-bottom:10px"><h4 style="margin:4px 0">${gname}${locked ? ` <span class="small muted">(locked until turn ${since + RR.DOCTRINE_LOCK})</span>` : ''}</h4>${keys.map(([k, dd]) => {
+      const res = p.researched.includes(k), on = (want || curD) === k;
+      return `<label class="ck" style="display:block;margin:3px 0"><input type="radio" name="doc-${g}" data-chg="doctrine" data-group="${g}" value="${k}" ${on ? 'checked' : ''} ${!res || (locked && curD !== k) ? 'disabled' : ''}> <b>${esc(dd.name)}</b>${curD === k ? ' <span class="tag ok">in use</span>' : ''}${!res ? ` <span class="small muted">research it first (${dd.sci} science)</span>` : ''}<div class="small muted" style="margin-left:22px">${esc(dd.text)}</div></label>`;
+    }).join('')}</div>`;
+  }).join('');
+  const prio = (st0.supplyPriority || p.supplyPriority || RR.SUPPLY_PRIORITY).filter((k) => UNI[k]);
+  const prioList = prio.map((k, i) => `<li class="row" style="margin:0;justify-content:space-between"><span><span class="num muted">${i + 1}.</span> ${esc(UNI[k].name)}</span><span><button class="btn small" data-act="sprio" data-key="${k}" data-dir="-1" ${i === 0 ? 'disabled' : ''} aria-label="Move up">↑</button> <button class="btn small" data-act="sprio" data-key="${k}" data-dir="1" ${i === prio.length - 1 ? 'disabled' : ''} aria-label="Move down">↓</button></span></li>`).join('');
+  const mine = Q.unitsOf(S, UI.me);
+  const combat = mine.filter((u) => UNI[u.type].role === 'combat').sort((a, b) => prio.indexOf(a.type) - prio.indexOf(b.type) || a.id - b.id);
+  const logi = mine.filter((u) => UNI[u.type].role !== 'combat');
+  const payTotal = combat.reduce((a, u) => a + Q.payOf(S, u), 0);
+  const rows = combat.map((u) => {
+    let v = RR.XP.bonus[Q.stars(u)];
+    if (Q.landCombat(u) && Q.mobOf(S, u.owner) === 'partial') v += RR.MOBILIZE.partialDamage;
+    if (u.paid === false) v += RR.MODS.unpaid; else if (u.supplied === false) v += RR.MODS.unsupplied;
+    const mult = Math.round(Math.max(1 + RR.MODS.floor, 1 + v) * 100);
+    const status = [];
+    if (!Q.canAct(S, u)) status.push('<span class="warn">idle</span>');
+    if (u.paid === false) status.push('<span class="warn">unpaid</span>');
+    if (u.supplied === false) status.push('<span class="warn">no supply</span>');
+    if (u.mpShort) status.push('<span class="warn">no manpower</span>');
+    if (Q.entrenched(S, u)) status.push('entrenched');
+    if (Q.inRiver(S, u)) status.push('in a river');
+    const dis = d.disband.some((o) => o.unit === u.id);
+    return `<tr><td><button class="linkbtn" data-act="goto-unit" data-id="${u.id}">${esc(Q.unitName(u))}</button></td><td class="small">${tl(Q.posOf(S, u))}</td><td class="n">${u.hp} / ${Q.maxHpU(S, u)}</td><td>${['', '★', '★★'][Q.stars(u)]} <span class="small">${RR.XP.names[Q.stars(u)]}</span></td><td class="n">${Q.canAct(S, u) ? `${mult}%` : '—'}</td><td class="n">${Q.moveOf(S, u)}</td><td class="n">${Q.payOf(S, u)}</td><td class="small">${status.join(', ') || 'ready'}</td><td>${dis ? '<span class="tag war">disbanding</span>' : `<button class="btn small danger" data-act="disband" data-unit="${u.id}">Disband</button>`}</td></tr>`;
+  }).join('');
+  const lrows = logi.map((u) => `<tr><td><button class="linkbtn" data-act="goto-unit" data-id="${u.id}">${esc(Q.unitName(u))}</button></td><td class="small">${tl(Q.posOf(S, u))}</td><td class="n">${u.hp} / ${Q.maxHpU(S, u)}</td><td class="small">${esc(fmtGoods(u.cargo) || 'empty')}</td><td class="small">${u.route != null ? `route #${u.route}` : ''}</td><td>${d.disband.some((o) => o.unit === u.id) ? '<span class="tag war">disbanding</span>' : `<button class="btn small danger" data-act="disband" data-unit="${u.id}">Disband</button>`}</td></tr>`).join('');
+  return `<div class="page"><h2>War</h2><p class="muted">Mobilization, doctrines and every unit you command. Attack strength shows the unit's own modifiers (mobilization, pay, supply, experience); hover a red target on the map for the full damage forecast.</p>
+    <div class="cols" style="grid-template-columns:1fr 1fr 1fr;gap:14px">
+      <div class="panel"><h3 style="margin-top:0">Mobilization</h3><p class="small">Now: <b>${esc(mobLabel(S, p))}</b></p>${mobRadio}
+        <p class="small muted">Peacetime: land units cannot move or attack, eat only their idle food, pay ${RR.PAY.standard.peace}. Partial: half speed, −50% attack, pay ${RR.PAY.standard.partial}. Full: normal, pay ${RR.PAY.standard.full}, but housing makes a third less manpower. Defense is never affected. Ships always work normally and cost ${RR.PAY.ship}.</p></div>
+      <div class="panel"><h3 style="margin-top:0">Doctrines</h3><p class="small muted">One per group, once researched. A choice is locked for ${RR.DOCTRINE_LOCK} turns.</p>${docRows}</div>
+      <div class="panel"><h3 style="margin-top:0">Supply priority</h3><p class="small muted">When supply or manpower runs short, units higher on this list are served first. A unit gets its full need or nothing.</p><ol class="list prio">${prioList}</ol></div>
+    </div>
+    <div class="row" style="gap:24px;margin-top:12px"><span>Combat units <b class="num">${combat.length}</b></span><span>Pay next turn about <b class="num">${payTotal}</b> credits <span class="small muted">(before free barracks and port berths)</span></span><span>Manpower draw <b class="num">${Math.round(combat.length * RR.MANPOWER_DRAW * 10) / 10}</b> a turn</span></div>
+    <div class="ledger" style="margin-top:10px"><table><thead><tr><th>Unit</th><th>Location</th><th class="n">HP</th><th>Rank</th><th class="n">Attack</th><th class="n">Move</th><th class="n">Pay</th><th>Status</th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="9" class="muted">No combat units.</td></tr>'}</tbody></table></div>
+    <div class="ledger" style="margin-top:10px"><table><thead><tr><th>Logistics unit</th><th>Location</th><th class="n">HP</th><th>Cargo</th><th></th><th></th></tr></thead><tbody>${lrows || '<tr><td colspan="6" class="muted">No logistics units.</td></tr>'}</tbody></table></div>
+    <p class="small muted">Disbanding returns half the goods used to build a unit (never the manpower), plus any cargo, to your cities, field depots or logistics units in range; anything that does not fit is lost.</p></div>`;
+};
+
 /* ---------- Diplomacy ---------- */
 function peaceDraft(to) {
-  if (!UI.peace || UI.peace.to !== to) UI.peace = { to, term: RR.PEACE.minTerm, give: { credits: 0, science: 0, cities: [], tiles: [] }, get: { credits: 0, science: 0, cities: [], tiles: [] } };
+  if (!UI.peace || UI.peace.to !== to) UI.peace = { to, term: 5, give: { credits: 0, science: 0, cities: [], tiles: [], units: [] }, get: { credits: 0, science: 0, cities: [], tiles: [], units: [] } };
   return UI.peace;
 }
 function peaceBuilder() {
@@ -1189,11 +1288,12 @@ function peaceBuilder() {
       <div class="row"><label>Credits <input type="number" min="0" data-chg="pc-num" data-side="${key}" data-f="credits" value="${part.credits || ''}" placeholder="0"></label><span class="small muted">has ${P.credits}</span></div>
       <div class="row"><label>Science <input type="number" min="0" data-chg="pc-num" data-side="${key}" data-f="science" value="${part.science || ''}" placeholder="0"></label><span class="small muted">has ${P.science}</span></div>
       <div class="small">${cities.map((c) => `<label class="ck"><input type="checkbox" data-chg="pc-city" data-side="${key}" value="${c.id}" ${part.cities.includes(c.id) ? 'checked' : ''}> ${esc(c.name)}</label>`).join('<br>') || '<span class="muted">No cities</span>'}</div>
-      <p class="small">${part.tiles.length} tile${part.tiles.length === 1 ? '' : 's'} chosen${part.tiles.length ? ` (${part.tiles.map(tl).join(', ')})` : ''}</p></div>`;
+      <p class="small">${part.tiles.length} tile${part.tiles.length === 1 ? '' : 's'} chosen${part.tiles.length ? ` (${part.tiles.map(tl).join(', ')})` : ''}</p>
+      ${(() => { const recv = pid === UI.me ? pd.to : UI.me; const us = Q.unitsOf(S, pid).filter((u) => !Q.giftError(S, pid, recv, u.id)); return `<div class="small"><b>Units</b> <span class="muted">(must stand in ${pid === UI.me ? 'their' : 'your'} territory; ships in waters of a city with a harbor or port)</span><br>${us.map((u) => `<label class="ck"><input type="checkbox" data-chg="pc-unit" data-side="${key}" value="${u.id}" ${(part.units || []).includes(u.id) ? 'checked' : ''}> ${esc(Q.unitName(u))}</label>`).join('<br>') || '<span class="muted">None eligible</span>'}</div>`; })()}</div>`;
   };
-  return `<div class="panel" id="peace-builder"><h3 style="margin-top:0">Peace treaty with ${playerLabel(pd.to)}</h3>
-    <p class="small muted">${Q.atWar(S, UI.me, pd.to) ? 'Signing ends your war.' : 'You are at peace; this adds a guaranteed term.'} Neither side may declare war until the term ends. ${esc(them.name)} answers next turn, and the transfers happen only if both sides still have what they promised.</p>
-    <div class="row"><label>Term <select data-chg="pc-term">${Array.from({ length: RR.PEACE.maxTerm - RR.PEACE.minTerm + 1 }, (_, i) => i + RR.PEACE.minTerm).map((n) => `<option value="${n}" ${n === pl.term ? 'selected' : ''}>${n} turns</option>`).join('')}</select></label></div>
+  return `<div class="panel" id="peace-builder"><h3 style="margin-top:0">Treaty with ${playerLabel(pd.to)}</h3>
+    <p class="small muted">${Q.atWar(S, UI.me, pd.to) ? 'Signing ends your war.' : 'You are at peace; a term adds a guaranteed non-aggression period, and a term of 0 is a plain exchange (for example lend-lease).'} Neither side may declare war until the term ends. Units can only be given between nations at peace. ${esc(them.name)} answers next turn, and the transfers happen only if both sides still have what they promised.</p>
+    <div class="row"><label>Term <select data-chg="pc-term">${Array.from({ length: RR.PEACE.maxTerm - RR.PEACE.minTerm + 1 }, (_, i) => i + RR.PEACE.minTerm).map((n) => `<option value="${n}" ${n === pl.term ? 'selected' : ''}>${n ? `${n} turns` : '0 turns (no non-aggression term)'}</option>`).join('')}</select></label></div>
     <div class="cols" style="grid-template-columns:1fr 1fr;gap:12px">${side('give', UI.me)}${side('get', pd.to)}</div>
     <p class="small muted">Ceded cities keep their stockpiles and all their territory. Ceded tiles bring their buildings, joining the new owner's nearest city.</p>
     <div class="row"><button class="btn" data-act="pc-pick">Pick tiles on the map</button><button class="btn primary" data-act="pc-send" ${err ? 'disabled' : ''}>Propose treaty</button><button class="btn" data-act="pc-close">Cancel</button></div>
@@ -1212,7 +1312,7 @@ TAB_RENDER.diplomacy = function () {
     return '<span class="tag ok">At peace</span>';
   };
   const rows = others.map((x) => {
-    if (x.eliminated) return `<tr><td>${playerLabel(x.id)}</td><td>${rel(x)}</td><td colspan="3"></td></tr>`;
+    if (x.eliminated) return `<tr><td>${playerLabel(x.id)}</td><td>${rel(x)}</td><td colspan="4"></td></tr>`;
     const war = Q.atWar(S, UI.me, x.id);
     const tr = S.treaties.filter((t) => t.type !== 'peace' && ((t.a === UI.me && t.b === x.id) || (t.b === UI.me && t.a === x.id)));
     const acts = [];
@@ -1222,6 +1322,7 @@ TAB_RENDER.diplomacy = function () {
     acts.push(`<span class="row" style="margin:0"><input type="number" min="1" class="w-sm" id="cr-${x.id}" placeholder="0" aria-label="Credits to send"><button class="btn small" data-act="credits" data-to="${x.id}">Send credits</button></span>`);
     return `<tr><td>${playerLabel(x.id)}</td><td>${rel(x)}</td>
       <td class="small">${tr.map((t) => `${t.type} rights${t.endsTurn ? ` (ends turn ${t.endsTurn})` : ` <button class="linkbtn" data-act="cancel-treaty" data-id="${t.id}">cancel</button>`}`).join('<br>') || '<span class="muted">None</span>'}</td>
+      <td class="small ${x.mob === 'full' || x.mobPending ? 'warn' : ''}">${esc(mobLabel(S, x))}</td>
       <td class="small">${citiesOf(x.id).length} cit${citiesOf(x.id).length === 1 ? 'y' : 'ies'}, ${Q.unitsOf(S, x.id).length} units</td><td><div class="row" style="margin:0">${acts.join(' ')}</div></td></tr>`;
   }).join('');
   const incoming = S.proposals.filter((pr) => pr.to === UI.me && pr.turn === S.turn).map((pr) => {
@@ -1231,9 +1332,9 @@ TAB_RENDER.diplomacy = function () {
   }).join('');
   const outgoing = S.proposals.filter((pr) => pr.from === UI.me).map((pr) => `<li>${esc(Q.describeProposal(S, pr))} to ${esc(pname(pr.to))}<span class="small muted">answer due turn ${pr.turn}</span></li>`).join('');
   const alive = S.players.filter((x) => !x.eliminated);
-  return `<div class="page"><h2>Diplomacy</h2><p class="muted">Peace treaties, rights treaties and trade routes are enforced by the game. Alliances, promises and informal arrangements are just words. Proposals reach the other nation next turn.</p>
+  return `<div class="page"><h2>Diplomacy</h2><p class="small">Your mobilization: <b>${esc(mobLabel(S, p))}</b> <button class="linkbtn" data-act="tab" data-tab="war">change on the War tab</button></p><p class="muted">Peace treaties, rights treaties and trade routes are enforced by the game. Alliances, promises and informal arrangements are just words. Proposals reach the other nation next turn.</p>
     ${peaceBuilder()}
-    <div class="ledger" style="margin-top:14px"><table><thead><tr><th>Nation</th><th>Status</th><th>Rights treaties</th><th>Size</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="ledger" style="margin-top:14px"><table><thead><tr><th>Nation</th><th>Status</th><th>Rights treaties</th><th>Mobilization</th><th>Size</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div>
     <div class="cols" style="margin-top:16px">
       <div class="panel"><h3 style="margin-top:0">Answer this turn</h3><ul class="list">${incoming || '<li class="muted">Nothing to answer.</li>'}</ul><h4>Waiting on others</h4><ul class="list">${outgoing || '<li class="muted">None</li>'}</ul></div>
       <div class="panel"><h3 style="margin-top:0">Wars and treaties</h3><ul class="list">${S.wars.map((w) => `<li>${playerLabel(w.a)} vs ${playerLabel(w.b)}<span class="small muted">since turn ${w.since}</span></li>`).join('') || '<li class="muted">No wars.</li>'}
@@ -1245,7 +1346,7 @@ TAB_RENDER.diplomacy = function () {
 const citiesOf = (pid) => Q.citiesOf(st(), pid);
 
 /* ---------- Reports ---------- */
-const REPORT_CATS = { all: 'Everything', conflict: 'Order conflicts', supply: 'Supply', shortfall: 'Production shortfalls', combat: 'Combat', movement: 'Movement', logistics: 'Logistics', market: 'Market', construction: 'Construction', recruitment: 'Recruitment', research: 'Research', diplomacy: 'Diplomacy', game: 'Game' };
+const REPORT_CATS = { all: 'Everything', war: 'War', conflict: 'Order conflicts', supply: 'Supply', shortfall: 'Production shortfalls', combat: 'Combat', movement: 'Movement', logistics: 'Logistics', market: 'Market', construction: 'Construction', recruitment: 'Recruitment', research: 'Research', diplomacy: 'Diplomacy', game: 'Game' };
 TAB_RENDER.reports = function () {
   const S = st();
   const list = (S.reports[UI.me] || []).filter((r) => UI.reportCat === 'all' || r.cat === UI.reportCat);
@@ -1277,13 +1378,17 @@ function orderGroups() {
   d.sells.forEach((o, i) => add('Market sells', 'sells', i, `Sell ${o.amount} ${gl(o.good)} from ${cityName(o.city)}`));
   d.research.forEach((k, i) => add('Research', 'research', i, `Research ${BLD[k].name} (${BLD[k].sci} science)`));
   d.sabotage.forEach((o, i) => add('Combat', 'sabotage', i, `${uname(o.unit)} sabotages ${tl(o.t)}`));
+  d.disband.forEach((o, i) => add('Buildings', 'disband', i, `Disband ${uname(o.unit)}`));
+  d.dump.forEach((o, i) => add('Buildings', 'dump', i, `${uname(o.unit)} dumps its ${gl(o.good)}`));
+  if (d.settings && d.settings.mobilize) add('Diplomacy', 'settings', 0, `Mobilization: ${MOB_NAMES[d.settings.mobilize]}`);
+  if (d.settings && d.settings.doctrine) for (const k of Object.values(d.settings.doctrine)) add('Diplomacy', 'settings', 0, `Adopt the ${RR.DOCTRINES[k].name} doctrine`);
+  if (d.settings && d.settings.supplyPriority) add('Logistics', 'settings', 0, 'Supply priority changed');
   d.clear.forEach((o, i) => add('Buildings', 'clear', i, `Clear the forest at ${tl(o.t)} (+${RR.CLEAR_FOREST.lumber} lumber)`));
   d.demolish.forEach((o, i) => add('Buildings', 'demolish', i, `Demolish ${o.what === 'building' ? (Q.tileBuilding(S, o.t) ? BLD[Q.tileBuilding(S, o.t).key].name.toLowerCase() : 'building') : o.what === 'trap' ? 'tank trap' : o.what === 'rail' ? 'railroad' : 'bridge'} at ${tl(o.t)}`));
   d.found.forEach((o, i) => add('Buildings', 'found', i, `Found ${o.name} with ${uname(o.unit)}`));
   d.builds.forEach((o, i) => add('Buildings', 'builds', i, `Build ${BLD[o.key].name} ${o.unit != null ? `with ${uname(o.unit)}'s cargo` : `for ${cityName(o.city)}`}${o.t != null ? ` at ${tl(o.t)}` : ''}`));
   d.trains.forEach((o, i) => add('Units', 'trains', i, `Build ${UNI[o.type].name} in ${cityName(o.city)}`));
-  if (d.settings && (d.settings.priority || ['products', 'halt', 'labor'].some((k) => d.settings[k] && Object.keys(d.settings[k]).length))) add('Production', 'settings', 0, 'Production priority, products, workers or on/off switches changed');
-  if (d.settings && d.settings.pay) for (const [uid, on] of Object.entries(d.settings.pay)) add('Logistics', 'settings', 0, `${on ? 'Pay' : 'Stop paying'} ${uname(Number(uid))}`);
+  if (d.settings && (d.settings.priority || ['products', 'halt', 'labor', 'fuel'].some((k) => d.settings[k] && Object.keys(d.settings[k]).length))) add('Production', 'settings', 0, 'Production priority, products, workers, fuel or on/off switches changed');
   d.cargo.forEach((o, i) => add('Logistics', 'cargo', i, `${uname(o.unit)} ${o.amount > 0 ? 'loads' : 'unloads'} ${Math.abs(o.amount)} ${gl(o.good)}`));
   d.routeOps.forEach((o, i) => add('Logistics', 'routeOps', i, o.op === 'remove' ? `Close route #${o.id}` : o.op === 'update' ? `Change route #${o.id}` : `New route ${cityName(o.from)} → ${o.to.type === 'city' ? cityName(o.to.id) : uname(o.to.id)}`));
   const order = ['Diplomacy', 'Combat', 'Movement', 'Market buys', 'Market sells', 'Research', 'Production', 'Buildings', 'Units', 'Logistics'];
@@ -1364,6 +1469,11 @@ const ACT = {
   },
   'clear-forest'(el) { const t = Number(el.dataset.t); mutate((d) => { if (!d.clear.some((x) => x.t === t)) d.clear.push({ t }); }); },
   sabotage(el) { const unit = Number(el.dataset.unit), t = Number(el.dataset.t); mutate((d) => { d.sabotage = d.sabotage.filter((x) => x.unit !== unit); d.sabotage.push({ unit, t }); d.moves = d.moves.filter((x) => x.unit !== unit); d.attacks = d.attacks.filter((x) => x.unit !== unit); }); computeHL(); render(); },
+  sprio(el) { const s = settings(); const p = meP(); const L = (s.supplyPriority || p.supplyPriority || RR.SUPPLY_PRIORITY).slice(); const i = L.indexOf(el.dataset.key), j = i + Number(el.dataset.dir); if (i < 0 || j < 0 || j >= L.length) return; [L[i], L[j]] = [L[j], L[i]]; s.supplyPriority = L; saveDraft(); render(); },
+  disband(el) { const unit = Number(el.dataset.unit); const u = Q.unitById(st(), unit); if (!confirm(`Disband ${u ? Q.unitName(u) : 'this unit'}? You get back half the goods used to build it (no manpower) and its cargo, if storage in range has room.`)) return; mutate((d) => { if (!d.disband.some((x) => x.unit === unit)) d.disband.push({ unit }); d.moves = d.moves.filter((x) => x.unit !== unit); d.attacks = d.attacks.filter((x) => x.unit !== unit); }); },
+  dump(el) { const unit = Number(el.dataset.unit), good = ($('#dump-good') || {}).value; if (!good) return; mutate((d) => { d.dump = d.dump.filter((x) => !(x.unit === unit && x.good === good)); d.dump.push({ unit, good }); }); },
+  dcargo(el) { const unit = Number(el.dataset.unit), depot = Number(el.dataset.depot), good = ($('#dg-good') || {}).value, amt = Math.floor(Number(($('#dg-amt') || {}).value) || 0) * Number(el.dataset.dir); if (!good || !amt) return; mutate((d) => d.cargo.push({ unit, depot, good, amount: amt })); toast('Queued'); },
+  'demolish-city'(el) { const id = Number(el.dataset.id); mutate((d) => { if (!d.demolish.some((x) => x.what === 'city' && x.id === id)) d.demolish.push({ what: 'city', id }); }); },
   demolish(el) { const t = Number(el.dataset.t), what = el.dataset.what; mutate((d) => { d.demolish = d.demolish.filter((x) => !(x.t === t && x.what === what)); d.demolish.push({ t, what }); }); },
   treaty(el) { mutate((d) => d.diplo.push({ type: 'propose', kind: 'treaty', to: Number(el.dataset.to), payload: { type: el.dataset.type } })); },
   credits(el) { const to = Number(el.dataset.to), amount = Math.floor(Number($(`#cr-${to}`).value) || 0); if (amount > 0) mutate((d) => d.diplo.push({ type: 'credits', to, amount })); },
@@ -1461,7 +1571,10 @@ const CHG = {
   'rf-goods'(el) { const v = Math.floor(Number(el.value) || 0); if (v > 0) UI.routeEdit.goods[el.dataset.good] = v; else delete UI.routeEdit.goods[el.dataset.good]; render(); },
   'rf-back'(el) { const v = Math.floor(Number(el.value) || 0); if (v > 0) UI.routeEdit.back[el.dataset.good] = v; else delete UI.routeEdit.back[el.dataset.good]; render(); },
   'rf-prio'(el) { UI.routeEdit.priority = el.value; render(); },
-  pay(el) { const s = settings(); s.pay = s.pay || {}; const u = Q.unitById(st(), Number(el.dataset.id)); if (u && (u.pay !== false) === el.checked) delete s.pay[el.dataset.id]; else s.pay[el.dataset.id] = el.checked; saveDraft(); render(); },
+  fuel(el) { const s = settings(); s.fuel = s.fuel || {}; const b = st().buildings.find((x) => x.id === Number(el.dataset.id)); if (b && (b.fuelOn !== false) === el.checked) delete s.fuel[el.dataset.id]; else s.fuel[el.dataset.id] = el.checked; saveDraft(); render(); },
+  mobilize(el) { const s = settings(); const p = meP(); if (el.value === p.mob && !p.mobPending) delete s.mobilize; else s.mobilize = el.value; saveDraft(); render(); },
+  doctrine(el) { const s = settings(); s.doctrine = s.doctrine || {}; const p = meP(); if (p.doctrine && p.doctrine[el.dataset.group] === el.value) delete s.doctrine[el.dataset.group]; else s.doctrine[el.dataset.group] = el.value; if (!Object.keys(s.doctrine).length) delete s.doctrine; saveDraft(); render(); },
+  'pc-unit'(el) { const pd = UI.peace; if (!pd) return; const part = pd[el.dataset.side]; part.units = part.units || []; const id = Number(el.value); part.units = el.checked ? [...new Set([...part.units, id])] : part.units.filter((x) => x !== id); render(); },
   labor(el) { const s = settings(); s.labor = s.labor || {}; const b = st().buildings.find((x) => x.id === Number(el.dataset.id)); const rcl = b ? Q.recipeOf(b) : null; const v = Math.min((rcl && rcl.maxLabor) || Infinity, Math.max(0, Math.floor(Number(el.value) || 0))); if (b && Q.laborOf(b) === v) delete s.labor[el.dataset.id]; else s.labor[el.dataset.id] = v; saveDraft(); render(); },
   halt(el) { const s = settings(); s.halt = s.halt || {}; const b = st().buildings.find((x) => x.id === Number(el.dataset.id)); const want = !el.checked; if (b && !!b.halted === want) delete s.halt[el.dataset.id]; else s.halt[el.dataset.id] = want; saveDraft(); render(); },
   product(el) { const s = settings(); s.products = s.products || {}; s.products[el.dataset.id] = el.value; saveDraft(); render(); },
