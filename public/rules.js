@@ -117,6 +117,7 @@ const RULES = (() => {
     railBridge: { name: 'Rail bridge', abbr: 'RB', era: 2, sci: 6, place: 'infra', cost: { lumber: 17, metal: 14, tools: 7, mp: 4 } },
 
     // Field depot: frontline storage and a supply point, built on a tile inside your territory or outside it
+    settlement: { name: 'Settlement', abbr: 'St', era: 1, sci: 0, place: 'depot', cost: { lumber: 5, tools: 1 } },
     fieldDepot: { name: 'Field depot', abbr: 'FD', era: 1, sci: 2, place: 'depot', cost: { lumber: 20, tools: 4, mp: 2 } },
 
     walls: { name: 'Walls', era: 1, sci: 4, place: 'city', limit: 1, cost: { lumber: 15, metal: 5, tools: 4, mp: 3 }, hp: 10 },
@@ -205,6 +206,7 @@ const RULES = (() => {
       oldNew: 'Old world vs. new world: two long continents, west and east',
       mediterranean: 'Mediterranean: a large central sea ringed by land',
       landlocked: 'Landlocked: no ocean, only rivers and lakes',
+      earth: 'Earth: the real continents, roughly',
     },
     // Amounts scale with the map's land tiles (tuned on 12 players x 400 tiles). Rubber and oil are concentrated:
     // most sit in one region away from the capitals, the rest are scattered; at least 1 per 2 players.
@@ -249,6 +251,12 @@ const RULES = (() => {
   const DOCTRINE_GROUPS = { naval: 'Naval', army: 'Army size', warfare: 'Warfare' };
   const ENTRENCH = { max: 5, perLevel: 0.1, fire: 0.25, vsCavalry: 0.5, tankBonus: 0.25 };
   const DOCTRINE_LOCK = 10;
+  // Combat units carry their own stores: 2 turns of supply at full speed and ammo for 2 attacks
+  const UNIT_STORE = { turns: 2, attacks: 2 };
+  // A settlement becomes a city once it holds a city's founding goods; it is abandoned after `life` turns
+  const SETTLEMENT = { storage: { lumber: 50, food: 50, tools: 20 }, life: 10, tiles: ['grassland', 'forest'] };
+  // Lumber a building in the city itself uses each turn it runs
+  const CITY_RUN_LUMBER = 0.5;
   const SUPPLY_PRIORITY = ['tank', 'artillery', 'infantry', 'cavalry', 'warship', 'frigate'];
   const DEPOT = { storage: { food: 200, fuel: 200, ammo: 200 }, other: 50, supplyRange: 3 };
   // Share of a destroyed logistics unit's cargo that goes to the nation that destroyed it
@@ -279,7 +287,7 @@ const RULES = (() => {
 
   return {
     GOODS, GOOD_NAMES, GOOD_COLORS, BASE_PRICE, MARKET, SPECIAL_STORAGE, TILES, BUILDINGS, UNITS, DAMAGE, WEAPON_AMMO, WEAPON_RANGE,
-    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, ENTRENCH, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
+    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, ENTRENCH, UNIT_STORE, SETTLEMENT, CITY_RUN_LUMBER, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = RULES;
