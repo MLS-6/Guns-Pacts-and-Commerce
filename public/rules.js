@@ -4,22 +4,22 @@
    edits in this file.
    ===================================================================== */
 const RULES = (() => {
-  const GOODS = ['food', 'lumber', 'ore', 'fuel', 'fiber', 'rubber', 'horses', 'metal', 'cloth', 'clothing', 'tools', 'smallArms', 'ammo', 'machinery'];
+  const GOODS = ['food', 'lumber', 'ore', 'fuel', 'fiber', 'rawRubber', 'rubber', 'horses', 'metal', 'cloth', 'clothing', 'tools', 'smallArms', 'ammo', 'machinery'];
 
   const GOOD_NAMES = {
-    food: 'Food', lumber: 'Lumber', ore: 'Ore', fuel: 'Fuel', fiber: 'Fiber', rubber: 'Rubber', horses: 'Horses',
+    food: 'Food', lumber: 'Lumber', ore: 'Ore', fuel: 'Fuel', fiber: 'Fiber', rawRubber: 'Raw rubber', rubber: 'Rubber', horses: 'Horses',
     metal: 'Metal', cloth: 'Cloth', clothing: 'Clothing', tools: 'Tools', smallArms: 'Small arms', ammo: 'Ammo', machinery: 'Machinery',
   };
 
   const GOOD_COLORS = {
-    food: '#d9a521', lumber: '#9a6534', ore: '#8c96a1', fuel: '#454545', fiber: '#c9bf9b', rubber: '#3f8a57', horses: '#7c4f32',
+    food: '#d9a521', lumber: '#9a6534', ore: '#8c96a1', fuel: '#454545', fiber: '#c9bf9b', rawRubber: '#8fae5a', rubber: '#3f8a57', horses: '#7c4f32',
     metal: '#6f8aa8', cloth: '#c98fb6', clothing: '#a44b7d', tools: '#4f74c8', smallArms: '#b8433f', ammo: '#d8702f', machinery: '#6a4cae',
   };
 
   // Global market (credits)
   const BASE_PRICE = {
-    food: 200, lumber: 200, ore: 300, fiber: 300, fuel: 400, horses: 600, rubber: 600, ammo: 600,
-    cloth: 800, metal: 1000, clothing: 1000, tools: 1400, smallArms: 1400, machinery: 4000,
+    food: 200, lumber: 200, ore: 300, fiber: 300, fuel: 400, horses: 600, rawRubber: 400, rubber: 1200, ammo: 600,
+    cloth: 2000, metal: 1000, clothing: 4000, tools: 1400, smallArms: 1400, machinery: 4000,
   };
   // trickle: share of each turn's world production of goods that appears in the market pool (no one loses anything)
   const MARKET = { scale: 4, buyRatio: 0.8, trickle: 0.05, maxBidX: 10 };
@@ -60,17 +60,17 @@ const RULES = (() => {
     apartment: { name: 'Apartment', era: 2, sci: 6, place: 'city', cost: { lumber: 20, metal: 6, tools: 6, mp: 4 }, recipes: { manpower: { in: { food: 5 }, mpOut: 6 } } },
     highrise: { name: 'Highrise', era: 3, sci: 12, place: 'city', cost: { lumber: 20, metal: 20, tools: 10, machinery: 4, mp: 6 }, recipes: { manpower: { in: { food: 8 }, mpOut: 10 } } },
     farm: { name: 'Farm', abbr: 'Fm', era: 1, sci: 0, place: 'tile', tiles: ['grassland'], cost: { lumber: 6, tools: 2, mp: 1 }, recipes: { food: { mp: 1, out: { food: 10 } } }, waterBonus: 3 },
-    fishery: { name: 'Fishery', abbr: 'Fs', era: 1, sci: 2, place: 'tile', tiles: ['lake', 'ocean'], cost: { lumber: 6, tools: 2, mp: 1 }, recipes: { food: { mp: 1, out: { food: 6 } } }, oceanFood: 10 },
+    fishery: { name: 'Fishery', abbr: 'Fs', era: 1, sci: 2, place: 'tile', tiles: ['lake', 'ocean'], cost: { lumber: 6, tools: 2, mp: 1 }, recipes: { food: { mp: 1, out: { food: 8 } } }, oceanFood: 10 },
     fiberFarm: { name: 'Fiber farm', abbr: 'Fb', era: 1, sci: 2, place: 'tile', tiles: ['grassland'], cost: { lumber: 6, tools: 2, mp: 1 }, recipes: { fiber: { mp: 1, out: { fiber: 6 } } } },
-    rubberPlantation: { name: 'Rubber plantation', abbr: 'Rb', era: 1, sci: 3, place: 'tile', tiles: ['rubber'], cost: { lumber: 8, tools: 2, mp: 1 }, recipes: { rubber: { mp: 1, out: { rubber: 4 } } } },
+    rubberPlantation: { name: 'Rubber plantation', abbr: 'Rb', era: 1, sci: 3, place: 'tile', tiles: ['rubber'], cost: { lumber: 8, tools: 2, mp: 1 }, recipes: { rawRubber: { mp: 1, out: { rawRubber: 6 } } } },
     stables: { name: 'Stables', abbr: 'St', era: 1, sci: 3, place: 'tile', tiles: ['grassland'], cost: { lumber: 10, tools: 2, mp: 1 }, recipes: { horses: { mp: 1, in: { food: 3 }, out: { horses: 3 } } } },
     lumberYard: { name: 'Lumber yard', abbr: 'Lm', era: 1, sci: 0, place: 'tile', tiles: ['forest'], cost: { lumber: 4, tools: 2, mp: 1 }, recipes: { lumber: { mp: 1, out: { lumber: 8 } } }, riverBonus: 0.5, railBonus: 2 },
     oreMine: { name: 'Ore mine', abbr: 'Om', era: 1, sci: 0, place: 'tile', tiles: ['ore'], cost: { lumber: 8, tools: 4, mp: 2 }, recipes: { ore: { mp: 1, out: { ore: 6 } } }, railBonus: 2 },
     // Silver and gold mines turn manpower into credits: assign workers (manpower per turn) up to maxLabor.
-    silverMine: { name: 'Silver mine', abbr: 'Ag', era: 1, sci: 2, place: 'tile', tiles: ['silver'], cost: { lumber: 8, tools: 4, mp: 2 }, recipes: { credits: { labor: true, creditsPerMp: 500, maxLabor: 15 } } },
-    goldMine: { name: 'Gold mine', abbr: 'Au', era: 1, sci: 3, place: 'tile', tiles: ['gold'], cost: { lumber: 10, metal: 4, tools: 6, mp: 3 }, recipes: { credits: { labor: true, creditsPerMp: 1000, maxLabor: 10 } } },
+    silverMine: { name: 'Silver mine', abbr: 'Ag', era: 1, sci: 2, place: 'tile', tiles: ['silver'], cost: { lumber: 8, tools: 4, mp: 2 }, recipes: { credits: { labor: true, creditsPerMp: 250, maxLabor: 15 } } },
+    goldMine: { name: 'Gold mine', abbr: 'Au', era: 1, sci: 3, place: 'tile', tiles: ['gold'], cost: { lumber: 10, metal: 4, tools: 6, mp: 3 }, recipes: { credits: { labor: true, creditsPerMp: 500, maxLabor: 10 } } },
     coalMine: { name: 'Coal mine', abbr: 'Cm', era: 1, sci: 0, place: 'tile', tiles: ['coal'], cost: { lumber: 8, tools: 4, mp: 2 }, recipes: { fuel: { mp: 1, out: { fuel: 6 } } }, railBonus: 2 },
-    charcoalRefinery: { name: 'Charcoal refinery', abbr: 'Ch', era: 1, sci: 2, place: 'tile', tiles: ['grassland'], cost: { lumber: 8, tools: 3, mp: 2 }, recipes: { fuel: { mp: 1, in: { lumber: 3 }, out: { fuel: 1 } } } },
+    charcoalRefinery: { name: 'Charcoal refinery', abbr: 'Ch', era: 1, sci: 2, place: 'city', cost: { lumber: 8, tools: 3, mp: 2 }, recipes: { fuel: { mp: 1, in: { lumber: 3.5 }, out: { fuel: 2 } } } }, // 3.5 + 0.5 upkeep = 4 lumber
     oilField: { name: 'Oil field', abbr: 'Ol', era: 3, sci: 12, place: 'tile', tiles: ['oil'], cost: { lumber: 4, metal: 10, tools: 6, machinery: 4, rubber: 4, mp: 4 }, recipes: { fuel: { mp: 2, out: { fuel: 20 } } }, railBonus: 2 },
 
     granary: { name: 'Granary', era: 1, sci: 2, place: 'city', cost: { lumber: 10, tools: 2, mp: 1 }, storage: { food: 200 } },
@@ -90,15 +90,20 @@ const RULES = (() => {
     },
     textileWorkshop: {
       name: 'Textile workshop', era: 1, sci: 4, place: 'city', cost: { lumber: 8, tools: 4, mp: 2 },
-      recipes: { cloth: { mp: 2, in: { fiber: 3 }, out: { cloth: 2 } }, clothing: { mp: 2, in: { cloth: 2 }, out: { clothing: 2 } } },
+      recipes: { cloth: { mp: 2, in: { fiber: 12 }, out: { cloth: 2 } }, clothing: { mp: 2, in: { cloth: 2 }, out: { clothing: 1 } } },
+    },
+    rubberWorks: {
+      name: 'Rubber works', era: 1, sci: 3, place: 'city', cost: { lumber: 8, tools: 4, mp: 2 },
+      recipes: { rubber: { mp: 2, in: { rawRubber: 4, fuel: 1 }, out: { rubber: 2 } } },
     },
     machineryWorkshop: { name: 'Machinery workshop', era: 2, sci: 8, place: 'city', cost: { lumber: 10, metal: 8, tools: 6, mp: 3 }, recipes: { machinery: { mp: 2, in: { metal: 3, tools: 2, fuel: 1 }, out: { machinery: 1 } } }, builds: ['artillery', 'train', 'supplyTruck'] },
     metalFactory: { name: 'Metal factory', era: 3, sci: 10, place: 'city', cost: { lumber: 15, metal: 20, tools: 10, machinery: 5, mp: 4 }, recipes: { metal: { mp: 4, in: { ore: 6, fuel: 2 }, out: { metal: 6 } } }, riverMpLess: 1 },
-    toolsFactory: { name: 'Tools factory', era: 3, sci: 10, place: 'city', cost: { lumber: 15, metal: 20, tools: 10, machinery: 5, mp: 4 }, recipes: { tools: { mp: 4, in: { metal: 4, lumber: 2 }, out: { tools: 6 } } }, riverMpLess: 1 },
-    smallArmsFactory: { name: 'Small arms factory', era: 3, sci: 10, place: 'city', cost: { lumber: 15, metal: 20, tools: 10, machinery: 5, rubber: 2, mp: 4 }, recipes: { smallArms: { mp: 4, in: { metal: 4, lumber: 2 }, out: { smallArms: 6 } } }, riverMpLess: 1 },
-    ammoFactory: { name: 'Ammo factory', era: 3, sci: 10, place: 'city', cost: { lumber: 15, metal: 20, tools: 10, machinery: 5, rubber: 2, mp: 4 }, recipes: { ammo: { mp: 4, in: { metal: 2 }, out: { ammo: 10 } } }, riverMpLess: 1 },
-    clothFactory: { name: 'Cloth factory', era: 3, sci: 8, place: 'city', cost: { lumber: 15, metal: 15, tools: 8, machinery: 3, mp: 4 }, recipes: { cloth: { mp: 4, in: { fiber: 4 }, out: { cloth: 4 } } }, riverMpLess: 1 },
-    clothingFactory: { name: 'Clothing factory', era: 3, sci: 8, place: 'city', cost: { lumber: 15, metal: 15, tools: 8, machinery: 3, mp: 4 }, recipes: { clothing: { mp: 4, in: { cloth: 2 }, out: { clothing: 4 } } }, riverMpLess: 1 },
+    toolsFactory: { name: 'Tools factory', era: 3, sci: 10, place: 'city', cost: { lumber: 15, metal: 20, tools: 10, machinery: 5, mp: 4 }, recipes: { tools: { mp: 4, in: { metal: 4, lumber: 4 }, out: { tools: 8 } } }, riverMpLess: 1 },
+    smallArmsFactory: { name: 'Small arms factory', era: 3, sci: 10, place: 'city', cost: { lumber: 15, metal: 20, tools: 10, machinery: 5, rubber: 2, mp: 4 }, recipes: { smallArms: { mp: 4, in: { metal: 4, lumber: 4 }, out: { smallArms: 8 } } }, riverMpLess: 1 },
+    ammoFactory: { name: 'Ammo factory', era: 3, sci: 10, place: 'city', cost: { lumber: 15, metal: 20, tools: 10, machinery: 5, rubber: 2, mp: 4 }, recipes: { ammo: { mp: 4, in: { metal: 2 }, out: { ammo: 12 } } }, riverMpLess: 1 },
+    clothFactory: { name: 'Cloth factory', era: 2, sci: 8, place: 'city', cost: { lumber: 15, metal: 15, tools: 8, machinery: 3, mp: 4 }, recipes: { cloth: { mp: 4, in: { fiber: 10 }, out: { cloth: 4 } } }, riverMpLess: 1 },
+    clothingFactory: { name: 'Clothing factory', era: 2, sci: 8, place: 'city', cost: { lumber: 15, metal: 15, tools: 8, machinery: 3, mp: 4 }, recipes: { clothing: { mp: 4, in: { cloth: 4 }, out: { clothing: 4 } } }, riverMpLess: 1 },
+    rubberRefinery: { name: 'Rubber refinery', era: 3, sci: 10, place: 'city', cost: { lumber: 15, metal: 20, tools: 10, machinery: 5, mp: 4 }, recipes: { rubber: { mp: 4, in: { rawRubber: 8, fuel: 2 }, out: { rubber: 8 } } }, riverMpLess: 1 },
     machineryFactory: { name: 'Machinery factory', era: 3, sci: 15, place: 'city', cost: { lumber: 15, metal: 25, tools: 12, machinery: 6, rubber: 6, mp: 5 }, recipes: { machinery: { mp: 4, in: { metal: 4, tools: 2, fuel: 1 }, out: { machinery: 3 } } }, builds: ['artillery', 'tank', 'train', 'supplyTruck'], riverMpLess: 1 },
 
     university: { name: 'University', era: 1, sci: 0, place: 'city', cost: { lumber: 12, metal: 4, tools: 6, mp: 3 }, recipes: { science: { mp: 6, credits: 500, sciOut: 1 } } },
@@ -152,16 +157,16 @@ const RULES = (() => {
      carryTypes: which units a transport may carry and how many slots each takes */
   const UNITS = {
     infantry: { name: 'Infantry', abbr: 'I', cls: 'land', role: 'combat', hp: 5, move: 2, range: 1, ammo: 1, idle: { food: 1 }, perTile: { food: 1 }, repair: 'bio', capture: true, ford: true, cost: { mp: 4, clothing: 2, smallArms: 2 }, builtAt: ['barracks'], unlock: 'barracks' },
-    cavalry: { name: 'Cavalry', abbr: 'C', cls: 'land', role: 'combat', hp: 7, move: 3, range: 1, ammo: 1, idle: { food: 2 }, perTile: { food: 1 }, repair: 'bio', repairHorses: 3, capture: true, ford: true, cost: { mp: 4, clothing: 2, smallArms: 2, horses: 3 }, builtAt: ['barracks'], unlock: 'stables' },
-    artillery: { name: 'Artillery', abbr: 'A', cls: 'land', role: 'combat', hp: 5, move: 2, range: 2, ammo: 3, idle: { food: 1 }, perTile: { fuel: 1 }, repair: 'mech', cost: { mp: 4, clothing: 2, metal: 4, tools: 2, machinery: 2, rubber: 2 }, builtAt: ['machineryWorkshop', 'machineryFactory'], unlock: 'machineryWorkshop' },
-    tank: { name: 'Tank', abbr: 'T', cls: 'land', role: 'combat', hp: 15, move: 4, range: 1, ammo: 2, idle: { food: 1 }, perTile: { fuel: 1.5 }, perTileRound: 'up', repair: 'mech', capture: true, cost: { mp: 6, clothing: 3, metal: 10, tools: 4, machinery: 4, rubber: 4 }, builtAt: ['machineryFactory'], unlock: 'machineryFactory' },
+    cavalry: { name: 'Cavalry', abbr: 'C', cls: 'land', role: 'combat', hp: 7, move: 3, range: 1, ammo: 1, idle: { food: 2 }, perTile: { food: 1 }, repair: 'bio', repairHorses: 3, capture: true, ford: true, cost: { mp: 3, clothing: 2, smallArms: 2, horses: 5 }, builtAt: ['barracks'], unlock: 'stables' },
+    artillery: { name: 'Artillery', abbr: 'A', cls: 'land', role: 'combat', hp: 5, move: 2, range: 2, ammo: 3, idle: { food: 1 }, perTile: { fuel: 1 }, repair: 'mech', cost: { mp: 4, clothing: 1, metal: 4, tools: 2, machinery: 2, rubber: 2 }, builtAt: ['machineryWorkshop', 'machineryFactory'], unlock: 'machineryWorkshop' },
+    tank: { name: 'Tank', abbr: 'T', cls: 'land', role: 'combat', hp: 15, move: 4, range: 1, ammo: 2, idle: { food: 1 }, perTile: { fuel: 1.5 }, perTileRound: 'up', repair: 'mech', capture: true, cost: { mp: 4, clothing: 2, smallArms: 2, metal: 10, tools: 4, machinery: 4, rubber: 4 }, builtAt: ['machineryFactory'], unlock: 'machineryFactory' },
     caravan: { name: 'Caravan', abbr: 'Ca', cls: 'land', role: 'logistic', hp: 1, move: 3, idle: { food: 1 }, perTile: {}, repair: 'bio', ford: true, cargo: 20, carry: 0, cost: { mp: 2, clothing: 1, horses: 4, lumber: 4 }, builtAt: ['stables'], unlock: 'stables' },
     supplyTruck: { name: 'Supply truck', abbr: 'ST', cls: 'land', role: 'logistic', hp: 5, move: 4, idle: { food: 1 }, perTile: { fuel: 0.5 }, repair: 'mech', cargo: 40, carry: 2, carryTypes: { infantry: 1, artillery: 2 }, cost: { mp: 2, clothing: 1, metal: 6, tools: 2, machinery: 1, rubber: 2 }, builtAt: ['machineryWorkshop', 'machineryFactory'], unlock: 'machineryWorkshop' },
     train: { name: 'Train', abbr: 'Tr', cls: 'rail', role: 'logistic', hp: 10, move: 6, idle: { fuel: 1 }, perTile: { fuel: 1 }, repair: 'mech', cargo: 120, carry: 4, cost: { mp: 4, clothing: 2, lumber: 4, metal: 12, tools: 4, machinery: 3 }, builtAt: ['machineryWorkshop', 'machineryFactory'], unlock: 'machineryWorkshop' },
-    merchantman: { name: 'Merchantman', abbr: 'Me', cls: 'ship', power: 'sail', role: 'logistic', hp: 10, move: 3, idle: { food: 1 }, perTile: { food: 0.5 }, repair: 'sail', cargo: 100, carry: 3, cost: { mp: 4, clothing: 2, cloth: 6, lumber: 16, metal: 2, tools: 2 }, builtAt: ['shipyard'], unlock: 'shipyard' },
-    frigate: { name: 'Frigate', abbr: 'Fg', cls: 'ship', power: 'sail', role: 'combat', hp: 25, move: 4, range: 2, ammo: 2, idle: { food: 2 }, perTile: { food: 1 }, repair: 'sail', cost: { mp: 6, clothing: 3, cloth: 8, smallArms: 4, lumber: 20, metal: 4, tools: 4 }, builtAt: ['shipyard'], unlock: 'shipyard' },
-    freighter: { name: 'Freighter', abbr: 'Fr', cls: 'ship', power: 'steam', role: 'logistic', hp: 15, move: 5, idle: { food: 1, fuel: 1 }, perTile: { fuel: 1 }, repair: 'mech', cargo: 200, carry: 6, cost: { mp: 6, clothing: 3, lumber: 12, metal: 8, tools: 4, machinery: 2 }, builtAt: ['navalYard'], unlock: 'navalYard' },
-    warship: { name: 'Warship', abbr: 'W', cls: 'ship', power: 'steam', role: 'combat', hp: 50, move: 5, range: 2, ammo: 4, idle: { food: 2, fuel: 1 }, perTile: { fuel: 1 }, repair: 'mech', cost: { mp: 10, clothing: 5, lumber: 10, metal: 20, tools: 6, machinery: 5 }, builtAt: ['navalYard'], unlock: 'navalYard' },
+    merchantman: { name: 'Merchantman', abbr: 'Me', cls: 'ship', power: 'sail', role: 'logistic', hp: 10, move: 3, idle: { food: 1 }, perTile: { food: 0.5 }, repair: 'sail', cargo: 100, carry: 3, cost: { mp: 4, clothing: 2, cloth: 4, lumber: 16, metal: 2, tools: 2 }, builtAt: ['shipyard'], unlock: 'shipyard' },
+    frigate: { name: 'Frigate', abbr: 'Fg', cls: 'ship', power: 'sail', role: 'combat', hp: 25, move: 4, range: 2, ammo: 2, idle: { food: 2 }, perTile: { food: 1 }, repair: 'sail', cost: { mp: 6, clothing: 3, cloth: 6, smallArms: 4, lumber: 20, metal: 4, tools: 4 }, builtAt: ['shipyard'], unlock: 'shipyard' },
+    freighter: { name: 'Freighter', abbr: 'Fr', cls: 'ship', power: 'steam', role: 'logistic', hp: 15, move: 5, idle: { food: 1, fuel: 1 }, perTile: { fuel: 1 }, repair: 'mech', cargo: 200, carry: 6, cost: { mp: 4, clothing: 2, lumber: 12, metal: 8, tools: 4, machinery: 2, rubber: 2 }, builtAt: ['navalYard'], unlock: 'navalYard' },
+    warship: { name: 'Warship', abbr: 'W', cls: 'ship', power: 'steam', role: 'combat', hp: 50, move: 5, range: 2, ammo: 4, idle: { food: 2, fuel: 1 }, perTile: { fuel: 1 }, repair: 'mech', cost: { mp: 8, clothing: 4, smallArms: 2, lumber: 10, metal: 20, tools: 6, machinery: 5, rubber: 2 }, builtAt: ['navalYard'], unlock: 'navalYard' },
   };
 
   // Damage per attack. Rows = attacker, columns = target. Missing = cannot hit.
@@ -276,7 +281,7 @@ const RULES = (() => {
   const DEFAULT_PRIORITY = [
     'farm', 'farm2', 'farm3', 'fishery', 'fishery2', 'fishery3', 'residence', 'apartment', 'highrise',
     'lumberYard', 'lumberYard2', 'lumberYard3', 'oreMine', 'oreMine2', 'oreMine3', 'coalMine', 'coalMine2', 'coalMine3', 'charcoalRefinery', 'oilField',
-    'fiberFarm', 'fiberFarm2', 'fiberFarm3', 'rubberPlantation', 'rubberPlantation2', 'rubberPlantation3', 'stables',
+    'fiberFarm', 'fiberFarm2', 'fiberFarm3', 'rubberPlantation', 'rubberPlantation2', 'rubberPlantation3', 'rubberWorks', 'rubberRefinery', 'stables',
     'metalForge', 'metalFactory', 'workshop', 'toolsFactory', 'smallArmsFactory', 'ammoFactory',
     'textileWorkshop', 'clothFactory', 'clothingFactory', 'machineryWorkshop', 'machineryFactory', 'university', 'researchFacility', 'taxOffice', 'silverMine', 'goldMine',
   ];

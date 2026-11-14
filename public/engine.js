@@ -690,8 +690,12 @@ const Engine = ((R) => {
       }
     }
     if (!opt.ignoreUnits) {
-      const hostile = unitsAt(S, to).filter((x) => !friendly(S, x.owner, u.owner) && x.owner !== partner);
-      if (hostile.length && !(capturing && hostile.every((x) => U[x.type].role !== 'combat'))) return false;
+      // another nation's units block the tile for units of the same kind (land units for land units, ships for
+      // ships), so a soldier on a bridge does not stop a ship sailing beneath it
+      const isShip = (x) => U[x.type].cls === 'ship';
+      let hostile = unitsAt(S, to).filter((x) => !friendly(S, x.owner, u.owner) && x.owner !== partner && isShip(x) === isShip(u));
+      if (city && !city.hp && capturing) hostile = hostile.filter((x) => U[x.type].role === 'combat' && U[x.type].cls === 'land'); // docked ships and logistics units never stop a capture
+      if (hostile.length) return false;
     }
     return true;
   }
@@ -851,9 +855,16 @@ const Engine = ((R) => {
     const total = Math.max(R.MODS.floor, mods.reduce((a, m) => a + m.v, 0));
     return { mods, total };
   }
+  // Base damage of attacker type k on a unit; a land unit hits ships docked in a fallen city (0 HP) with its city damage
+  function baseDamage(S, k, tu) {
+    const d = R.dmg(k, tu.type);
+    if (d > 0) return d;
+    if (U[k] && U[k].cls === 'land' && U[tu.type].cls === 'ship') { const c = cityAt(S, tu.t); if (c && c.hp <= 0) return R.dmg(k, 'city'); }
+    return d;
+  }
   function attackDamage(S, att, tgt, opts = {}) {
     const k = att.unit ? att.unit.type : att.weapon;
-    let base = tgt.city ? R.dmg(k, 'city') : R.dmg(k, tgt.unit.type);
+    let base = tgt.city ? R.dmg(k, 'city') : baseDamage(S, k, tgt.unit);
     if (opts.counter) base = base / 2;
     if (base <= 0) return { base: 0, dmg: 0, mods: [], total: 0 };
     const m = attackMods(S, att, tgt, opts);
@@ -909,9 +920,11 @@ const Engine = ((R) => {
       }
     }
     const foes = unitsAt(S, t).filter((x) => atWar(S, attOwner, x.owner));
-    const combat = foes.filter((x) => U[x.type].role === 'combat' && R.dmg(attKey, x.type) > 0);
+    const combat = foes.filter((x) => U[x.type].role === 'combat' && baseDamage(S, attKey, x) > 0);
+    // a land garrison is hit before ships docked in the same city
+    combat.sort((a, b) => (U[a.type].cls === 'ship') - (U[b.type].cls === 'ship'));
     if (combat.length) return { unit: combat[0] };
-    const others = foes.filter((x) => R.dmg(attKey, x.type) > 0);
+    const others = foes.filter((x) => baseDamage(S, attKey, x) > 0);
     if (others.length) return { unit: others[0] };
     return null;
   }
@@ -1094,13 +1107,25 @@ const Engine = ((R) => {
       return null;
     }
     if (o.key === 'bridge' || o.key === 'railBridge') {
-      if (tile.type !== 'river' && tile.type !== 'lake') return 'Bridges go on rivers and lakes, never the ocean';
+      const why = bridgeSiteError(S, t);
+      if (why) return why;
       if (o.key === 'bridge' && tile.bridge) return 'Already bridged';
       if (o.key === 'railBridge' && tile.bridge === 'rail') return 'Already has a rail bridge';
       if (tileBuilding(S, t)) return 'Not on a tile with a fishery';
       return null;
     }
     return 'Cannot build here';
+  }
+  // Bridges go on water next to land. River and lake tiles need one land neighbour; an ocean tile needs at least
+  // 3 land neighbours, or land on two opposite sides. Only real land counts (mountains yes, other bridges no).
+  function bridgeSiteError(S, t) {
+    const tile = S.map.tiles[t];
+    if (!['river', 'lake', 'ocean'].includes(tile.type)) return 'Bridges go on water';
+    const around = dirs(S.map, t).map((j) => j >= 0 && TT[S.map.tiles[j].type].terrain !== 'water');
+    const n = around.filter(Boolean).length;
+    if (tile.type !== 'ocean') return n >= 1 ? null : 'A bridge must touch land';
+    if (n >= 3 || [0, 1, 2].some((i) => around[i] && around[i + 3])) return null;
+    return 'An ocean bridge needs land on 3 sides, or on two opposite sides';
   }
   function checkTrain(S, pid, cityId, type) {
     const c = cityById(S, cityId), d = U[type];
@@ -1181,11 +1206,27 @@ const Engine = ((R) => {
     if (tile.rail != null) return { what: 'railroad', owner: tile.rail };
     return null;
   }
+  // Warships and frigates can destroy any bridge or rail bridge on or next to their tile, anywhere, if at war with its owner
+  function shipSabotageTarget(S, t) {
+    const tile = S.map.tiles[t];
+    if (!tile || !tile.bridge) return null;
+    return { what: tile.bridge === 'rail' ? 'railBridge' : 'bridge', owner: tile.bridgeBy };
+  }
+  function sabotageTargetFor(S, u, t) { return U[u.type].cls === 'ship' ? shipSabotageTarget(S, t) : sabotageTarget(S, t); }
   function checkSabotage(S, pid, o) {
     const u = unitById(S, o.unit), t = Number(o.t);
     if (!u || u.owner !== pid) return 'Not your unit';
     const d = U[u.type];
-    if (d.role !== 'combat' || d.cls !== 'land') return 'Only land combat units can sabotage';
+    if (d.role === 'combat' && d.cls === 'ship') {
+      if (!canAct(S, u)) return `It cannot act: ${whyIdle(S, u)}`;
+      if (!(t >= 0 && t < S.map.tiles.length) || dist(S.map, u.t, t) > 1) return 'Must be on or next to the bridge';
+      const tg = shipSabotageTarget(S, t);
+      if (!tg) return 'No bridge there';
+      if (tg.owner == null || !atWar(S, pid, tg.owner)) return 'You can only destroy the bridges of a nation you are at war with';
+      if (S.units.some((x) => x.t === t && x.carriedBy == null && U[x.type].cls !== 'ship')) return 'Units are on the bridge';
+      return null;
+    }
+    if (d.role !== 'combat' || d.cls !== 'land') return 'Only combat units can sabotage';
     if (u.carriedBy != null) return 'Unload it first';
     if (!canAct(S, u)) return `It cannot act: ${whyIdle(S, u)}`;
     if (!(t >= 0 && t < S.map.tiles.length) || dist(S.map, u.t, t) > 1) return 'Must be on or next to the target';
@@ -1314,7 +1355,7 @@ const Engine = ((R) => {
     const { map, starts } = genMap(list.length, rng, { mapType: opts.mapType, tilesPerPlayer: opts.tilesPerPlayer });
     const start = startingResources(opts.start);
     const S = {
-      version: 3, id: opts.id || `game-${seed.toString(36)}-${Date.now().toString(36)}`, name: opts.name || 'Guns, Pacts, and Commerce', start,
+      version: 4, id: opts.id || `game-${seed.toString(36)}-${Date.now().toString(36)}`, name: opts.name || 'Guns, Pacts, and Commerce', start,
       seed, turn: 1, map, players: [], cities: [], units: [], buildings: [], routes: [], treaties: [], wars: [], proposals: [],
       market: { pool: {}, prices: {} }, reports: {}, nextId: 1, gameOver: null, history: [], depots: [],
     };
@@ -1370,7 +1411,15 @@ const Engine = ((R) => {
       if (!p.supplyPriority) p.supplyPriority = R.SUPPLY_PRIORITY.slice();
     }
     S.proposals = (S.proposals || []).filter((pr) => ['peace', 'treaty', 'blueprint', 'route'].includes(pr.kind));
-    S.version = 3;
+    if ((S.version || 1) < 4) {
+      // version 4: charcoal refineries move into their city; rubber plantations make raw rubber
+      for (const b of S.buildings) {
+        if (b.key === 'charcoalRefinery') { const c = cityById(S, b.city); if (c) b.t = c.t; }
+        if (/^rubberPlantation/.test(b.key)) b.product = 'rawRubber';
+      }
+      for (const p of S.players) if (p.priority && !p.priority.includes('rubberWorks')) { const i = p.priority.indexOf('rubberPlantation3'); p.priority.splice(i < 0 ? p.priority.length : i + 1, 0, 'rubberWorks', 'rubberRefinery'); }
+    }
+    S.version = 4;
     return S;
   }
   function normalizeOrders(o) {
@@ -1720,7 +1769,7 @@ const Engine = ((R) => {
       if (attackedWith.has(u.id)) { rep(p.id, 'conflict', `${unitName(u)} attacked this turn, so it could not also sabotage.`); continue; }
       const err = checkSabotage(S, p.id, o);
       if (err) { rep(p.id, 'conflict', `${unitName(u)} could not sabotage at ${tileLabel(S, o.t)}: ${err}.`); continue; }
-      const t = Number(o.t), tile = S.map.tiles[t], tg = sabotageTarget(S, t);
+      const t = Number(o.t), tile = S.map.tiles[t], tg = sabotageTargetFor(S, u, t);
       if (tg.what === 'railroad') tile.rail = null;
       else if (tg.what === 'railTunnel') { tile.tunnel = null; tile.rail = null; }
       else { if (tile.bridge === 'rail') tile.rail = null; tile.bridge = false; tile.bridgeBy = null; }
@@ -1784,8 +1833,9 @@ const Engine = ((R) => {
         const Sh = list.filter((x) => slot(x.u) === 'S' && !(city && dockable(S, city, x.u)));
         const LL = city ? [] : list.filter((x) => slot(x.u) === 'LL');
         const SL = city ? [] : list.filter((x) => slot(x.u) === 'SL');
-        const hostile = list.some((a) => list.some((b) => !friendly(S, a.u.owner, b.u.owner)));
-        const captureCase = city && L.length === 1 && L[0].m && !friendly(S, city.owner, L[0].u.owner) && list.every((x) => x.m === L[0].m || (!x.m && U[x.u.type].role !== 'combat'));
+        const shipOf = (x) => U[x.u.type].cls === 'ship';
+        const hostile = list.some((a) => list.some((b) => !friendly(S, a.u.owner, b.u.owner) && shipOf(a) === shipOf(b)));
+        const captureCase = city && L.length === 1 && L[0].m && !friendly(S, city.owner, L[0].u.owner) && list.every((x) => x.m === L[0].m || (!x.m && (U[x.u.type].role !== 'combat' || shipOf(x))));
         const bounce = (group, why) => {
           for (const x of group) if (x.m && !x.m.bounced) {
             x.m.bounced = true; changed = true;
@@ -2426,7 +2476,7 @@ const Engine = ((R) => {
       garrisonOf, posOf, carried, atWar, friendly, hasTreaty, isUnlocked, unitUnlocked, territoryRadius, supplyRadius, maxHp,
       capacity, freeSpace, recipeOf, recipeKey, buildingOutput, creditsOutOf, mpOf, mpOutOf, buildingOwner, reachable, findPath, canEnter, pickTarget, attackTargets,
       cityWeaponTargets, supplySources, sourceName, upkeepOf, inBase, checkBuild, checkTrain, checkFound, routeEstimate, describeProposal,
-      cargoUsed, cargoFree, portOk, dockable, slotFree, canCarry, carrySlots, demolishable, checkDemolish, checkDisband, inputsOf, isSettlement, settlementNeeds, storeCap, giftError, depotAt, depotById, depotCap, depotFree, depotName, routeDest, checkClear, checkSabotage, sabotageTarget, fording, inRiver, canAct, whyIdle, moveOf, payOf, laborOf, maxHpU, cargoCap, carryCap, stars, entrenched, entrenchLevel, blitzing, attackDamage, previewAttack, landCombat, mobOf, doctrineOf, supplyMoveLimit, normPeace, checkPeace, peaceTerms, isWater, isLand, nearWater, tileLabel, goodsText, terrain,
+      cargoUsed, cargoFree, portOk, dockable, slotFree, canCarry, carrySlots, demolishable, checkDemolish, checkDisband, inputsOf, isSettlement, settlementNeeds, storeCap, giftError, depotAt, depotById, depotCap, depotFree, depotName, routeDest, checkClear, checkSabotage, sabotageTarget, sabotageTargetFor, bridgeSiteError, fording, inRiver, canAct, whyIdle, moveOf, payOf, laborOf, maxHpU, cargoCap, carryCap, stars, entrenched, entrenchLevel, blitzing, attackDamage, previewAttack, landCombat, mobOf, doctrineOf, supplyMoveLimit, normPeace, checkPeace, peaceTerms, isWater, isLand, nearWater, tileLabel, goodsText, terrain,
     },
   };
 })(typeof RULES !== 'undefined' ? RULES : require('./rules.js'));

@@ -983,9 +983,9 @@ function unitPanel(u) {
     if (targets.length) acts.push(`<h4>Attack preview</h4><ul class="list small">${targets.map(([t, pv]) => `<li><span><b>${esc(pv.target)}</b> at ${tl(t)}: <b>${pv.dmg}</b> damage <span class="muted">(base ${pv.base}${pv.mods.map((md) => `, ${esc(md.label)} ${md.v > 0 ? '+' : ''}${Math.round(md.v * 100)}%`).join('')})</span>${pv.back ? `; strikes back for ${pv.back.dmg}` : ''}</span></li>`).join('')}</ul>`);
     const sab = d.sabotage.find((o) => o.unit === u.id);
     if (sab) ord.push(`<li>Sabotage at ${tl(sab.t)}<button class="x" data-act="clear" data-list="sabotage" data-unit="${u.id}" aria-label="Cancel sabotage">✕</button></li>`);
-    else if (dd.cls === 'land' && u.carriedBy == null) {
+    else if ((dd.cls === 'land' || dd.cls === 'ship') && u.carriedBy == null) {
       for (const t of [u.t, ...HX.nbrs(S.map, u.t)]) {
-        const tg = Q.sabotageTarget(S, t); if (!tg) continue;
+        const tg = Q.sabotageTargetFor(S, u, t); if (!tg) continue;
         const err = Q.checkSabotage(S, UI.me, { unit: u.id, t });
         if (!err) acts.push(`<button class="btn small danger" data-act="sabotage" data-unit="${u.id}" data-t="${t}">Destroy ${esc(pname(tg.owner))}'s ${esc(BLD[tg.what].name.toLowerCase())} at ${tl(t)}</button>`);
       }
