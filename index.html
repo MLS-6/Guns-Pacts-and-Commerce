@@ -209,22 +209,22 @@ window.SUPPLY_LINES_CONFIG = {
    edits in this file.
    ===================================================================== */
 const RULES = (() => {
-  const GOODS = ['food', 'lumber', 'ore', 'fuel', 'fiber', 'rubber', 'horses', 'metal', 'cloth', 'clothing', 'tools', 'smallArms', 'ammo', 'machinery'];
+  const GOODS = ['food', 'lumber', 'ore', 'fuel', 'fiber', 'rawRubber', 'rubber', 'horses', 'metal', 'cloth', 'clothing', 'tools', 'smallArms', 'ammo', 'machinery'];
 
   const GOOD_NAMES = {
-    food: 'Food', lumber: 'Lumber', ore: 'Ore', fuel: 'Fuel', fiber: 'Fiber', rubber: 'Rubber', horses: 'Horses',
+    food: 'Food', lumber: 'Lumber', ore: 'Ore', fuel: 'Fuel', fiber: 'Fiber', rawRubber: 'Raw rubber', rubber: 'Rubber', horses: 'Horses',
     metal: 'Metal', cloth: 'Cloth', clothing: 'Clothing', tools: 'Tools', smallArms: 'Small arms', ammo: 'Ammo', machinery: 'Machinery',
   };
 
   const GOOD_COLORS = {
-    food: '#d9a521', lumber: '#9a6534', ore: '#8c96a1', fuel: '#454545', fiber: '#c9bf9b', rubber: '#3f8a57', horses: '#7c4f32',
+    food: '#d9a521', lumber: '#9a6534', ore: '#8c96a1', fuel: '#454545', fiber: '#c9bf9b', rawRubber: '#8fae5a', rubber: '#3f8a57', horses: '#7c4f32',
     metal: '#6f8aa8', cloth: '#c98fb6', clothing: '#a44b7d', tools: '#4f74c8', smallArms: '#b8433f', ammo: '#d8702f', machinery: '#6a4cae',
   };
 
   // Global market (credits)
   const BASE_PRICE = {
-    food: 200, lumber: 200, ore: 300, fiber: 300, fuel: 400, horses: 600, rubber: 600, ammo: 600,
-    cloth: 800, metal: 1000, clothing: 1000, tools: 1400, smallArms: 1400, machinery: 4000,
+    food: 200, lumber: 200, ore: 300, fiber: 300, fuel: 400, horses: 600, rawRubber: 400, rubber: 1200, ammo: 600,
+    cloth: 2000, metal: 1000, clothing: 4000, tools: 1400, smallArms: 1400, machinery: 4000,
   };
   // trickle: share of each turn's world production of goods that appears in the market pool (no one loses anything)
   const MARKET = { scale: 4, buyRatio: 0.8, trickle: 0.05, maxBidX: 10 };
@@ -265,17 +265,17 @@ const RULES = (() => {
     apartment: { name: 'Apartment', era: 2, sci: 6, place: 'city', cost: { lumber: 20, metal: 6, tools: 6, mp: 4 }, recipes: { manpower: { in: { food: 5 }, mpOut: 6 } } },
     highrise: { name: 'Highrise', era: 3, sci: 12, place: 'city', cost: { lumber: 20, metal: 20, tools: 10, machinery: 4, mp: 6 }, recipes: { manpower: { in: { food: 8 }, mpOut: 10 } } },
     farm: { name: 'Farm', abbr: 'Fm', era: 1, sci: 0, place: 'tile', tiles: ['grassland'], cost: { lumber: 6, tools: 2, mp: 1 }, recipes: { food: { mp: 1, out: { food: 10 } } }, waterBonus: 3 },
-    fishery: { name: 'Fishery', abbr: 'Fs', era: 1, sci: 2, place: 'tile', tiles: ['lake', 'ocean'], cost: { lumber: 6, tools: 2, mp: 1 }, recipes: { food: { mp: 1, out: { food: 6 } } }, oceanFood: 10 },
+    fishery: { name: 'Fishery', abbr: 'Fs', era: 1, sci: 2, place: 'tile', tiles: ['lake', 'ocean'], cost: { lumber: 6, tools: 2, mp: 1 }, recipes: { food: { mp: 1, out: { food: 8 } } }, oceanFood: 10 },
     fiberFarm: { name: 'Fiber farm', abbr: 'Fb', era: 1, sci: 2, place: 'tile', tiles: ['grassland'], cost: { lumber: 6, tools: 2, mp: 1 }, recipes: { fiber: { mp: 1, out: { fiber: 6 } } } },
-    rubberPlantation: { name: 'Rubber plantation', abbr: 'Rb', era: 1, sci: 3, place: 'tile', tiles: ['rubber'], cost: { lumber: 8, tools: 2, mp: 1 }, recipes: { rubber: { mp: 1, out: { rubber: 4 } } } },
+    rubberPlantation: { name: 'Rubber plantation', abbr: 'Rb', era: 1, sci: 3, place: 'tile', tiles: ['rubber'], cost: { lumber: 8, tools: 2, mp: 1 }, recipes: { rawRubber: { mp: 1, out: { rawRubber: 6 } } } },
     stables: { name: 'Stables', abbr: 'St', era: 1, sci: 3, place: 'tile', tiles: ['grassland'], cost: { lumber: 10, tools: 2, mp: 1 }, recipes: { horses: { mp: 1, in: { food: 3 }, out: { horses: 3 } } } },
     lumberYard: { name: 'Lumber yard', abbr: 'Lm', era: 1, sci: 0, place: 'tile', tiles: ['forest'], cost: { lumber: 4, tools: 2, mp: 1 }, recipes: { lumber: { mp: 1, out: { lumber: 8 } } }, riverBonus: 0.5, railBonus: 2 },
     oreMine: { name: 'Ore mine', abbr: 'Om', era: 1, sci: 0, place: 'tile', tiles: ['ore'], cost: { lumber: 8, tools: 4, mp: 2 }, recipes: { ore: { mp: 1, out: { ore: 6 } } }, railBonus: 2 },
     // Silver and gold mines turn manpower into credits: assign workers (manpower per turn) up to maxLabor.
-    silverMine: { name: 'Silver mine', abbr: 'Ag', era: 1, sci: 2, place: 'tile', tiles: ['silver'], cost: { lumber: 8, tools: 4, mp: 2 }, recipes: { credits: { labor: true, creditsPerMp: 500, maxLabor: 15 } } },
-    goldMine: { name: 'Gold mine', abbr: 'Au', era: 1, sci: 3, place: 'tile', tiles: ['gold'], cost: { lumber: 10, metal: 4, tools: 6, mp: 3 }, recipes: { credits: { labor: true, creditsPerMp: 1000, maxLabor: 10 } } },
+    silverMine: { name: 'Silver mine', abbr: 'Ag', era: 1, sci: 2, place: 'tile', tiles: ['silver'], cost: { lumber: 8, tools: 4, mp: 2 }, recipes: { credits: { labor: true, creditsPerMp: 250, maxLabor: 15 } } },
+    goldMine: { name: 'Gold mine', abbr: 'Au', era: 1, sci: 3, place: 'tile', tiles: ['gold'], cost: { lumber: 10, metal: 4, tools: 6, mp: 3 }, recipes: { credits: { labor: true, creditsPerMp: 500, maxLabor: 10 } } },
     coalMine: { name: 'Coal mine', abbr: 'Cm', era: 1, sci: 0, place: 'tile', tiles: ['coal'], cost: { lumber: 8, tools: 4, mp: 2 }, recipes: { fuel: { mp: 1, out: { fuel: 6 } } }, railBonus: 2 },
-    charcoalRefinery: { name: 'Charcoal refinery', abbr: 'Ch', era: 1, sci: 2, place: 'tile', tiles: ['grassland'], cost: { lumber: 8, tools: 3, mp: 2 }, recipes: { fuel: { mp: 1, in: { lumber: 3 }, out: { fuel: 1 } } } },
+    charcoalRefinery: { name: 'Charcoal refinery', abbr: 'Ch', era: 1, sci: 2, place: 'city', cost: { lumber: 8, tools: 3, mp: 2 }, recipes: { fuel: { mp: 1, in: { lumber: 3.5 }, out: { fuel: 2 } } } }, // 3.5 + 0.5 upkeep = 4 lumber
     oilField: { name: 'Oil field', abbr: 'Ol', era: 3, sci: 12, place: 'tile', tiles: ['oil'], cost: { lumber: 4, metal: 10, tools: 6, machinery: 4, rubber: 4, mp: 4 }, recipes: { fuel: { mp: 2, out: { fuel: 20 } } }, railBonus: 2 },
 
     granary: { name: 'Granary', era: 1, sci: 2, place: 'city', cost: { lumber: 10, tools: 2, mp: 1 }, storage: { food: 200 } },
@@ -295,15 +295,20 @@ const RULES = (() => {
     },
     textileWorkshop: {
       name: 'Textile workshop', era: 1, sci: 4, place: 'city', cost: { lumber: 8, tools: 4, mp: 2 },
-      recipes: { cloth: { mp: 2, in: { fiber: 3 }, out: { cloth: 2 } }, clothing: { mp: 2, in: { cloth: 2 }, out: { clothing: 2 } } },
+      recipes: { cloth: { mp: 2, in: { fiber: 12 }, out: { cloth: 2 } }, clothing: { mp: 2, in: { cloth: 2 }, out: { clothing: 1 } } },
+    },
+    rubberWorks: {
+      name: 'Rubber works', era: 1, sci: 3, place: 'city', cost: { lumber: 8, tools: 4, mp: 2 },
+      recipes: { rubber: { mp: 2, in: { rawRubber: 4, fuel: 1 }, out: { rubber: 2 } } },
     },
     machineryWorkshop: { name: 'Machinery workshop', era: 2, sci: 8, place: 'city', cost: { lumber: 10, metal: 8, tools: 6, mp: 3 }, recipes: { machinery: { mp: 2, in: { metal: 3, tools: 2, fuel: 1 }, out: { machinery: 1 } } }, builds: ['artillery', 'train', 'supplyTruck'] },
     metalFactory: { name: 'Metal factory', era: 3, sci: 10, place: 'city', cost: { lumber: 15, metal: 20, tools: 10, machinery: 5, mp: 4 }, recipes: { metal: { mp: 4, in: { ore: 6, fuel: 2 }, out: { metal: 6 } } }, riverMpLess: 1 },
-    toolsFactory: { name: 'Tools factory', era: 3, sci: 10, place: 'city', cost: { lumber: 15, metal: 20, tools: 10, machinery: 5, mp: 4 }, recipes: { tools: { mp: 4, in: { metal: 4, lumber: 2 }, out: { tools: 6 } } }, riverMpLess: 1 },
-    smallArmsFactory: { name: 'Small arms factory', era: 3, sci: 10, place: 'city', cost: { lumber: 15, metal: 20, tools: 10, machinery: 5, rubber: 2, mp: 4 }, recipes: { smallArms: { mp: 4, in: { metal: 4, lumber: 2 }, out: { smallArms: 6 } } }, riverMpLess: 1 },
-    ammoFactory: { name: 'Ammo factory', era: 3, sci: 10, place: 'city', cost: { lumber: 15, metal: 20, tools: 10, machinery: 5, rubber: 2, mp: 4 }, recipes: { ammo: { mp: 4, in: { metal: 2 }, out: { ammo: 10 } } }, riverMpLess: 1 },
-    clothFactory: { name: 'Cloth factory', era: 3, sci: 8, place: 'city', cost: { lumber: 15, metal: 15, tools: 8, machinery: 3, mp: 4 }, recipes: { cloth: { mp: 4, in: { fiber: 4 }, out: { cloth: 4 } } }, riverMpLess: 1 },
-    clothingFactory: { name: 'Clothing factory', era: 3, sci: 8, place: 'city', cost: { lumber: 15, metal: 15, tools: 8, machinery: 3, mp: 4 }, recipes: { clothing: { mp: 4, in: { cloth: 2 }, out: { clothing: 4 } } }, riverMpLess: 1 },
+    toolsFactory: { name: 'Tools factory', era: 3, sci: 10, place: 'city', cost: { lumber: 15, metal: 20, tools: 10, machinery: 5, mp: 4 }, recipes: { tools: { mp: 4, in: { metal: 4, lumber: 4 }, out: { tools: 8 } } }, riverMpLess: 1 },
+    smallArmsFactory: { name: 'Small arms factory', era: 3, sci: 10, place: 'city', cost: { lumber: 15, metal: 20, tools: 10, machinery: 5, rubber: 2, mp: 4 }, recipes: { smallArms: { mp: 4, in: { metal: 4, lumber: 4 }, out: { smallArms: 8 } } }, riverMpLess: 1 },
+    ammoFactory: { name: 'Ammo factory', era: 3, sci: 10, place: 'city', cost: { lumber: 15, metal: 20, tools: 10, machinery: 5, rubber: 2, mp: 4 }, recipes: { ammo: { mp: 4, in: { metal: 2 }, out: { ammo: 12 } } }, riverMpLess: 1 },
+    clothFactory: { name: 'Cloth factory', era: 2, sci: 8, place: 'city', cost: { lumber: 15, metal: 15, tools: 8, machinery: 3, mp: 4 }, recipes: { cloth: { mp: 4, in: { fiber: 10 }, out: { cloth: 4 } } }, riverMpLess: 1 },
+    clothingFactory: { name: 'Clothing factory', era: 2, sci: 8, place: 'city', cost: { lumber: 15, metal: 15, tools: 8, machinery: 3, mp: 4 }, recipes: { clothing: { mp: 4, in: { cloth: 4 }, out: { clothing: 4 } } }, riverMpLess: 1 },
+    rubberRefinery: { name: 'Rubber refinery', era: 3, sci: 10, place: 'city', cost: { lumber: 15, metal: 20, tools: 10, machinery: 5, mp: 4 }, recipes: { rubber: { mp: 4, in: { rawRubber: 8, fuel: 2 }, out: { rubber: 8 } } }, riverMpLess: 1 },
     machineryFactory: { name: 'Machinery factory', era: 3, sci: 15, place: 'city', cost: { lumber: 15, metal: 25, tools: 12, machinery: 6, rubber: 6, mp: 5 }, recipes: { machinery: { mp: 4, in: { metal: 4, tools: 2, fuel: 1 }, out: { machinery: 3 } } }, builds: ['artillery', 'tank', 'train', 'supplyTruck'], riverMpLess: 1 },
 
     university: { name: 'University', era: 1, sci: 0, place: 'city', cost: { lumber: 12, metal: 4, tools: 6, mp: 3 }, recipes: { science: { mp: 6, credits: 500, sciOut: 1 } } },
@@ -357,16 +362,16 @@ const RULES = (() => {
      carryTypes: which units a transport may carry and how many slots each takes */
   const UNITS = {
     infantry: { name: 'Infantry', abbr: 'I', cls: 'land', role: 'combat', hp: 5, move: 2, range: 1, ammo: 1, idle: { food: 1 }, perTile: { food: 1 }, repair: 'bio', capture: true, ford: true, cost: { mp: 4, clothing: 2, smallArms: 2 }, builtAt: ['barracks'], unlock: 'barracks' },
-    cavalry: { name: 'Cavalry', abbr: 'C', cls: 'land', role: 'combat', hp: 7, move: 3, range: 1, ammo: 1, idle: { food: 2 }, perTile: { food: 1 }, repair: 'bio', repairHorses: 3, capture: true, ford: true, cost: { mp: 4, clothing: 2, smallArms: 2, horses: 3 }, builtAt: ['barracks'], unlock: 'stables' },
-    artillery: { name: 'Artillery', abbr: 'A', cls: 'land', role: 'combat', hp: 5, move: 2, range: 2, ammo: 3, idle: { food: 1 }, perTile: { fuel: 1 }, repair: 'mech', cost: { mp: 4, clothing: 2, metal: 4, tools: 2, machinery: 2, rubber: 2 }, builtAt: ['machineryWorkshop', 'machineryFactory'], unlock: 'machineryWorkshop' },
-    tank: { name: 'Tank', abbr: 'T', cls: 'land', role: 'combat', hp: 15, move: 4, range: 1, ammo: 2, idle: { food: 1 }, perTile: { fuel: 1.5 }, perTileRound: 'up', repair: 'mech', capture: true, cost: { mp: 6, clothing: 3, metal: 10, tools: 4, machinery: 4, rubber: 4 }, builtAt: ['machineryFactory'], unlock: 'machineryFactory' },
+    cavalry: { name: 'Cavalry', abbr: 'C', cls: 'land', role: 'combat', hp: 7, move: 3, range: 1, ammo: 1, idle: { food: 2 }, perTile: { food: 1 }, repair: 'bio', repairHorses: 3, capture: true, ford: true, cost: { mp: 3, clothing: 2, smallArms: 2, horses: 5 }, builtAt: ['barracks'], unlock: 'stables' },
+    artillery: { name: 'Artillery', abbr: 'A', cls: 'land', role: 'combat', hp: 5, move: 2, range: 2, ammo: 3, idle: { food: 1 }, perTile: { fuel: 1 }, repair: 'mech', cost: { mp: 4, clothing: 1, metal: 4, tools: 2, machinery: 2, rubber: 2 }, builtAt: ['machineryWorkshop', 'machineryFactory'], unlock: 'machineryWorkshop' },
+    tank: { name: 'Tank', abbr: 'T', cls: 'land', role: 'combat', hp: 15, move: 4, range: 1, ammo: 2, idle: { food: 1 }, perTile: { fuel: 1.5 }, perTileRound: 'up', repair: 'mech', capture: true, cost: { mp: 4, clothing: 2, smallArms: 2, metal: 10, tools: 4, machinery: 4, rubber: 4 }, builtAt: ['machineryFactory'], unlock: 'machineryFactory' },
     caravan: { name: 'Caravan', abbr: 'Ca', cls: 'land', role: 'logistic', hp: 1, move: 3, idle: { food: 1 }, perTile: {}, repair: 'bio', ford: true, cargo: 20, carry: 0, cost: { mp: 2, clothing: 1, horses: 4, lumber: 4 }, builtAt: ['stables'], unlock: 'stables' },
     supplyTruck: { name: 'Supply truck', abbr: 'ST', cls: 'land', role: 'logistic', hp: 5, move: 4, idle: { food: 1 }, perTile: { fuel: 0.5 }, repair: 'mech', cargo: 40, carry: 2, carryTypes: { infantry: 1, artillery: 2 }, cost: { mp: 2, clothing: 1, metal: 6, tools: 2, machinery: 1, rubber: 2 }, builtAt: ['machineryWorkshop', 'machineryFactory'], unlock: 'machineryWorkshop' },
     train: { name: 'Train', abbr: 'Tr', cls: 'rail', role: 'logistic', hp: 10, move: 6, idle: { fuel: 1 }, perTile: { fuel: 1 }, repair: 'mech', cargo: 120, carry: 4, cost: { mp: 4, clothing: 2, lumber: 4, metal: 12, tools: 4, machinery: 3 }, builtAt: ['machineryWorkshop', 'machineryFactory'], unlock: 'machineryWorkshop' },
-    merchantman: { name: 'Merchantman', abbr: 'Me', cls: 'ship', power: 'sail', role: 'logistic', hp: 10, move: 3, idle: { food: 1 }, perTile: { food: 0.5 }, repair: 'sail', cargo: 100, carry: 3, cost: { mp: 4, clothing: 2, cloth: 6, lumber: 16, metal: 2, tools: 2 }, builtAt: ['shipyard'], unlock: 'shipyard' },
-    frigate: { name: 'Frigate', abbr: 'Fg', cls: 'ship', power: 'sail', role: 'combat', hp: 25, move: 4, range: 2, ammo: 2, idle: { food: 2 }, perTile: { food: 1 }, repair: 'sail', cost: { mp: 6, clothing: 3, cloth: 8, smallArms: 4, lumber: 20, metal: 4, tools: 4 }, builtAt: ['shipyard'], unlock: 'shipyard' },
-    freighter: { name: 'Freighter', abbr: 'Fr', cls: 'ship', power: 'steam', role: 'logistic', hp: 15, move: 5, idle: { food: 1, fuel: 1 }, perTile: { fuel: 1 }, repair: 'mech', cargo: 200, carry: 6, cost: { mp: 6, clothing: 3, lumber: 12, metal: 8, tools: 4, machinery: 2 }, builtAt: ['navalYard'], unlock: 'navalYard' },
-    warship: { name: 'Warship', abbr: 'W', cls: 'ship', power: 'steam', role: 'combat', hp: 50, move: 5, range: 2, ammo: 4, idle: { food: 2, fuel: 1 }, perTile: { fuel: 1 }, repair: 'mech', cost: { mp: 10, clothing: 5, lumber: 10, metal: 20, tools: 6, machinery: 5 }, builtAt: ['navalYard'], unlock: 'navalYard' },
+    merchantman: { name: 'Merchantman', abbr: 'Me', cls: 'ship', power: 'sail', role: 'logistic', hp: 10, move: 3, idle: { food: 1 }, perTile: { food: 0.5 }, repair: 'sail', cargo: 100, carry: 3, cost: { mp: 4, clothing: 2, cloth: 4, lumber: 16, metal: 2, tools: 2 }, builtAt: ['shipyard'], unlock: 'shipyard' },
+    frigate: { name: 'Frigate', abbr: 'Fg', cls: 'ship', power: 'sail', role: 'combat', hp: 25, move: 4, range: 2, ammo: 2, idle: { food: 2 }, perTile: { food: 1 }, repair: 'sail', cost: { mp: 6, clothing: 3, cloth: 6, smallArms: 4, lumber: 20, metal: 4, tools: 4 }, builtAt: ['shipyard'], unlock: 'shipyard' },
+    freighter: { name: 'Freighter', abbr: 'Fr', cls: 'ship', power: 'steam', role: 'logistic', hp: 15, move: 5, idle: { food: 1, fuel: 1 }, perTile: { fuel: 1 }, repair: 'mech', cargo: 200, carry: 6, cost: { mp: 4, clothing: 2, lumber: 12, metal: 8, tools: 4, machinery: 2, rubber: 2 }, builtAt: ['navalYard'], unlock: 'navalYard' },
+    warship: { name: 'Warship', abbr: 'W', cls: 'ship', power: 'steam', role: 'combat', hp: 50, move: 5, range: 2, ammo: 4, idle: { food: 2, fuel: 1 }, perTile: { fuel: 1 }, repair: 'mech', cost: { mp: 8, clothing: 4, smallArms: 2, lumber: 10, metal: 20, tools: 6, machinery: 5, rubber: 2 }, builtAt: ['navalYard'], unlock: 'navalYard' },
   };
 
   // Damage per attack. Rows = attacker, columns = target. Missing = cannot hit.
@@ -481,7 +486,7 @@ const RULES = (() => {
   const DEFAULT_PRIORITY = [
     'farm', 'farm2', 'farm3', 'fishery', 'fishery2', 'fishery3', 'residence', 'apartment', 'highrise',
     'lumberYard', 'lumberYard2', 'lumberYard3', 'oreMine', 'oreMine2', 'oreMine3', 'coalMine', 'coalMine2', 'coalMine3', 'charcoalRefinery', 'oilField',
-    'fiberFarm', 'fiberFarm2', 'fiberFarm3', 'rubberPlantation', 'rubberPlantation2', 'rubberPlantation3', 'stables',
+    'fiberFarm', 'fiberFarm2', 'fiberFarm3', 'rubberPlantation', 'rubberPlantation2', 'rubberPlantation3', 'rubberWorks', 'rubberRefinery', 'stables',
     'metalForge', 'metalFactory', 'workshop', 'toolsFactory', 'smallArmsFactory', 'ammoFactory',
     'textileWorkshop', 'clothFactory', 'clothingFactory', 'machineryWorkshop', 'machineryFactory', 'university', 'researchFacility', 'taxOffice', 'silverMine', 'goldMine',
   ];
@@ -1190,8 +1195,12 @@ const Engine = ((R) => {
       }
     }
     if (!opt.ignoreUnits) {
-      const hostile = unitsAt(S, to).filter((x) => !friendly(S, x.owner, u.owner) && x.owner !== partner);
-      if (hostile.length && !(capturing && hostile.every((x) => U[x.type].role !== 'combat'))) return false;
+      // another nation's units block the tile for units of the same kind (land units for land units, ships for
+      // ships), so a soldier on a bridge does not stop a ship sailing beneath it
+      const isShip = (x) => U[x.type].cls === 'ship';
+      let hostile = unitsAt(S, to).filter((x) => !friendly(S, x.owner, u.owner) && x.owner !== partner && isShip(x) === isShip(u));
+      if (city && !city.hp && capturing) hostile = hostile.filter((x) => U[x.type].role === 'combat' && U[x.type].cls === 'land'); // docked ships and logistics units never stop a capture
+      if (hostile.length) return false;
     }
     return true;
   }
@@ -1351,9 +1360,16 @@ const Engine = ((R) => {
     const total = Math.max(R.MODS.floor, mods.reduce((a, m) => a + m.v, 0));
     return { mods, total };
   }
+  // Base damage of attacker type k on a unit; a land unit hits ships docked in a fallen city (0 HP) with its city damage
+  function baseDamage(S, k, tu) {
+    const d = R.dmg(k, tu.type);
+    if (d > 0) return d;
+    if (U[k] && U[k].cls === 'land' && U[tu.type].cls === 'ship') { const c = cityAt(S, tu.t); if (c && c.hp <= 0) return R.dmg(k, 'city'); }
+    return d;
+  }
   function attackDamage(S, att, tgt, opts = {}) {
     const k = att.unit ? att.unit.type : att.weapon;
-    let base = tgt.city ? R.dmg(k, 'city') : R.dmg(k, tgt.unit.type);
+    let base = tgt.city ? R.dmg(k, 'city') : baseDamage(S, k, tgt.unit);
     if (opts.counter) base = base / 2;
     if (base <= 0) return { base: 0, dmg: 0, mods: [], total: 0 };
     const m = attackMods(S, att, tgt, opts);
@@ -1409,9 +1425,11 @@ const Engine = ((R) => {
       }
     }
     const foes = unitsAt(S, t).filter((x) => atWar(S, attOwner, x.owner));
-    const combat = foes.filter((x) => U[x.type].role === 'combat' && R.dmg(attKey, x.type) > 0);
+    const combat = foes.filter((x) => U[x.type].role === 'combat' && baseDamage(S, attKey, x) > 0);
+    // a land garrison is hit before ships docked in the same city
+    combat.sort((a, b) => (U[a.type].cls === 'ship') - (U[b.type].cls === 'ship'));
     if (combat.length) return { unit: combat[0] };
-    const others = foes.filter((x) => R.dmg(attKey, x.type) > 0);
+    const others = foes.filter((x) => baseDamage(S, attKey, x) > 0);
     if (others.length) return { unit: others[0] };
     return null;
   }
@@ -1594,13 +1612,25 @@ const Engine = ((R) => {
       return null;
     }
     if (o.key === 'bridge' || o.key === 'railBridge') {
-      if (tile.type !== 'river' && tile.type !== 'lake') return 'Bridges go on rivers and lakes, never the ocean';
+      const why = bridgeSiteError(S, t);
+      if (why) return why;
       if (o.key === 'bridge' && tile.bridge) return 'Already bridged';
       if (o.key === 'railBridge' && tile.bridge === 'rail') return 'Already has a rail bridge';
       if (tileBuilding(S, t)) return 'Not on a tile with a fishery';
       return null;
     }
     return 'Cannot build here';
+  }
+  // Bridges go on water next to land. River and lake tiles need one land neighbour; an ocean tile needs at least
+  // 3 land neighbours, or land on two opposite sides. Only real land counts (mountains yes, other bridges no).
+  function bridgeSiteError(S, t) {
+    const tile = S.map.tiles[t];
+    if (!['river', 'lake', 'ocean'].includes(tile.type)) return 'Bridges go on water';
+    const around = dirs(S.map, t).map((j) => j >= 0 && TT[S.map.tiles[j].type].terrain !== 'water');
+    const n = around.filter(Boolean).length;
+    if (tile.type !== 'ocean') return n >= 1 ? null : 'A bridge must touch land';
+    if (n >= 3 || [0, 1, 2].some((i) => around[i] && around[i + 3])) return null;
+    return 'An ocean bridge needs land on 3 sides, or on two opposite sides';
   }
   function checkTrain(S, pid, cityId, type) {
     const c = cityById(S, cityId), d = U[type];
@@ -1681,11 +1711,27 @@ const Engine = ((R) => {
     if (tile.rail != null) return { what: 'railroad', owner: tile.rail };
     return null;
   }
+  // Warships and frigates can destroy any bridge or rail bridge on or next to their tile, anywhere, if at war with its owner
+  function shipSabotageTarget(S, t) {
+    const tile = S.map.tiles[t];
+    if (!tile || !tile.bridge) return null;
+    return { what: tile.bridge === 'rail' ? 'railBridge' : 'bridge', owner: tile.bridgeBy };
+  }
+  function sabotageTargetFor(S, u, t) { return U[u.type].cls === 'ship' ? shipSabotageTarget(S, t) : sabotageTarget(S, t); }
   function checkSabotage(S, pid, o) {
     const u = unitById(S, o.unit), t = Number(o.t);
     if (!u || u.owner !== pid) return 'Not your unit';
     const d = U[u.type];
-    if (d.role !== 'combat' || d.cls !== 'land') return 'Only land combat units can sabotage';
+    if (d.role === 'combat' && d.cls === 'ship') {
+      if (!canAct(S, u)) return `It cannot act: ${whyIdle(S, u)}`;
+      if (!(t >= 0 && t < S.map.tiles.length) || dist(S.map, u.t, t) > 1) return 'Must be on or next to the bridge';
+      const tg = shipSabotageTarget(S, t);
+      if (!tg) return 'No bridge there';
+      if (tg.owner == null || !atWar(S, pid, tg.owner)) return 'You can only destroy the bridges of a nation you are at war with';
+      if (S.units.some((x) => x.t === t && x.carriedBy == null && U[x.type].cls !== 'ship')) return 'Units are on the bridge';
+      return null;
+    }
+    if (d.role !== 'combat' || d.cls !== 'land') return 'Only combat units can sabotage';
     if (u.carriedBy != null) return 'Unload it first';
     if (!canAct(S, u)) return `It cannot act: ${whyIdle(S, u)}`;
     if (!(t >= 0 && t < S.map.tiles.length) || dist(S.map, u.t, t) > 1) return 'Must be on or next to the target';
@@ -1814,7 +1860,7 @@ const Engine = ((R) => {
     const { map, starts } = genMap(list.length, rng, { mapType: opts.mapType, tilesPerPlayer: opts.tilesPerPlayer });
     const start = startingResources(opts.start);
     const S = {
-      version: 3, id: opts.id || `game-${seed.toString(36)}-${Date.now().toString(36)}`, name: opts.name || 'Guns, Pacts, and Commerce', start,
+      version: 4, id: opts.id || `game-${seed.toString(36)}-${Date.now().toString(36)}`, name: opts.name || 'Guns, Pacts, and Commerce', start,
       seed, turn: 1, map, players: [], cities: [], units: [], buildings: [], routes: [], treaties: [], wars: [], proposals: [],
       market: { pool: {}, prices: {} }, reports: {}, nextId: 1, gameOver: null, history: [], depots: [],
     };
@@ -1870,7 +1916,15 @@ const Engine = ((R) => {
       if (!p.supplyPriority) p.supplyPriority = R.SUPPLY_PRIORITY.slice();
     }
     S.proposals = (S.proposals || []).filter((pr) => ['peace', 'treaty', 'blueprint', 'route'].includes(pr.kind));
-    S.version = 3;
+    if ((S.version || 1) < 4) {
+      // version 4: charcoal refineries move into their city; rubber plantations make raw rubber
+      for (const b of S.buildings) {
+        if (b.key === 'charcoalRefinery') { const c = cityById(S, b.city); if (c) b.t = c.t; }
+        if (/^rubberPlantation/.test(b.key)) b.product = 'rawRubber';
+      }
+      for (const p of S.players) if (p.priority && !p.priority.includes('rubberWorks')) { const i = p.priority.indexOf('rubberPlantation3'); p.priority.splice(i < 0 ? p.priority.length : i + 1, 0, 'rubberWorks', 'rubberRefinery'); }
+    }
+    S.version = 4;
     return S;
   }
   function normalizeOrders(o) {
@@ -2220,7 +2274,7 @@ const Engine = ((R) => {
       if (attackedWith.has(u.id)) { rep(p.id, 'conflict', `${unitName(u)} attacked this turn, so it could not also sabotage.`); continue; }
       const err = checkSabotage(S, p.id, o);
       if (err) { rep(p.id, 'conflict', `${unitName(u)} could not sabotage at ${tileLabel(S, o.t)}: ${err}.`); continue; }
-      const t = Number(o.t), tile = S.map.tiles[t], tg = sabotageTarget(S, t);
+      const t = Number(o.t), tile = S.map.tiles[t], tg = sabotageTargetFor(S, u, t);
       if (tg.what === 'railroad') tile.rail = null;
       else if (tg.what === 'railTunnel') { tile.tunnel = null; tile.rail = null; }
       else { if (tile.bridge === 'rail') tile.rail = null; tile.bridge = false; tile.bridgeBy = null; }
@@ -2284,8 +2338,9 @@ const Engine = ((R) => {
         const Sh = list.filter((x) => slot(x.u) === 'S' && !(city && dockable(S, city, x.u)));
         const LL = city ? [] : list.filter((x) => slot(x.u) === 'LL');
         const SL = city ? [] : list.filter((x) => slot(x.u) === 'SL');
-        const hostile = list.some((a) => list.some((b) => !friendly(S, a.u.owner, b.u.owner)));
-        const captureCase = city && L.length === 1 && L[0].m && !friendly(S, city.owner, L[0].u.owner) && list.every((x) => x.m === L[0].m || (!x.m && U[x.u.type].role !== 'combat'));
+        const shipOf = (x) => U[x.u.type].cls === 'ship';
+        const hostile = list.some((a) => list.some((b) => !friendly(S, a.u.owner, b.u.owner) && shipOf(a) === shipOf(b)));
+        const captureCase = city && L.length === 1 && L[0].m && !friendly(S, city.owner, L[0].u.owner) && list.every((x) => x.m === L[0].m || (!x.m && (U[x.u.type].role !== 'combat' || shipOf(x))));
         const bounce = (group, why) => {
           for (const x of group) if (x.m && !x.m.bounced) {
             x.m.bounced = true; changed = true;
@@ -2926,7 +2981,7 @@ const Engine = ((R) => {
       garrisonOf, posOf, carried, atWar, friendly, hasTreaty, isUnlocked, unitUnlocked, territoryRadius, supplyRadius, maxHp,
       capacity, freeSpace, recipeOf, recipeKey, buildingOutput, creditsOutOf, mpOf, mpOutOf, buildingOwner, reachable, findPath, canEnter, pickTarget, attackTargets,
       cityWeaponTargets, supplySources, sourceName, upkeepOf, inBase, checkBuild, checkTrain, checkFound, routeEstimate, describeProposal,
-      cargoUsed, cargoFree, portOk, dockable, slotFree, canCarry, carrySlots, demolishable, checkDemolish, checkDisband, inputsOf, isSettlement, settlementNeeds, storeCap, giftError, depotAt, depotById, depotCap, depotFree, depotName, routeDest, checkClear, checkSabotage, sabotageTarget, fording, inRiver, canAct, whyIdle, moveOf, payOf, laborOf, maxHpU, cargoCap, carryCap, stars, entrenched, entrenchLevel, blitzing, attackDamage, previewAttack, landCombat, mobOf, doctrineOf, supplyMoveLimit, normPeace, checkPeace, peaceTerms, isWater, isLand, nearWater, tileLabel, goodsText, terrain,
+      cargoUsed, cargoFree, portOk, dockable, slotFree, canCarry, carrySlots, demolishable, checkDemolish, checkDisband, inputsOf, isSettlement, settlementNeeds, storeCap, giftError, depotAt, depotById, depotCap, depotFree, depotName, routeDest, checkClear, checkSabotage, sabotageTarget, sabotageTargetFor, bridgeSiteError, fording, inRiver, canAct, whyIdle, moveOf, payOf, laborOf, maxHpU, cargoCap, carryCap, stars, entrenched, entrenchLevel, blitzing, attackDamage, previewAttack, landCombat, mobOf, doctrineOf, supplyMoveLimit, normPeace, checkPeace, peaceTerms, isWater, isLand, nearWater, tileLabel, goodsText, terrain,
     },
   };
 })(typeof RULES !== 'undefined' ? RULES : require('./rules.js'));
@@ -3488,7 +3543,7 @@ function campaignMenu() {
   const last = Sync.schedule && Sync.schedule.lastResolve ? `<p class="small muted">Turn ${Sync.schedule.lastResolve.turn} was resolved ${Sync.schedule.lastResolve.how === 'auto' ? 'automatically' : 'by the admin'} on ${new Date(Sync.schedule.lastResolve.at).toLocaleString()}.</p>` : '';
   const pins = UI.pins ? `<table class="small"><tbody>${UI.pins.map((x) => `<tr><td>${esc(x.name)}</td><td class="num"><input type="text" inputmode="numeric" value="${esc(x.pin)}" id="pin-${x.pid}" style="width:90px" aria-label="PIN for ${esc(x.name)}"></td><td><button class="btn small" data-act="pin-save" data-pid="${x.pid}">Save</button></td></tr>`).join('')}</tbody></table>` : '';
   return `<div class="menu" role="menu">
-    <p class="small"><b>${who}</b><br><span class="muted">${esc(scheduleText())}</span></p>${last}
+    <p class="small"><b>${who}</b><br><span class="muted">${esc(scheduleText())}</span></p>${last}${Sync.you && Sync.you.admin && Sync.schedule && Sync.schedule.lastTick ? `<p class="small ${/^failed/.test(Sync.schedule.lastTick.result) ? 'warn' : 'muted'}">Last automatic check (${new Date(Sync.schedule.lastTick.at).toLocaleString()}): ${esc(Sync.schedule.lastTick.result)}.</p>` : ''}
     <button class="btn" data-act="reload">Reload</button>
     <button class="btn" data-act="save-file">Download game file (backup)</button>
     ${isAdmin() ? `<hr><p class="small muted">Admin</p>
@@ -3725,9 +3780,9 @@ function unitPanel(u) {
     if (targets.length) acts.push(`<h4>Attack preview</h4><ul class="list small">${targets.map(([t, pv]) => `<li><span><b>${esc(pv.target)}</b> at ${tl(t)}: <b>${pv.dmg}</b> damage <span class="muted">(base ${pv.base}${pv.mods.map((md) => `, ${esc(md.label)} ${md.v > 0 ? '+' : ''}${Math.round(md.v * 100)}%`).join('')})</span>${pv.back ? `; strikes back for ${pv.back.dmg}` : ''}</span></li>`).join('')}</ul>`);
     const sab = d.sabotage.find((o) => o.unit === u.id);
     if (sab) ord.push(`<li>Sabotage at ${tl(sab.t)}<button class="x" data-act="clear" data-list="sabotage" data-unit="${u.id}" aria-label="Cancel sabotage">✕</button></li>`);
-    else if (dd.cls === 'land' && u.carriedBy == null) {
+    else if ((dd.cls === 'land' || dd.cls === 'ship') && u.carriedBy == null) {
       for (const t of [u.t, ...HX.nbrs(S.map, u.t)]) {
-        const tg = Q.sabotageTarget(S, t); if (!tg) continue;
+        const tg = Q.sabotageTargetFor(S, u, t); if (!tg) continue;
         const err = Q.checkSabotage(S, UI.me, { unit: u.id, t });
         if (!err) acts.push(`<button class="btn small danger" data-act="sabotage" data-unit="${u.id}" data-t="${t}">Destroy ${esc(pname(tg.owner))}'s ${esc(BLD[tg.what].name.toLowerCase())} at ${tl(t)}</button>`);
       }
