@@ -17,7 +17,7 @@
   "vars": {
     "RESOLVE_HOUR": "22",              // 22 = 10 PM
     "TIME_ZONE": "America/New_York",
-    "MIN_TURN_HOURS": "12"             // a turn younger than this (e.g. resolved by hand at 9 PM) waits until the next day
+    "MIN_TURN_HOURS": "3"              // a turn younger than this (e.g. resolved by hand at 9 PM) waits until the next day
   }
   // ADMIN_PIN is a secret: set it in the Cloudflare dashboard (Settings → Variables and Secrets), not here.
 }
