@@ -746,7 +746,7 @@ function campaignMenu() {
   const last = Sync.schedule && Sync.schedule.lastResolve ? `<p class="small muted">Turn ${Sync.schedule.lastResolve.turn} was resolved ${Sync.schedule.lastResolve.how === 'auto' ? 'automatically' : 'by the admin'} on ${new Date(Sync.schedule.lastResolve.at).toLocaleString()}.</p>` : '';
   const pins = UI.pins ? `<table class="small"><tbody>${UI.pins.map((x) => `<tr><td>${esc(x.name)}</td><td class="num"><input type="text" inputmode="numeric" value="${esc(x.pin)}" id="pin-${x.pid}" style="width:90px" aria-label="PIN for ${esc(x.name)}"></td><td><button class="btn small" data-act="pin-save" data-pid="${x.pid}">Save</button></td></tr>`).join('')}</tbody></table>` : '';
   return `<div class="menu" role="menu">
-    <p class="small"><b>${who}</b><br><span class="muted">${esc(scheduleText())}</span></p>${last}
+    <p class="small"><b>${who}</b><br><span class="muted">${esc(scheduleText())}</span></p>${last}${Sync.you && Sync.you.admin && Sync.schedule && Sync.schedule.lastTick ? `<p class="small ${/^failed/.test(Sync.schedule.lastTick.result) ? 'warn' : 'muted'}">Last automatic check (${new Date(Sync.schedule.lastTick.at).toLocaleString()}): ${esc(Sync.schedule.lastTick.result)}.</p>` : ''}
     <button class="btn" data-act="reload">Reload</button>
     <button class="btn" data-act="save-file">Download game file (backup)</button>
     ${isAdmin() ? `<hr><p class="small muted">Admin</p>
