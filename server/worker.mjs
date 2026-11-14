@@ -54,7 +54,7 @@ export class Campaign {
     return {
       hour: Number.isFinite(Number(e.RESOLVE_HOUR)) ? Number(e.RESOLVE_HOUR) : 22,
       tz: e.TIME_ZONE || 'America/New_York',
-      minHours: Number.isFinite(Number(e.MIN_TURN_HOURS)) ? Number(e.MIN_TURN_HOURS) : 12,
+      minHours: Number.isFinite(Number(e.MIN_TURN_HOURS)) ? Number(e.MIN_TURN_HOURS) : 3,
     };
   }
 
@@ -111,7 +111,7 @@ export class Campaign {
       pending[pid] = { turn: o.turn, at: o.at };
       if (Number(pid) === you.pid) pending[pid].orders = o.orders; // only your own orders come back
     }
-    return { state: S, pending, you, schedule: { hour: set.hour, tz: set.tz, minHours: set.minHours, turnOpenedAt: meta.turnOpenedAt || null, lastResolve: meta.lastResolve || null } };
+    return { state: S, pending, you, schedule: { hour: set.hour, tz: set.tz, minHours: set.minHours, turnOpenedAt: meta.turnOpenedAt || null, lastResolve: meta.lastResolve || null, lastTick: meta.lastTick || null } };
   }
 
   /* ----- resolving ----- */
@@ -138,12 +138,25 @@ export class Campaign {
     const set = this.settings(), now = new Date(), { day, hour } = localParts(now, set.tz);
     const meta = await this.getMeta();
     if (hour < set.hour || meta.lastAutoDay === day) return json({ ok: true, skipped: 'not time' });
-    meta.lastAutoDay = day;
-    await this.storage.put('meta', meta);
-    // A turn opened only recently (e.g. the host resolved by hand this evening) runs until tomorrow.
-    if (meta.turnOpenedAt && now - meta.turnOpenedAt < set.minHours * 3600 * 1000) return json({ ok: true, skipped: 'turn too new' });
-    const r = await this.resolve('auto');
-    return json({ ok: !r.error, turn: r.state ? r.state.turn : null });
+    // A turn opened only recently (the admin resolved by hand this evening) runs until tomorrow evening.
+    if (meta.turnOpenedAt && now - meta.turnOpenedAt < set.minHours * 3600 * 1000) {
+      meta.lastAutoDay = day;
+      meta.lastTick = { at: now.getTime(), result: `skipped: the turn was only ${((now - meta.turnOpenedAt) / 3600000).toFixed(1)} hours old (minimum ${set.minHours})` };
+      await this.storage.put('meta', meta);
+      return json({ ok: true, skipped: 'turn too new' });
+    }
+    let r;
+    try { r = await this.resolve('auto'); } catch (e) { r = { error: String((e && e.stack) || e).slice(0, 500) }; }
+    const m2 = await this.getMeta();
+    if (r.error) {
+      // leave the day open so the next hourly tick tries again
+      m2.lastTick = { at: now.getTime(), result: `failed: ${r.error}` };
+    } else {
+      m2.lastAutoDay = day;
+      m2.lastTick = { at: now.getTime(), result: `resolved turn ${r.state.turn - 1}` };
+    }
+    await this.storage.put('meta', m2);
+    return json({ ok: !r.error, turn: r.state ? r.state.turn : null, error: r.error || undefined });
   }
 
   /* ----- requests ----- */
