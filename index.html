@@ -264,7 +264,7 @@ const RULES = (() => {
     residence: { name: 'Residence', era: 1, sci: 0, place: 'city', cost: { lumber: 10, tools: 2, mp: 2 }, recipes: { manpower: { in: { food: 3 }, mpOut: 3 } } },
     apartment: { name: 'Apartment', era: 2, sci: 6, place: 'city', cost: { lumber: 20, metal: 6, tools: 6, mp: 4 }, recipes: { manpower: { in: { food: 5 }, mpOut: 6 } } },
     highrise: { name: 'Highrise', era: 3, sci: 12, place: 'city', cost: { lumber: 20, metal: 20, tools: 10, machinery: 4, mp: 6 }, recipes: { manpower: { in: { food: 8 }, mpOut: 10 } } },
-    farm: { name: 'Farm', abbr: 'Fm', era: 1, sci: 0, place: 'tile', tiles: ['grassland'], cost: { lumber: 6, tools: 2, mp: 1 }, recipes: { food: { mp: 1, out: { food: 10 } } }, waterBonus: 3 },
+    farm: { name: 'Farm', abbr: 'Fm', era: 1, sci: 0, place: 'tile', tiles: ['grassland'], cost: { lumber: 6, tools: 2, mp: 1 }, recipes: { food: { mp: 1, out: { food: 10 } } }, waterMult: 1.3 }, // x1.3 next to a river or lake, after tier bonuses
     fishery: { name: 'Fishery', abbr: 'Fs', era: 1, sci: 2, place: 'tile', tiles: ['lake', 'ocean'], cost: { lumber: 6, tools: 2, mp: 1 }, recipes: { food: { mp: 1, out: { food: 8 } } }, oceanFood: 10 },
     fiberFarm: { name: 'Fiber farm', abbr: 'Fb', era: 1, sci: 2, place: 'tile', tiles: ['grassland'], cost: { lumber: 6, tools: 2, mp: 1 }, recipes: { fiber: { mp: 1, out: { fiber: 6 } } } },
     rubberPlantation: { name: 'Rubber plantation', abbr: 'Rb', era: 1, sci: 3, place: 'tile', tiles: ['rubber'], cost: { lumber: 8, tools: 2, mp: 1 }, recipes: { rawRubber: { mp: 1, out: { rawRubber: 6 } } } },
@@ -333,7 +333,7 @@ const RULES = (() => {
     walls: { name: 'Walls', era: 1, sci: 4, place: 'city', limit: 1, cost: { lumber: 15, metal: 5, tools: 4, mp: 3 }, hp: 10 },
     fort: { name: 'Fort', era: 3, sci: 12, place: 'city', limit: 1, cost: { lumber: 30, metal: 30, tools: 12, machinery: 3, mp: 6 }, hp: 20, weapon: true },
     navalBattery: { name: 'Naval battery', era: 2, sci: 8, place: 'city', limit: 1, needsWater: true, cost: { lumber: 20, metal: 30, tools: 12, machinery: 8, mp: 6 }, hp: 10, weapon: true },
-    tankTrap: { name: 'Tank trap', abbr: 'TT', era: 3, sci: 8, place: 'tile', tiles: 'anyLand', limit: 1, cost: { metal: 6, tools: 2, mp: 1 } },
+    tankTrap: { name: 'Tank trap', abbr: 'TT', era: 3, sci: 8, place: 'tile', tiles: 'anyLand', cost: { metal: 6, tools: 2, mp: 1 } },
   };
 
   // Era 2 and era 3 versions of the extraction buildings (demolish the old one first)
@@ -398,7 +398,7 @@ const RULES = (() => {
   }
 
   const CITY = {
-    baseStorage: 100, baseHp: 10, regen: 2, territory: 2, supplyRadius: 3, maxDepots: 2,
+    baseStorage: 100, baseHp: 10, hpPerBuilding: 0.5, regenShare: 0.1, healLumber: 1, territory: 2, supplyRadius: 3, maxDepots: 2,
     portRadius: 2, unitSupplyRadius: 2, foundCost: { lumber: 50, food: 50, tools: 20 }, foundMp: 20,
     productionStorageTurns: 3,
   };
@@ -462,13 +462,17 @@ const RULES = (() => {
   const ENTRENCH = { max: 5, perLevel: 0.1, fire: 0.25, vsCavalry: 0.5, tankBonus: 0.25 };
   const DOCTRINE_LOCK = 10;
   const QUALITY_DAMAGE = 0.15;
+  const WINTER_ATTRITION = 2; // HP a land unit out of supply loses per winter turn (1 the rest of the year)
+  const CAPTURE_CARGO = 0.75; // share of cargo kept when a logistics unit is captured
   // Unit designs: named variants with steps on HP, speed, damage (combat units) and cargo (logistics units).
-  // Each + step adds costUp to the build cost and upkeepUp to idle upkeep; each - step takes off costDown / upkeepDown.
-  // HP and cargo + steps each cost 1 move. Repairs cost repairShare of the build cost, in proportion to HP restored.
+  // Per step, + / - : build cost, idle upkeep, per-tile upkeep and move. Cargo - steps give speed but no discount;
+  // HP - steps give a discount but no speed. Repairs cost repairShare of the build cost, in proportion to HP restored.
   const DESIGN = {
-    sci: 3, ranges: { hp: [-2, 3], speed: [-2, 2], dmg: [-2, 3], cargo: [-2, 3] },
-    hpStep: 0.2, dmgStep: 0.15, ammoStep: 0.25, cargoStep: 0.25, perTileStep: 0.25,
-    costUp: 0.15, costDown: 0.1, upkeepUp: 0.1, upkeepDown: 0.1, repairShare: 0.5,
+    sci: 3, ranges: { hp: [-2, 3], speed: [-2, 3], dmg: [-2, 3], cargo: [-2, 3] },
+    hpStep: 0.2, dmgStep: 0.15, cargoStep: 0.25, ammoUp: 0.25, ammoDown: 0.1, repairShare: 0.5,
+    build: { hp: [0.15, 0.10], speed: [0.15, 0.10], dmg: [0.15, 0.10], cargo: [0.15, 0] },
+    idle: { hp: [0, 0], speed: [0.10, 0.10], dmg: [0.10, 0.10], cargo: [0.10, 0] },
+    perTile: { hp: [0.15, 0.15], speed: [0.25, 0.15], dmg: [0, 0], cargo: [0, 0] },
   };
   // Combat units carry their own stores: 2 turns of supply at full speed and ammo for 2 attacks
   const UNIT_STORE = { turns: 2, attacks: 2 };
@@ -506,7 +510,7 @@ const RULES = (() => {
 
   return {
     GOODS, GOOD_NAMES, GOOD_COLORS, BASE_PRICE, MARKET, SPECIAL_STORAGE, TILES, BUILDINGS, UNITS, DAMAGE, WEAPON_AMMO, WEAPON_RANGE,
-    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, QUALITY_DAMAGE, DESIGN, ENTRENCH, UNIT_STORE, SETTLEMENT, CITY_RUN_LUMBER, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
+    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, QUALITY_DAMAGE, WINTER_ATTRITION, CAPTURE_CARGO, DESIGN, ENTRENCH, UNIT_STORE, SETTLEMENT, CITY_RUN_LUMBER, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = RULES;
@@ -993,6 +997,11 @@ const Engine = ((R) => {
   const cityAt = (S, t) => S.cities.find((c) => c.t === t);
   const unitsAt = (S, t) => S.units.filter((u) => u.t === t && u.carriedBy == null);
   const cityBuildings = (S, cid) => S.buildings.filter((b) => b.city === cid);
+  // Seasons: each turn is a month; months 10-12 of every 12-turn year are winter, 7-9 autumn
+  const monthOf = (turn) => ((Math.max(1, turn) - 1) % 12) + 1;
+  const yearOf = (turn) => Math.floor((Math.max(1, turn) - 1) / 12) + 1;
+  const seasonOf = (turn) => { const m = monthOf(turn); return m >= 10 ? 'winter' : m >= 7 ? 'autumn' : m >= 4 ? 'summer' : 'spring'; };
+  const isWinter = (turn) => seasonOf(turn) === 'winter';
   const countB = (S, cid, key) => S.buildings.reduce((n, b) => n + (b.city === cid && b.key === key ? 1 : 0), 0);
   const tileBuilding = (S, t) => S.buildings.find((b) => b.t === t && B[b.key].place === 'tile');
   const tileOwnerCity = (S, t) => { const o = S.map.tiles[t].owner; return o == null ? null : cityById(S, o); };
@@ -1024,7 +1033,11 @@ const Engine = ((R) => {
   /* ---------------- city stats & storage ---------------- */
   const territoryRadius = (S, c) => R.CITY.territory + (countB(S, c.id, 'townHall') ? 1 : 0);
   const supplyRadius = (S, c) => R.CITY.supplyRadius + Math.min(R.CITY.maxDepots, countB(S, c.id, 'supplyDepot'));
-  function maxHp(S, c) { let hp = R.CITY.baseHp; for (const b of cityBuildings(S, c.id)) hp += B[b.key].hp || 0; return hp; }
+  function maxHp(S, c) {
+    let hp = R.CITY.baseHp;
+    for (const b of cityBuildings(S, c.id)) { const d = B[b.key]; if (d.place !== 'city') continue; hp += d.hp ? d.hp : R.CITY.hpPerBuilding; }
+    return round1(hp);
+  }
   function recipeOf(b) {
     const d = B[b.key];
     if (!d.recipes) return null;
@@ -1048,9 +1061,9 @@ const Engine = ((R) => {
       const fueled = opts && opts.fueled != null ? opts.fueled : b.fuelOn !== false;
       pct += d.tier === 3 && fueled ? d.fuelBonus : d.bonus;
     }
-    if (d.waterBonus && nbrs(S.map, b.t).some((j) => ['river', 'lake'].includes(S.map.tiles[j].type))) flat += d.waterBonus;
+    const wet = d.waterMult && nbrs(S.map, b.t).some((j) => ['river', 'lake'].includes(S.map.tiles[j].type));
     if (d.railBonus && tile.rail != null) flat += d.railBonus;
-    for (const g of Object.keys(out)) out[g] = Math.round(out[g] * (1 + pct)) + flat;
+    for (const g of Object.keys(out)) out[g] = round1(Math.round(out[g] * (1 + pct)) * (wet ? d.waterMult : 1) + flat);
     return out;
   }
   // Goods a building uses when it runs: its recipe, plus 0.5 lumber upkeep for buildings in the city itself
@@ -1194,9 +1207,9 @@ const Engine = ((R) => {
       if (d.cls === 'rail') {
         const railOwner = city ? city.owner : tile.rail;
         if (railOwner == null) return false;
-        if (!friendly(S, railOwner, u.owner) && railOwner !== partner && !hasTreaty(S, railOwner, u.owner, 'rail')) return false;
+        if (!friendly(S, railOwner, u.owner) && railOwner !== partner && !hasTreaty(S, railOwner, u.owner, 'rail') && !atWar(S, railOwner, u.owner)) return false; // at war, an enemy's rail is yours to use
       }
-      if (u.type === 'tank' && tile.trap != null) { const tc = cityById(S, tile.trap); if (!tc || !friendly(S, tc.owner, u.owner)) return false; }
+      if (u.type === 'tank' && tile.trap != null && !opt.final) return false; // a tank trap ends a tank's move (friendly or enemy)
       if (owner != null && !friendly(S, owner, u.owner) && owner !== partner && !atWar(S, owner, u.owner) && !hasTreaty(S, owner, u.owner, 'transit')) return false;
       if (city && !friendly(S, city.owner, u.owner) && city.owner !== partner) {
         if (!(opt.final && captureOk(S, u, city))) return false;
@@ -1248,6 +1261,7 @@ const Engine = ((R) => {
         const c = cityAt(S, j);
         if (c && !friendly(S, c.owner, u.owner)) continue; // capture tile: may end there, not pass through
         if (fording(S, u, j)) continue; // wading into a river uses up the rest of the move
+        if (u.type === 'tank' && S.map.tiles[j].trap != null) continue; // so does driving onto a tank trap
         next.push(j);
       }
       frontier = next;
@@ -1279,23 +1293,23 @@ const Engine = ((R) => {
     const base = U[type], DS = R.DESIGN;
     if (!dz) return base;
     const st = dz.steps || {}, v = (k) => Number(st[k]) || 0;
-    const plus = ['hp', 'speed', 'dmg', 'cargo'].reduce((a, k) => a + Math.max(0, v(k)), 0);
-    const minus = ['hp', 'speed', 'dmg', 'cargo'].reduce((a, k) => a + Math.max(0, -v(k)), 0);
-    const upk = Math.max(0.3, 1 + DS.upkeepUp * plus - DS.upkeepDown * minus);
-    const costF = Math.max(0.3, 1 + DS.costUp * plus - DS.costDown * minus);
+    const factor = (table) => { let f = 1; for (const k of Object.keys(DS.ranges)) { const x = v(k), [up, down] = table[k]; f += x > 0 ? up * x : down * x; } return Math.max(0.3, f); };
+    const fb = factor(DS.build), fi = factor(DS.idle), ft = factor(DS.perTile);
     const scale = (o, f) => { const r = {}; for (const [g, x] of Object.entries(o || {})) r[g] = round1(x * f); return r; };
-    const cost = {}; for (const [g, x] of Object.entries(base.cost)) cost[g] = Math.max(0, Math.ceil(x * costF - 1e-9));
+    const cost = {}; for (const [g, x] of Object.entries(base.cost)) cost[g] = Math.max(0, Math.ceil(x * fb - 1e-9));
+    const dm = v('dmg');
     return Object.assign({}, base, {
       name: dz.name,
       hp: Math.max(1, round1(base.hp * (1 + DS.hpStep * v('hp')))),
-      move: Math.max(1, base.move + v('speed') - Math.max(0, v('hp')) - Math.max(0, v('cargo'))),
-      ammo: base.ammo ? Math.max(1, Math.ceil(base.ammo * (1 + DS.ammoStep * Math.max(0, v('dmg'))) - 1e-9)) : base.ammo,
+      move: Math.max(1, rawMove(type, st)),
+      ammo: !base.ammo ? base.ammo : dm > 0 ? Math.ceil(base.ammo * (1 + DS.ammoUp * dm) - 1e-9) : Math.max(0.1, round1(base.ammo * (1 + DS.ammoDown * dm))),
       cargo: base.cargo ? Math.max(1, Math.floor(base.cargo * (1 + DS.cargoStep * v('cargo')) + 1e-9)) : base.cargo,
-      idle: scale(base.idle, upk),
-      perTile: scale(base.perTile, 1 + DS.perTileStep * Math.max(0, v('speed'))),
-      cost, dmgMod: DS.dmgStep * v('dmg'), designId: dz.id,
+      idle: scale(base.idle, fi), perTile: scale(base.perTile, ft),
+      cost, dmgMod: DS.dmgStep * dm, designId: dz.id,
     });
   }
+  // Move before the floor of 1: + HP and + cargo slow a unit, - cargo speeds it up, - HP does not change speed
+  function rawMove(type, st) { const v = (k) => Number((st || {})[k]) || 0; return U[type].move + v('speed') - Math.max(0, v('hp')) - v('cargo'); }
   const UU = (S, u) => ustat(u.type, designOf(S, u));
   const canUseDesign = (S, pid, dz) => !!dz && (dz.owner === pid || ((S.players[pid] || {}).designBlueprints || []).includes(dz.id));
   // Who may see a design's hidden stats (speed, upkeep, ammo, cargo, costs): its maker and blueprint holders
@@ -1317,6 +1331,10 @@ const Engine = ((R) => {
       if (x && k === 'cargo' && !d.cargo) return 'Only logistics units have a cargo setting';
     }
     if (!Object.values(DS.ranges).some((_, i) => Number(st[Object.keys(DS.ranges)[i]] || 0))) return 'Change at least one setting from the base model';
+    // every step must have its full effect: no floor may cancel it
+    if (rawMove(o.base, st) < 1) return 'Move would fall below 1: add speed, or use fewer HP or cargo steps';
+    if (Number(st.hp || 0) < 0 && d.hp * (1 + DS.hpStep * Number(st.hp)) < 1 - 1e-9) return `A ${d.name.toLowerCase()}'s HP cannot go that low`;
+    if (Number(st.cargo || 0) < 0 && Math.floor(d.cargo * (1 + DS.cargoStep * Number(st.cargo)) + 1e-9) < 1) return 'Cargo cannot go that low';
     if (p.science < DS.sci) return `Needs ${DS.sci} science`;
     return null;
   }
@@ -1629,15 +1647,22 @@ const Engine = ((R) => {
     const t = o.t;
     if (t == null || t < 0 || t >= S.map.tiles.length) return 'Pick a tile';
     const tile = S.map.tiles[t];
+    if (o.key === 'tankTrap') {
+      // built by a city on any land tile in its supply range that has no building, field depot or settlement
+      if (!isLand(S, t)) return 'Land tiles only';
+      if (cityAt(S, t)) return 'Not on a city tile';
+      const own = tileOwner(S, t);
+      if (own != null && !friendly(S, own, pid)) return "Inside another nation's territory";
+      if (dist(S.map, c.t, t) > supplyRadius(S, c)) return `Outside ${c.name}'s supply range (${supplyRadius(S, c)} tiles)`;
+      if (tile.trap != null) return 'Tile already has a tank trap';
+      if (tileBuilding(S, t)) return 'Tile has a building';
+      if (depotAt(S, t)) return 'There is a field depot or settlement here';
+      return null;
+    }
     if (d.place === 'tile') {
       if (tile.owner !== c.id) return "Tile must be in this city's territory";
       if (cityAt(S, t)) return 'Not on the city tile';
-      if (o.key === 'tankTrap') {
-        if (!isLand(S, t)) return 'Land tiles only';
-        if (tile.trap != null) return 'Tile already has a tank trap';
-        if (S.map.tiles.some((x) => x.trap === c.id)) return 'Only 1 tank trap per city';
-        return null;
-      }
+      if (tile.trap != null) return 'Tile has a tank trap';
       if (tileBuilding(S, t)) return 'Tile already has a building';
       if (depotAt(S, t)) return 'There is a field depot here';
       if (!d.tiles.includes(tile.type)) return `Needs ${d.tiles.map((x) => TT[x].name.toLowerCase()).join(' or ')}`;
@@ -1655,6 +1680,7 @@ const Engine = ((R) => {
       if (cityAt(S, t)) return 'Not on a city tile';
       if (tileBuilding(S, t)) return 'Tile already has a building';
       if (depotAt(S, t)) return 'There is already a settlement or field depot here';
+      if (tile.trap != null) return 'Tile has a tank trap';
       return null;
     }
     if (d.place === 'depot') {
@@ -1662,6 +1688,7 @@ const Engine = ((R) => {
       if (cityAt(S, t)) return 'Not on a city tile';
       if (tileBuilding(S, t)) return 'Tile already has a building';
       if (depotAt(S, t)) return 'There is already a field depot here';
+      if (tile.trap != null) return 'Tile has a tank trap';
       return null;
     }
     if (o.key === 'railTunnel') {
@@ -1735,7 +1762,7 @@ const Engine = ((R) => {
     const mine = own ? own.owner === pid : null; // null = unclaimed
     if (mine === false) return list;
     if (mine && tileBuilding(S, t)) list.push('building');
-    if (mine && tile.trap != null) list.push('trap');
+    if (tile.trap === pid) list.push('trap');
     if (tile.rail != null && tile.bridge !== 'rail' && tile.tunnel == null && (mine || tile.rail === pid)) list.push('rail');
     if (tile.bridge && (mine || tile.bridgeBy === pid)) list.push('bridge');
     return list;
@@ -1789,7 +1816,12 @@ const Engine = ((R) => {
     if (!tile || !tile.bridge) return null;
     return { what: tile.bridge === 'rail' ? 'railBridge' : 'bridge', owner: tile.bridgeBy };
   }
-  function sabotageTargetFor(S, u, t) { return U[u.type].cls === 'ship' ? shipSabotageTarget(S, t) : sabotageTarget(S, t); }
+  function sabotageTargetFor(S, u, t) {
+    if (U[u.type].cls === 'ship') return shipSabotageTarget(S, t);
+    const tile = S.map.tiles[t];
+    if (u.type === 'infantry' && tile && tile.trap != null) return { what: 'tankTrap', owner: tile.trap }; // infantry can clear tank traps anywhere
+    return sabotageTarget(S, t);
+  }
   function checkSabotage(S, pid, o) {
     const u = unitById(S, o.unit), t = Number(o.t);
     if (!u || u.owner !== pid) return 'Not your unit';
@@ -1807,10 +1839,10 @@ const Engine = ((R) => {
     if (u.carriedBy != null) return 'Unload it first';
     if (!canAct(S, u)) return `It cannot act: ${whyIdle(S, u)}`;
     if (!(t >= 0 && t < S.map.tiles.length) || dist(S.map, u.t, t) > 1) return 'Must be on or next to the target';
-    const tg = sabotageTarget(S, t);
+    const tg = sabotageTargetFor(S, u, t);
     if (!tg) return 'Nothing to destroy there outside every nation\'s territory';
     if (tg.owner == null || !atWar(S, pid, tg.owner)) return 'You can only sabotage the works of a nation you are at war with';
-    if (tg.what !== 'railroad') {
+    if (tg.what !== 'railroad' && tg.what !== 'tankTrap') {
       if (t === u.t) return 'Stand next to the bridge, not on it';
       if (S.units.some((x) => x.t === t && x.carriedBy == null && U[x.type].cls !== 'ship')) return 'Units are on the bridge';
     }
@@ -1933,7 +1965,7 @@ const Engine = ((R) => {
     const { map, starts } = genMap(list.length, rng, { mapType: opts.mapType, tilesPerPlayer: opts.tilesPerPlayer });
     const start = startingResources(opts.start);
     const S = {
-      version: 4, id: opts.id || `game-${seed.toString(36)}-${Date.now().toString(36)}`, name: opts.name || 'Guns, Pacts, and Commerce', start,
+      version: 5, id: opts.id || `game-${seed.toString(36)}-${Date.now().toString(36)}`, name: opts.name || 'Guns, Pacts, and Commerce', start,
       seed, turn: 1, map, players: [], cities: [], units: [], buildings: [], routes: [], treaties: [], wars: [], proposals: [],
       market: { pool: {}, prices: {} }, reports: {}, nextId: 1, gameOver: null, history: [], depots: [], designs: [],
     };
@@ -1999,7 +2031,11 @@ const Engine = ((R) => {
       }
       for (const p of S.players) if (p.priority && !p.priority.includes('rubberWorks')) { const i = p.priority.indexOf('rubberPlantation3'); p.priority.splice(i < 0 ? p.priority.length : i + 1, 0, 'rubberWorks', 'rubberRefinery'); }
     }
-    S.version = 4;
+    if ((S.version || 1) < 5) {
+      // version 5: tank traps belong to a nation (they used to record a city)
+      for (const tile of S.map.tiles) if (tile.trap != null) { const c = cityById(S, tile.trap); tile.trap = c ? c.owner : null; }
+    }
+    S.version = 5;
     return S;
   }
   function normalizeOrders(o) {
@@ -2031,12 +2067,20 @@ const Engine = ((R) => {
       S.units = S.units.filter((x) => x !== u);
       for (const r of S.routes) r.transports = r.transports.filter((id) => id !== u.id);
       rep(u.owner, 'combat', `${unitName(u)} was destroyed (${why}).`);
-      // the destroyer takes half the cargo, delivered home like a market purchase
-      if (byPid != null && byPid !== u.owner && S.players[byPid] && !S.players[byPid].eliminated && u.cargo) {
-        const half = {}; for (const [g, v] of Object.entries(u.cargo)) { const h = Math.floor((v || 0) * R.LOOT); if (h > 0) half[g] = h; }
-        const got = deliverHome(byPid, half, at);
-        if (Object.keys(got).length) rep(byPid, 'combat', `Captured ${goodsText(got)} from ${pname(u.owner)}'s ${unitName(u)}.`);
-      }
+      if (byPid != null && byPid !== u.owner) rep(byPid, 'combat', `${pname(u.owner)}'s ${unitName(u)} was destroyed${U[u.type].cargo && Object.keys(u.cargo || {}).length ? ' with its cargo' : ''}.`);
+    }
+    // A logistics unit brought to 0 HP by an adjacent attacker of the same kind is captured: it changes hands at 1 HP
+    // with 75% of its cargo; everything it was carrying is destroyed.
+    function captureUnit(u, by) {
+      const old = u.owner;
+      for (const x of carried(S, u)) destroyUnit(x, `lost when ${unitName(u)} was captured`, by);
+      for (const r of S.routes) r.transports = r.transports.filter((id) => id !== u.id);
+      u.route = null; u.leg = null;
+      const kept = {};
+      for (const [g, v] of Object.entries(u.cargo || {})) { const k = round1((v || 0) * R.CAPTURE_CARGO); if (k > 0) kept[g] = k; }
+      u.cargo = kept; u.owner = by; u.hp = 1; u.moved = 0; u.supplied = true; u.paid = true;
+      delete u.dig;
+      both(by, old, 'combat', `${pname(by)} captured ${pname(old)}'s ${unitName(u)} at ${tileLabel(S, u.t)}${Object.keys(kept).length ? `, with ${goodsText(kept)} aboard` : ''}.`);
     }
     // spoils go to the nearest of the winner's cities with room, like a market purchase
     function deliverHome(pid, goods, at) {
@@ -2067,7 +2111,7 @@ const Engine = ((R) => {
       S.treaties = S.treaties.filter((t) => t.a !== loser.id && t.b !== loser.id);
       S.wars = S.wars.filter((w) => w.a !== loser.id && w.b !== loser.id);
       S.proposals = S.proposals.filter((pr) => pr.from !== loser.id && pr.to !== loser.id);
-      for (const tile of S.map.tiles) { if (tile.rail === loser.id) tile.rail = byPid; if (tile.bridgeBy === loser.id) tile.bridgeBy = byPid; if (tile.tunnel === loser.id) tile.tunnel = byPid; }
+      for (const tile of S.map.tiles) { if (tile.rail === loser.id) tile.rail = byPid; if (tile.bridgeBy === loser.id) tile.bridgeBy = byPid; if (tile.tunnel === loser.id) tile.tunnel = byPid; if (tile.trap === loser.id) tile.trap = byPid; }
       for (const dp of S.depots) if (dp.owner === loser.id) dp.owner = byPid;
       for (const q of S.players) rep(q.id, 'diplomacy', `${loser.name} lost its last city to ${winner.name} and is out of the game. ${winner.name} took its ${took}.`);
     }
@@ -2093,7 +2137,7 @@ const Engine = ((R) => {
     function transferCity(c, to) {
       const old = c.owner;
       c.owner = to;
-      for (const tile of S.map.tiles) if (tile.owner === c.id) { if (tile.rail === old) tile.rail = to; if (tile.bridgeBy === old) tile.bridgeBy = to; if (tile.tunnel === old) tile.tunnel = to; }
+      for (const tile of S.map.tiles) if (tile.owner === c.id) { if (tile.rail === old) tile.rail = to; if (tile.bridgeBy === old) tile.bridgeBy = to; if (tile.tunnel === old) tile.tunnel = to; if (tile.trap === old) tile.trap = to; }
       for (const r of S.routes.slice()) if (r.from === c.id || (r.to.type === 'city' && r.to.id === c.id)) removeRoute(r.id, `${c.name} changed hands`);
       for (const u of unitsAt(S, c.t)) if (u.owner === old) evacuate(u);
     }
@@ -2104,9 +2148,9 @@ const Engine = ((R) => {
       if (!dest) return;
       tile.owner = dest.id;
       for (const b of S.buildings) if (b.t === t && B[b.key].place === 'tile') b.city = dest.id;
-      if (tile.trap === oldCity.id) tile.trap = dest.id;
       if (tile.rail === old) tile.rail = to;
       if (tile.tunnel === old) tile.tunnel = to;
+      if (tile.trap === old) tile.trap = to;
       if (tile.bridgeBy === old) tile.bridgeBy = to;
     }
     function applyPeace(pr) {
@@ -2315,6 +2359,7 @@ const Engine = ((R) => {
       }
     }
     const dmgU = new Map(), dmgC = new Map(), dealtBy = new Map(); // unit id -> Map(attacker -> damage)
+    const adjBy = new Map(); // logistics unit id -> Map(nation -> damage from adjacent attackers of the same kind)
     const addD = (map, id, v, by) => {
       map.set(id, (map.get(id) || 0) + v);
       if (map === dmgU && by != null) { if (!dealtBy.has(id)) dealtBy.set(id, new Map()); const m = dealtBy.get(id); m.set(by, (m.get(by) || 0) + v); }
@@ -2333,6 +2378,10 @@ const Engine = ((R) => {
       } else {
         const tu = at.tgt.unit, r = attackDamage(S, att, { unit: tu }, { moving });
         addD(dmgU, tu.id, r.dmg, at.owner);
+        if (au && r.dmg > 0 && U[tu.type].role === 'logistic' && dist(S.map, at.from, tu.t) <= 1 && (U[au.type].cls === 'ship') === (U[tu.type].cls === 'ship')) {
+          if (!adjBy.has(tu.id)) adjBy.set(tu.id, new Map());
+          const m = adjBy.get(tu.id); m.set(at.owner, (m.get(at.owner) || 0) + r.dmg);
+        }
         if (au && r.dmg > 0) dealt.add(au.id);
         both(at.owner, tu.owner, 'combat', `${pname(at.owner)}'s ${at.name} hit ${pname(tu.owner)}'s ${unitName(tu)} for ${r.dmg}${modText(r)}.`);
         if (au && dist(S.map, at.from, tu.t) <= 1) {
@@ -2350,7 +2399,12 @@ const Engine = ((R) => {
       const before = stars(u); u.xp = (u.xp || 0) + 1;
       if (stars(u) > before) rep(u.owner, 'war', `${unitName(u)} is now ${R.XP.names[stars(u)].toLowerCase()} (+${Math.round(R.XP.bonus[stars(u)] * 100)}% damage).`);
     }
-    for (const u of S.units.slice()) if (u.hp <= 0 && S.units.includes(u)) destroyUnit(u, 'killed in combat', killer(u.id));
+    for (const u of S.units.slice()) {
+      if (u.hp > 0 || !S.units.includes(u)) continue;
+      const adj = adjBy.get(u.id);
+      if (adj && adj.size) { const by = [...adj.entries()].sort((a, b) => b[1] - a[1])[0][0]; if (atWar(S, by, u.owner)) { captureUnit(u, by); continue; } }
+      destroyUnit(u, 'killed in combat', killer(u.id));
+    }
 
     // sabotage: wreck enemy railroads and bridges outside every nation's territory
     const attackedWith = new Set(attacks.filter((a) => a.src.unit != null).map((a) => a.src.unit));
@@ -2363,6 +2417,7 @@ const Engine = ((R) => {
       if (err) { rep(p.id, 'conflict', `${unitName(u)} could not sabotage at ${tileLabel(S, o.t)}: ${err}.`); continue; }
       const t = Number(o.t), tile = S.map.tiles[t], tg = sabotageTargetFor(S, u, t);
       if (tg.what === 'railroad') tile.rail = null;
+      else if (tg.what === 'tankTrap') tile.trap = null;
       else if (tg.what === 'railTunnel') { tile.tunnel = null; tile.rail = null; }
       else { if (tile.bridge === 'rail') tile.rail = null; tile.bridge = false; tile.bridgeBy = null; }
       saboteurs.add(u.id);
@@ -2457,7 +2512,7 @@ const Engine = ((R) => {
       for (const x of unitsAt(S, c.t)) if (!friendly(S, x.owner, by)) destroyUnit(x, `caught when ${c.name} fell`, by);
       const old = c.owner, last = citiesOf(S, loser.id).length <= 1;
       c.owner = by; c.hp = 0;
-      for (const tile of S.map.tiles) if (tile.owner === c.id) { if (tile.rail === old) tile.rail = by; if (tile.bridgeBy === old) tile.bridgeBy = by; if (tile.tunnel === old) tile.tunnel = by; }
+      for (const tile of S.map.tiles) if (tile.owner === c.id) { if (tile.rail === old) tile.rail = by; if (tile.bridgeBy === old) tile.bridgeBy = by; if (tile.tunnel === old) tile.tunnel = by; if (tile.trap === old) tile.trap = by; }
       for (const r of S.routes.slice()) if (r.from === c.id || (r.to.type === 'city' && r.to.id === c.id)) removeRoute(r.id, `${c.name} was captured`);
       for (const q of S.players) if (!q.eliminated) rep(q.id, 'combat', `${pname(by)} captured ${c.name} from ${pname(old)}, with every good stored there.`);
       if (last) eliminate(loser, by);
@@ -2588,6 +2643,7 @@ const Engine = ((R) => {
       for (const b of blds) {
         const c = cityById(S, b.city), rc = recipeOf(b), d = B[b.key];
         if (b.halted) { b.status = 'Halted'; b.lastOut = {}; continue; }
+        if ((d.base || b.key) === 'farm' && isWinter(turn)) { b.status = 'Idle: winter (farms rest until spring)'; b.lastOut = {}; continue; }
         if (rc.labor) {
           const want = laborOf(b), used = Math.min(want, Math.floor(p.manpower)), cr = used * rc.creditsPerMp;
           p.manpower = round1(p.manpower - used); p.credits += cr; b.ranTurn = turn;
@@ -2736,7 +2792,7 @@ const Engine = ((R) => {
         else if (o.key === 'railBridge') { tile.bridge = 'rail'; tile.rail = p.id; tile.bridgeBy = p.id; }
         else { tile.bridge = true; tile.bridgeBy = p.id; }
       } else if (o.key === 'tankTrap') {
-        S.map.tiles[o.t].trap = c.id;
+        S.map.tiles[o.t].trap = p.id;
       } else {
         const b = { id: S.nextId++, key: o.key, city: c.id, t: d.place === 'tile' ? o.t : c.t, product: d.recipes ? Object.keys(d.recipes)[0] : null, status: 'new' };
         if (o.product && d.recipes && d.recipes[o.product]) b.product = o.product;
@@ -2980,8 +3036,9 @@ const Engine = ((R) => {
       const res = drawGoods(sources, need, true);
       u.supplied = res.ok;
       if (!res.ok) {
-        u.hp = round1(u.hp - 1); u.supply = `Out of supply (missing ${goodsText(res.missing)})`;
-        rep(u.owner, 'supply', `${unitName(u)} at ${tileLabel(S, posOf(S, u))} is out of supply (missing ${goodsText(res.missing)}) and lost 1 HP.`);
+        const loss = isWinter(turn) && d.cls !== 'ship' ? R.WINTER_ATTRITION : 1;
+        u.hp = round1(u.hp - loss); u.supply = `Out of supply (missing ${goodsText(res.missing)})`;
+        rep(u.owner, 'supply', `${unitName(u)} at ${tileLabel(S, posOf(S, u))} is out of supply (missing ${goodsText(res.missing)}) and lost ${loss} HP${loss > 1 ? ' to the winter' : ''}.`);
         if (u.hp <= 0) { destroyUnit(u, 'attrition'); continue; }
       } else {
         u.supply = base ? 'In base (no upkeep)' : res.used.length ? `Supplied by ${res.used.map(sourceName).join(', ')}` : 'Supplied';
@@ -3055,7 +3112,15 @@ const Engine = ((R) => {
     }
     refreshTraits(S);
     // city regeneration
-    for (const c of S.cities) if (!c.attacked && c.hp < maxHp(S, c)) c.hp = Math.min(maxHp(S, c), c.hp + R.CITY.regen);
+    // cities heal 10% of max HP a turn when not attacked, for 1 lumber per HP from their own stock
+    for (const c of S.cities) {
+      const mx = maxHp(S, c);
+      if (c.hp > mx) c.hp = mx;
+      if (c.attacked || c.hp >= mx) continue;
+      const heal = round1(Math.min(mx * R.CITY.regenShare, mx - c.hp, (c.stock.lumber || 0) / R.CITY.healLumber));
+      if (heal <= 0) continue;
+      c.stock.lumber = round1((c.stock.lumber || 0) - heal * R.CITY.healLumber); c.hp = round1(c.hp + heal);
+    }
 
     // a settlement whose tile has been claimed by a city (a city founded next to it, or a town hall) is taken
     // over: it disappears and the claiming city gets whatever was stored in it
@@ -3090,7 +3155,7 @@ const Engine = ((R) => {
       garrisonOf, posOf, carried, atWar, friendly, hasTreaty, isUnlocked, unitUnlocked, territoryRadius, supplyRadius, maxHp,
       capacity, freeSpace, recipeOf, recipeKey, buildingOutput, creditsOutOf, mpOf, mpOutOf, buildingOwner, reachable, findPath, canEnter, pickTarget, attackTargets,
       cityWeaponTargets, supplySources, sourceName, upkeepOf, inBase, checkBuild, checkTrain, checkFound, routeEstimate, describeProposal,
-      cargoUsed, cargoFree, portOk, dockable, slotFree, canCarry, carrySlots, demolishable, checkDemolish, checkDisband, inputsOf, ustat, UU, designById, designOf, canUseDesign, seesDesign, checkDesign, researchedUnitSelf, repairCost, isSettlement, settlementNeeds, storeCap, giftError, depotAt, depotById, depotCap, depotFree, depotName, routeDest, checkClear, checkSabotage, sabotageTarget, sabotageTargetFor, bridgeSiteError, fording, inRiver, canAct, whyIdle, moveOf, payOf, laborOf, maxHpU, cargoCap, carryCap, stars, entrenched, entrenchLevel, blitzing, attackDamage, previewAttack, landCombat, mobOf, doctrineOf, supplyMoveLimit, normPeace, checkPeace, peaceTerms, isWater, isLand, nearWater, tileLabel, goodsText, terrain,
+      cargoUsed, cargoFree, portOk, dockable, slotFree, canCarry, carrySlots, demolishable, checkDemolish, checkDisband, inputsOf, monthOf, yearOf, seasonOf, isWinter, rawMove, ustat, UU, designById, designOf, canUseDesign, seesDesign, checkDesign, researchedUnitSelf, repairCost, isSettlement, settlementNeeds, storeCap, giftError, depotAt, depotById, depotCap, depotFree, depotName, routeDest, checkClear, checkSabotage, sabotageTarget, sabotageTargetFor, bridgeSiteError, fording, inRiver, canAct, whyIdle, moveOf, payOf, laborOf, maxHpU, cargoCap, carryCap, stars, entrenched, entrenchLevel, blitzing, attackDamage, previewAttack, landCombat, mobOf, doctrineOf, supplyMoveLimit, normPeace, checkPeace, peaceTerms, isWater, isLand, nearWater, tileLabel, goodsText, terrain,
     },
   };
 })(typeof RULES !== 'undefined' ? RULES : require('./rules.js'));
@@ -3357,7 +3422,9 @@ function buildMapSvg(kind) {
   out.push(`<rect x="0" y="0" width="${W}" height="${H}" fill="#24405a"/>`);
   // tiles
   out.push(`<g${flow ? ' opacity="0.55"' : ''}>`);
-  for (let i = 0; i < n; i++) { const [x, y] = center(m, i); out.push(`<polygon class="hx" data-t="${i}" points="${hexPts(x, y)}" fill="${RR.TILES[m.tiles[i].type].color}"/>`); }
+  const season = Q.seasonOf(S.turn);
+  const tint = { winter: { grassland: '#e4e9e4', forest: '#88a58c' }, autumn: { forest: '#7a7434' } }[season] || {};
+  for (let i = 0; i < n; i++) { const [x, y] = center(m, i); const ty = m.tiles[i].type; out.push(`<polygon class="hx" data-t="${i}" points="${hexPts(x, y)}" fill="${tint[ty] || RR.TILES[ty].color}"/>`); }
   out.push('</g><g pointer-events="none">');
   // territory tint
   for (let i = 0; i < n; i++) { const p = tileOwnerP(i); if (p == null) continue; const [x, y] = center(m, i); out.push(`<polygon points="${hexPts(x, y)}" fill="${pcol(p)}" opacity="${flow ? 0.08 : 0.11}"/>`); }
@@ -3633,7 +3700,7 @@ function renderHeader() {
   const vas = p.eliminated ? ' <span class="tag war">out of the game</span>' : '';
   return `<header class="bar" style="--me:${p.color}">
     <div class="nation"><div><div class="title">${esc(CONFIG.title)}</div><div class="sub">${esc(S.name)}, ${esc(isCampaign() ? scheduleText().replace('Turns resolve automatically at', 'auto-resolves') : Sync.label.toLowerCase())}</div></div></div>
-    <div class="turn">Turn ${S.turn}</div>
+    <div class="turn">Turn ${S.turn}<div class="small muted" style="font-weight:400">${['Spring', 'Summer', 'Autumn', 'Winter'][['spring', 'summer', 'autumn', 'winter'].indexOf(Q.seasonOf(S.turn))]}, year ${Q.yearOf(S.turn)}${Q.isWinter(S.turn) ? ' · farms idle' : Q.monthOf(S.turn) === 9 ? ' · winter next turn' : ''}</div></div>
     <div>${sel}${vas}</div>
     <div class="res"><span>Credits <b>${p.credits}</b></span><span>Manpower <b>${Math.round(p.manpower * 10) / 10}</b>${reservedMp() ? ` <span class="small muted">(−${reservedMp()} queued)</span>` : ''}</span><span>Science <b>${p.science}</b></span></div>
     <div class="spacer"></div>
@@ -3754,7 +3821,7 @@ function sidePanel() {
     ${(() => { const dp = Q.depotAt(S, t); return dp && Q.isSettlement(dp) ? settlementBlock(dp) : dp ? `<dt>Field depot</dt><dd><span class="pdot" style="background:${pcol(dp.owner)}"></span>${esc(pname(dp.owner))}${dp.owner === UI.me ? `<div class="small">${esc(fmtAmt(dp.stock) || 'empty')}</div><div class="small muted">Holds ${RR.DEPOT.storage.food} food, fuel and ammo, ${RR.DEPOT.other} of other goods; supplies units within ${RR.DEPOT.supplyRange} tiles.</div>` : ''}</dd>` : ''; })()}
     ${tile.tunnel != null ? `<dt>Rail tunnel</dt><dd><span class="pdot" style="background:${pcol(tile.tunnel)}"></span>built by ${esc(pname(tile.tunnel))}<div class="small muted">Only trains and infantry can pass.</div></dd>` : ''}
     ${tile.type === 'river' && !tile.bridge ? '<dt>Crossing</dt><dd class="small">Infantry, cavalry and caravans can wade in; it ends their move, and they cannot attack from the river.</dd>' : ''}
-    ${tile.trap != null ? `<dt>Tank trap</dt><dd>${esc(cityName(tile.trap))}</dd>` : ''}</dl>${clearBlock(t)}${demolishBlock(t)}</section>`);
+    ${tile.trap != null ? `<dt>Tank trap</dt><dd>${esc(S.players[tile.trap] ? S.players[tile.trap].name : '?')} — ends a tank's move</dd>` : ''}</dl>${clearBlock(t)}${demolishBlock(t)}</section>`);
   if (city) parts.push(cityPanel(city));
   const units = Q.unitsAt(S, t);
   if (units.length) {
@@ -4044,7 +4111,7 @@ TAB_RENDER.buildings = function () {
     const blds = Q.cityBuildings(S, c.id).sort((a, b) => a.key.localeCompare(b.key));
     const rails = S.map.tiles.filter((t) => t.owner === c.id && t.rail != null).length;
     const bridges = S.map.tiles.filter((t) => t.owner === c.id && t.bridge).length;
-    const trap = S.map.tiles.findIndex((t) => t.trap === c.id);
+    const traps = S.map.tiles.filter((t) => t.owner === c.id && t.trap === UI.me).length;
     const effect = (b) => {
       const d = BLD[b.key];
       if (d.recipes) { const rc = Q.recipeOf(b), out = Q.buildingOutput(S, b); return `${fmtGoods(Q.inputsOf(b)) || 'no inputs'} → ${fmtGoods(out) || [rc.mpOut ? `${rc.mpOut} manpower` : '', rc.sciOut ? `${rc.sciOut} science` : '', Q.creditsOutOf(S, b) || rc.creditsPerResidence ? `${Q.creditsOutOf(S, b)} credits${rc.creditsPerResidence ? ` (${rc.creditsPerResidence} per working residence)` : ''}` : ''].filter(Boolean).join(', ')}`; }
@@ -4059,7 +4126,7 @@ TAB_RENDER.buildings = function () {
     return `<div class="ledger"><table><thead><tr><th colspan="4">${esc(c.name)} <span class="muted small">HP ${c.hp}/${Q.maxHp(S, c)}, territory ${Q.territoryRadius(S, c)}, supply range ${Q.supplyRadius(S, c)}</span></th></tr>
       <tr><th>Building</th><th>Where</th><th>Does</th><th>Last turn</th></tr></thead><tbody>
       ${blds.map((b) => `<tr><td>${esc(BLD[b.key].name)}</td><td>${BLD[b.key].place === 'tile' ? `<button class="linkbtn" data-act="goto" data-t="${b.t}">${esc(RR.TILES[S.map.tiles[b.t].type].name)} ${tl(b.t)}</button>` : 'City'}</td><td class="small">${esc(effect(b))}</td><td class="small ${b.status && b.status.startsWith('Idle') ? 'warn' : 'muted'}">${esc(b.status || '')}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">No buildings yet.</td></tr>'}
-      ${rails || bridges || trap >= 0 ? `<tr class="sub"><td colspan="4">Infrastructure in territory: ${rails} railroad tile${rails === 1 ? '' : 's'}, ${bridges} bridge${bridges === 1 ? '' : 's'}${trap >= 0 ? `, tank trap at ${tl(trap)}` : ''}</td></tr>` : ''}
+      ${rails || bridges || traps ? `<tr class="sub"><td colspan="4">Infrastructure in territory: ${rails} railroad tile${rails === 1 ? '' : 's'}, ${bridges} bridge${bridges === 1 ? '' : 's'}${traps ? `, ${traps} tank trap${traps === 1 ? '' : 's'}` : ''}</td></tr>` : ''}
       </tbody></table></div>`;
   }).join('');
   return `<div class="page"><h2>Buildings</h2>${blocks || '<p class="muted">You have no cities.</p>'}</div>`;
@@ -4248,7 +4315,7 @@ function designPanel(S, p, d) {
       <table class="small" style="margin:6px 0"><thead><tr><th></th><th class="n">${esc(b.name)}</th><th class="n">${esc(f.name || 'New design')}</th></tr></thead><tbody>
         ${cmp('HP', b.hp, prev.hp)}${cmp('Move', b.move, prev.move)}${b.role === 'combat' ? cmp('Damage', '100%', `${Math.round(100 * (1 + prev.dmgMod))}%`) + cmp('Ammo per attack', b.ammo, prev.ammo) : ''}${b.cargo ? cmp('Cargo', b.cargo, prev.cargo) : ''}
         ${cmp('Idle upkeep', gt(b.idle), gt(prev.idle))}${cmp('Per tile', gt(b.perTile), gt(prev.perTile))}${cmp('Build cost', costText(b.cost), costText(prev.cost))}</tbody></table>
-      <div class="row"><button class="btn small brass" data-act="design-create" ${err ? 'disabled' : ''}>Create design (${RR.DESIGN.sci} science)</button><span class="small ${err ? 'warn' : 'muted'}">${esc(err || 'Each + step adds 15% to the build cost and 10% to idle upkeep; each − step takes 10% off. Extra HP or cargo costs 1 move per step.')}</span></div>`;
+      <div class="row"><button class="btn small brass" data-act="design-create" ${err ? 'disabled' : ''}>Create design (${RR.DESIGN.sci} science)</button><span class="small ${err ? 'warn' : 'muted'}">${esc(err || 'Each + step adds 15% to the build cost; each − step takes 10% off (except cargo cuts). HP +: −1 move, +15% per-tile upkeep. HP −: −15% per-tile. Speed ±: ±1 move, ±10% idle, +25%/−15% per-tile. Damage ±: ±10% idle, +25%/−10% ammo. Cargo +: −1 move, +10% idle; cargo −: +1 move. Every step must have its full effect.')}</span></div>`;
   }
   const queued = pend.filter((o) => o.op === 'create');
   return `<div class="panel" style="margin-top:14px"><h3 style="margin-top:0">Unit designs</h3>
