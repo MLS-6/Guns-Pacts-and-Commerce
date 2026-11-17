@@ -370,30 +370,28 @@ const RULES = (() => {
     train: { name: 'Train', abbr: 'Tr', cls: 'rail', role: 'logistic', hp: 10, move: 6, idle: { fuel: 1 }, perTile: { fuel: 1 }, repair: 'mech', cargo: 120, carry: 4, cost: { mp: 4, clothing: 2, lumber: 4, metal: 12, tools: 4, machinery: 3 }, builtAt: ['machineryWorkshop', 'machineryFactory'], unlock: 'machineryWorkshop' },
     merchantman: { name: 'Merchantman', abbr: 'Me', cls: 'ship', power: 'sail', role: 'logistic', hp: 10, move: 3, idle: { food: 1 }, perTile: { food: 0.5 }, repair: 'sail', cargo: 100, carry: 3, cost: { mp: 4, clothing: 2, cloth: 4, lumber: 16, metal: 2, tools: 2 }, builtAt: ['shipyard'], unlock: 'shipyard' },
     frigate: { name: 'Frigate', abbr: 'Fg', cls: 'ship', power: 'sail', role: 'combat', hp: 25, move: 4, range: 2, ammo: 2, idle: { food: 2 }, perTile: { food: 1 }, repair: 'sail', cost: { mp: 6, clothing: 3, cloth: 6, smallArms: 4, lumber: 20, metal: 4, tools: 4 }, builtAt: ['shipyard'], unlock: 'shipyard' },
-    freighter: { name: 'Freighter', abbr: 'Fr', cls: 'ship', power: 'steam', role: 'logistic', hp: 15, move: 5, idle: { food: 1, fuel: 1 }, perTile: { fuel: 1 }, repair: 'mech', cargo: 200, carry: 6, cost: { mp: 4, clothing: 2, lumber: 12, metal: 8, tools: 4, machinery: 2, rubber: 2 }, builtAt: ['navalYard'], unlock: 'navalYard' },
+    freighter: { name: 'Freighter', abbr: 'Fr', cls: 'ship', power: 'steam', role: 'logistic', hp: 15, move: 5, idle: { food: 1, fuel: 1 }, perTile: { fuel: 1 }, repair: 'mech', cargo: 200, carry: 6, cost: { mp: 4, clothing: 2, lumber: 12, metal: 12, tools: 4, machinery: 2, rubber: 2 }, builtAt: ['navalYard'], unlock: 'navalYard' },
     warship: { name: 'Warship', abbr: 'W', cls: 'ship', power: 'steam', role: 'combat', hp: 50, move: 5, range: 2, ammo: 4, idle: { food: 2, fuel: 1 }, perTile: { fuel: 1 }, repair: 'mech', cost: { mp: 8, clothing: 4, smallArms: 2, lumber: 10, metal: 20, tools: 6, machinery: 5, rubber: 2 }, builtAt: ['navalYard'], unlock: 'navalYard' },
   };
 
-  // Damage per attack. Rows = attacker, columns = target. Missing = cannot hit.
+  // Base damage per attack (attacker row -> target column). Missing = cannot attack that target.
   const DAMAGE = {
-    infantry: { infantry: 2, cavalry: 3, tank: 2, artillery: 3, train: 3, city: 1 },
-    cavalry: { infantry: 3, cavalry: 3, tank: 1, artillery: 4, train: 4, city: 1 },
-    tank: { infantry: 4, cavalry: 5, tank: 5, artillery: 5, train: 5, city: 3 },
-    artillery: { infantry: 3, cavalry: 2, tank: 4, artillery: 3, train: 5, merchantman: 3, frigate: 3, freighter: 3, warship: 3, city: 4 },
-    frigate: { infantry: 2, cavalry: 1, tank: 1, artillery: 2, train: 2, merchantman: 10, frigate: 6, freighter: 8, warship: 4, city: 2 },
-    warship: { infantry: 3, cavalry: 2, tank: 3, artillery: 3, train: 4, merchantman: 15, frigate: 15, freighter: 15, warship: 10, city: 4 },
-    navalBattery: { merchantman: 20, frigate: 20, freighter: 20, warship: 20 },
-    fort: { infantry: 3, cavalry: 3, tank: 2, artillery: 3 },
+    infantry: { infantry: 2, cavalry: 2, tank: 2, artillery: 3, caravan: 3, supplyTruck: 5, train: 4, city: 2 },
+    cavalry: { infantry: 3, cavalry: 3, tank: 1, artillery: 4, caravan: 4, supplyTruck: 5, train: 2, city: 1 },
+    tank: { infantry: 5, cavalry: 4, tank: 5, artillery: 5, caravan: 6, supplyTruck: 8, train: 10, city: 3 },
+    artillery: { infantry: 3, cavalry: 2, tank: 4, artillery: 3, caravan: 4, supplyTruck: 5, train: 5, merchantman: 5, frigate: 5, freighter: 5, warship: 5, city: 5 },
+    frigate: { infantry: 2, cavalry: 1, artillery: 2, caravan: 3, supplyTruck: 2, train: 1, merchantman: 12, frigate: 10, freighter: 5, warship: 4, city: 2 },
+    warship: { infantry: 3, cavalry: 2, tank: 3, artillery: 3, caravan: 4, supplyTruck: 6, train: 10, merchantman: 30, frigate: 30, freighter: 15, warship: 15, city: 5 },
+    navalBattery: { merchantman: 30, frigate: 30, freighter: 20, warship: 20 },
+    fort: { infantry: 3, cavalry: 3, tank: 4, artillery: 3, caravan: 4, supplyTruck: 4 },
   };
-  const WEAPON_AMMO = 2; // forts and naval batteries, from the city's stockpile
+  const WEAPON_AMMO = { fort: 3, navalBattery: 4 }; // per attack, from the city's stockpile
   const WEAPON_RANGE = 2;
 
   function dmg(attacker, target) {
     const row = DAMAGE[attacker];
     if (!row) return 0;
     if (target === 'city') return row.city || 0;
-    if (target === 'caravan') return row.infantry ? 1 : 0; // 1 HP: any hit that can reach land units destroys it
-    if (target === 'supplyTruck') return attacker === 'fort' ? 3 : (row.train || 0);
     return row[target] || 0;
   }
 
@@ -462,6 +460,7 @@ const RULES = (() => {
   const ENTRENCH = { max: 5, perLevel: 0.1, fire: 0.25, vsCavalry: 0.5, tankBonus: 0.25 };
   const DOCTRINE_LOCK = 10;
   const QUALITY_DAMAGE = 0.15;
+  const SUMMER_FARM = 1.5; // farms of every tier make 50% more in summer (months 4-6), applied last
   const WINTER_ATTRITION = 2; // HP a land unit out of supply loses per winter turn (1 the rest of the year)
   const CAPTURE_CARGO = 0.75; // share of cargo kept when a logistics unit is captured
   // Unit designs: named variants with steps on HP, speed, damage (combat units) and cargo (logistics units).
@@ -510,7 +509,7 @@ const RULES = (() => {
 
   return {
     GOODS, GOOD_NAMES, GOOD_COLORS, BASE_PRICE, MARKET, SPECIAL_STORAGE, TILES, BUILDINGS, UNITS, DAMAGE, WEAPON_AMMO, WEAPON_RANGE,
-    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, QUALITY_DAMAGE, WINTER_ATTRITION, CAPTURE_CARGO, DESIGN, ENTRENCH, UNIT_STORE, SETTLEMENT, CITY_RUN_LUMBER, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
+    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, QUALITY_DAMAGE, WINTER_ATTRITION, SUMMER_FARM, CAPTURE_CARGO, DESIGN, ENTRENCH, UNIT_STORE, SETTLEMENT, CITY_RUN_LUMBER, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = RULES;
@@ -1002,6 +1001,7 @@ const Engine = ((R) => {
   const yearOf = (turn) => Math.floor((Math.max(1, turn) - 1) / 12) + 1;
   const seasonOf = (turn) => { const m = monthOf(turn); return m >= 10 ? 'winter' : m >= 7 ? 'autumn' : m >= 4 ? 'summer' : 'spring'; };
   const isWinter = (turn) => seasonOf(turn) === 'winter';
+  const isSummer = (turn) => seasonOf(turn) === 'summer';
   const countB = (S, cid, key) => S.buildings.reduce((n, b) => n + (b.city === cid && b.key === key ? 1 : 0), 0);
   const tileBuilding = (S, t) => S.buildings.find((b) => b.t === t && B[b.key].place === 'tile');
   const tileOwnerCity = (S, t) => { const o = S.map.tiles[t].owner; return o == null ? null : cityById(S, o); };
@@ -1063,7 +1063,8 @@ const Engine = ((R) => {
     }
     const wet = d.waterMult && nbrs(S.map, b.t).some((j) => ['river', 'lake'].includes(S.map.tiles[j].type));
     if (d.railBonus && tile.rail != null) flat += d.railBonus;
-    for (const g of Object.keys(out)) out[g] = round1(Math.round(out[g] * (1 + pct)) * (wet ? d.waterMult : 1) + flat);
+    const sun = (d.base || b.key) === 'farm' && !(opts && opts.season === false) && isSummer(S.turn) ? R.SUMMER_FARM : 1;
+    for (const g of Object.keys(out)) out[g] = round1((Math.round(out[g] * (1 + pct)) * (wet ? d.waterMult : 1) + flat) * sun);
     return out;
   }
   // Goods a building uses when it runs: its recipe, plus 0.5 lumber upkeep for buildings in the city itself
@@ -1107,7 +1108,7 @@ const Engine = ((R) => {
       const d = B[b.key];
       if (d.storage && d.storage[g]) cap += d.storage[g];
       if (d.storageAll && !R.SPECIAL_STORAGE.includes(g)) cap += d.storageAll;
-      const out = buildingOutput(S, b);
+      const out = buildingOutput(S, b, { season: false });
       if (out[g]) cap += R.CITY.productionStorageTurns * out[g];
     }
     return cap;
@@ -1516,6 +1517,8 @@ const Engine = ((R) => {
     if (combat.length) return { unit: combat[0] };
     const others = foes.filter((x) => baseDamage(S, attKey, x) > 0);
     if (others.length) return { unit: others[0] };
+    // an undefended city at 0 HP can still be shelled, which stops it healing that turn
+    if (city && !friendly(S, city.owner, attOwner) && atWar(S, attOwner, city.owner) && R.dmg(attKey, 'city') > 0) return { city };
     return null;
   }
   function attackTargets(S, u) {
@@ -1546,6 +1549,16 @@ const Engine = ((R) => {
         const mobile = x.type === 'caravan' || x.type === 'supplyTruck' || (x.type === 'train' && x.route == null);
         const dd = dist(S.map, x.t, pos);
         if (mobile && dd <= R.CITY.unitSupplyRadius) near.push({ x, dd });
+      }
+      for (const n of near.sort((a, b) => a.dd - b.dd || a.x.id - b.x.id)) res.push({ kind: 'unit', ref: n.x });
+    } else {
+      // ships draw from your freighters and merchantmen within 2 tiles, like land units from caravans and trucks
+      const near = [];
+      for (const x of S.units) {
+        if (x === u || x.owner !== u.owner || x.carriedBy != null) continue;
+        if (U[x.type].cls !== 'ship' || U[x.type].role !== 'logistic') continue;
+        const dd = dist(S.map, x.t, pos);
+        if (dd <= R.CITY.unitSupplyRadius) near.push({ x, dd });
       }
       for (const n of near.sort((a, b) => a.dd - b.dd || a.x.id - b.x.id)) res.push({ kind: 'unit', ref: n.x });
     }
@@ -2353,8 +2366,9 @@ const Engine = ((R) => {
         if (dist(S.map, c.t, a.t) > R.WEAPON_RANGE) continue;
         const tgt = pickTarget(S, w, p.id, a.t);
         if (!tgt || !tgt.unit) { rep(p.id, 'conflict', `${c.name}'s ${B[w].name.toLowerCase()} found no target at ${tileLabel(S, a.t)}.`); continue; }
-        if ((c.stock.ammo || 0) < R.WEAPON_AMMO) { rep(p.id, 'conflict', `${c.name}'s ${B[w].name.toLowerCase()} could not fire: needs ${R.WEAPON_AMMO} ammo in the city.`); continue; }
-        c.stock.ammo -= R.WEAPON_AMMO;
+        const wa = R.WEAPON_AMMO[w];
+        if ((c.stock.ammo || 0) < wa) { rep(p.id, 'conflict', `${c.name}'s ${B[w].name.toLowerCase()} could not fire: needs ${wa} ammo in the city.`); continue; }
+        c.stock.ammo = round1(c.stock.ammo - wa);
         attacks.push({ owner: p.id, key: w, src: { city: c.id }, name: `${c.name} ${B[w].name.toLowerCase()}`, from: c.t, tgt });
       }
     }
@@ -3044,7 +3058,8 @@ const Engine = ((R) => {
         u.supply = base ? 'In base (no upkeep)' : res.used.length ? `Supplied by ${res.used.map(sourceName).join(', ')}` : 'Supplied';
       }
       // repairs (not for units short of manpower)
-      const reach = base || sources.some((src) => src.kind !== 'store' && (src.kind !== 'unit' || src.ref !== u));
+      // ships repair only in or within 2 tiles of a port (a harbor for sailing ships); land units anywhere in supply
+      const reach = base || (d.cls === 'ship' ? sources.some((src) => src.kind === 'city') : sources.some((src) => src.kind !== 'store' && (src.kind !== 'unit' || src.ref !== u)));
       if (u.hp < maxHp && reach && res.ok && !u.mpShort) {
         const want = round1(Math.min(base ? R.REPAIR.base : R.REPAIR.field, maxHp - u.hp));
         let done = 0, paid = {};
@@ -3155,7 +3170,7 @@ const Engine = ((R) => {
       garrisonOf, posOf, carried, atWar, friendly, hasTreaty, isUnlocked, unitUnlocked, territoryRadius, supplyRadius, maxHp,
       capacity, freeSpace, recipeOf, recipeKey, buildingOutput, creditsOutOf, mpOf, mpOutOf, buildingOwner, reachable, findPath, canEnter, pickTarget, attackTargets,
       cityWeaponTargets, supplySources, sourceName, upkeepOf, inBase, checkBuild, checkTrain, checkFound, routeEstimate, describeProposal,
-      cargoUsed, cargoFree, portOk, dockable, slotFree, canCarry, carrySlots, demolishable, checkDemolish, checkDisband, inputsOf, monthOf, yearOf, seasonOf, isWinter, rawMove, ustat, UU, designById, designOf, canUseDesign, seesDesign, checkDesign, researchedUnitSelf, repairCost, isSettlement, settlementNeeds, storeCap, giftError, depotAt, depotById, depotCap, depotFree, depotName, routeDest, checkClear, checkSabotage, sabotageTarget, sabotageTargetFor, bridgeSiteError, fording, inRiver, canAct, whyIdle, moveOf, payOf, laborOf, maxHpU, cargoCap, carryCap, stars, entrenched, entrenchLevel, blitzing, attackDamage, previewAttack, landCombat, mobOf, doctrineOf, supplyMoveLimit, normPeace, checkPeace, peaceTerms, isWater, isLand, nearWater, tileLabel, goodsText, terrain,
+      cargoUsed, cargoFree, portOk, dockable, slotFree, canCarry, carrySlots, demolishable, checkDemolish, checkDisband, inputsOf, monthOf, yearOf, seasonOf, isWinter, isSummer, rawMove, ustat, UU, designById, designOf, canUseDesign, seesDesign, checkDesign, researchedUnitSelf, repairCost, isSettlement, settlementNeeds, storeCap, giftError, depotAt, depotById, depotCap, depotFree, depotName, routeDest, checkClear, checkSabotage, sabotageTarget, sabotageTargetFor, bridgeSiteError, fording, inRiver, canAct, whyIdle, moveOf, payOf, laborOf, maxHpU, cargoCap, carryCap, stars, entrenched, entrenchLevel, blitzing, attackDamage, previewAttack, landCombat, mobOf, doctrineOf, supplyMoveLimit, normPeace, checkPeace, peaceTerms, isWater, isLand, nearWater, tileLabel, goodsText, terrain,
     },
   };
 })(typeof RULES !== 'undefined' ? RULES : require('./rules.js'));
@@ -3700,7 +3715,7 @@ function renderHeader() {
   const vas = p.eliminated ? ' <span class="tag war">out of the game</span>' : '';
   return `<header class="bar" style="--me:${p.color}">
     <div class="nation"><div><div class="title">${esc(CONFIG.title)}</div><div class="sub">${esc(S.name)}, ${esc(isCampaign() ? scheduleText().replace('Turns resolve automatically at', 'auto-resolves') : Sync.label.toLowerCase())}</div></div></div>
-    <div class="turn">Turn ${S.turn}<div class="small muted" style="font-weight:400">${['Spring', 'Summer', 'Autumn', 'Winter'][['spring', 'summer', 'autumn', 'winter'].indexOf(Q.seasonOf(S.turn))]}, year ${Q.yearOf(S.turn)}${Q.isWinter(S.turn) ? ' · farms idle' : Q.monthOf(S.turn) === 9 ? ' · winter next turn' : ''}</div></div>
+    <div class="turn">Turn ${S.turn}<div class="small muted" style="font-weight:400">${['Spring', 'Summer', 'Autumn', 'Winter'][['spring', 'summer', 'autumn', 'winter'].indexOf(Q.seasonOf(S.turn))]}, year ${Q.yearOf(S.turn)}${Q.isWinter(S.turn) ? ' · farms idle' : Q.isSummer(S.turn) ? ' · farms +50%' : Q.monthOf(S.turn) === 9 ? ' · winter next turn' : ''}</div></div>
     <div>${sel}${vas}</div>
     <div class="res"><span>Credits <b>${p.credits}</b></span><span>Manpower <b>${Math.round(p.manpower * 10) / 10}</b>${reservedMp() ? ` <span class="small muted">(−${reservedMp()} queued)</span>` : ''}</span><span>Science <b>${p.science}</b></span></div>
     <div class="spacer"></div>
