@@ -202,6 +202,9 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&':
 const GN = (g) => RR.GOOD_NAMES[g] || g;
 const gl = (g) => GN(g).toLowerCase();
 const clone = (o) => JSON.parse(JSON.stringify(o));
+// Goods are tracked to one decimal; amounts held are shown rounded down so what you see is always there
+const amt = (v) => Math.floor((v || 0) + 1e-9);
+const fmtAmt = (o) => Object.entries(o || {}).map(([g, v]) => [g, amt(v)]).filter(([, v]) => v > 0).map(([g, v]) => `${v} ${gl(g)}`).join(', ');
 const fmtGoods = (o) => Object.entries(o || {}).filter(([, v]) => v > 0).map(([g, v]) => `${v} ${gl(g)}`).join(', ');
 const costText = (cost) => [cost.mp ? `${cost.mp} manpower` : null, ...Object.entries(cost).filter(([g]) => g !== 'mp').map(([g, v]) => `${v} ${gl(g)}`)].filter(Boolean).join(', ');
 
@@ -327,7 +330,7 @@ function draft() {
 function saveDraft() { try { localStorage.setItem(UI._dk, JSON.stringify(UI._d)); } catch (e) { /* storage full or blocked */ } }
 function mutate(fn) { fn(draft()); saveDraft(); render(); }
 function settings() { const d = draft(); if (!d.settings) d.settings = {}; return d.settings; }
-function draftCount(d) { return ['attacks', 'sabotage', 'moves', 'board', 'unload', 'buys', 'sells', 'research', 'dump', 'disband', 'demolish', 'clear', 'builds', 'trains', 'found', 'cargo', 'routeOps', 'diplo'].reduce((n, k) => n + d[k].length, 0) + (d.settings && (d.settings.priority || d.settings.mobilize || d.settings.supplyPriority || ['products', 'halt', 'labor', 'fuel', 'doctrine'].some((k) => d.settings[k] && Object.keys(d.settings[k]).length)) ? 1 : 0); }
+function draftCount(d) { return ['attacks', 'sabotage', 'moves', 'board', 'unload', 'buys', 'sells', 'research', 'designs', 'dump', 'disband', 'demolish', 'clear', 'builds', 'trains', 'found', 'cargo', 'routeOps', 'diplo'].reduce((n, k) => n + d[k].length, 0) + (d.settings && (d.settings.priority || d.settings.mobilize || d.settings.supplyPriority || ['products', 'halt', 'labor', 'fuel', 'doctrine'].some((k) => d.settings[k] && Object.keys(d.settings[k]).length)) ? 1 : 0); }
 // goods and manpower already committed by this turn's orders, per city
 function reserved(cityId) {
   const d = draft(), goods = {};
@@ -448,7 +451,9 @@ function buildMapSvg(kind) {
   out.push(`<rect x="0" y="0" width="${W}" height="${H}" fill="#24405a"/>`);
   // tiles
   out.push(`<g${flow ? ' opacity="0.55"' : ''}>`);
-  for (let i = 0; i < n; i++) { const [x, y] = center(m, i); out.push(`<polygon class="hx" data-t="${i}" points="${hexPts(x, y)}" fill="${RR.TILES[m.tiles[i].type].color}"/>`); }
+  const season = Q.seasonOf(S.turn);
+  const tint = { winter: { grassland: '#e4e9e4', forest: '#88a58c' }, autumn: { forest: '#7a7434' } }[season] || {};
+  for (let i = 0; i < n; i++) { const [x, y] = center(m, i); const ty = m.tiles[i].type; out.push(`<polygon class="hx" data-t="${i}" points="${hexPts(x, y)}" fill="${tint[ty] || RR.TILES[ty].color}"/>`); }
   out.push('</g><g pointer-events="none">');
   // territory tint
   for (let i = 0; i < n; i++) { const p = tileOwnerP(i); if (p == null) continue; const [x, y] = center(m, i); out.push(`<polygon points="${hexPts(x, y)}" fill="${pcol(p)}" opacity="${flow ? 0.08 : 0.11}"/>`); }
@@ -724,7 +729,7 @@ function renderHeader() {
   const vas = p.eliminated ? ' <span class="tag war">out of the game</span>' : '';
   return `<header class="bar" style="--me:${p.color}">
     <div class="nation"><div><div class="title">${esc(CONFIG.title)}</div><div class="sub">${esc(S.name)}, ${esc(isCampaign() ? scheduleText().replace('Turns resolve automatically at', 'auto-resolves') : Sync.label.toLowerCase())}</div></div></div>
-    <div class="turn">Turn ${S.turn}</div>
+    <div class="turn">Turn ${S.turn}<div class="small muted" style="font-weight:400">${['Spring', 'Summer', 'Autumn', 'Winter'][['spring', 'summer', 'autumn', 'winter'].indexOf(Q.seasonOf(S.turn))]}, year ${Q.yearOf(S.turn)}${Q.isWinter(S.turn) ? ' · farms idle' : Q.isSummer(S.turn) ? ' · farms +50%' : Q.monthOf(S.turn) === 9 ? ' · winter next turn' : ''}</div></div>
     <div>${sel}${vas}</div>
     <div class="res"><span>Credits <b>${p.credits}</b></span><span>Manpower <b>${Math.round(p.manpower * 10) / 10}</b>${reservedMp() ? ` <span class="small muted">(−${reservedMp()} queued)</span>` : ''}</span><span>Science <b>${p.science}</b></span></div>
     <div class="spacer"></div>
@@ -823,7 +828,7 @@ TAB_RENDER.map = function () {
 function goodsGrid(stock, city) {
   const S = st(), res = city ? reserved(city.id).goods : {};
   return `<div class="goodsgrid">${RR.GOODS.map((g) => {
-    const v = stock[g] || 0, cap = city ? Q.capacity(S, city, g) : null, after = v - (res[g] || 0);
+    const v = amt(stock[g]), cap = city ? Q.capacity(S, city, g) : null, after = amt((stock[g] || 0) - (res[g] || 0));
     const cls = cap != null && v >= cap ? 'full' : cap != null && v >= cap * 0.9 ? 'near' : v ? '' : 'z';
     return `<div class="${cls}"><span>${GN(g)}</span><span class="num">${v}${cap != null ? `<span class="muted">/${cap}</span>` : ''}${res[g] ? ` <span class="warn">→${after}</span>` : ''}</span></div>`;
   }).join('')}</div>`;
@@ -842,10 +847,10 @@ function sidePanel() {
     <dt>Territory</dt><dd>${oc ? `<span class="pdot" style="background:${pcol(oc.owner)}"></span>${esc(oc.name)} (${esc(pname(oc.owner))})` : 'Unclaimed'}</dd>
     ${tb ? `<dt>Building</dt><dd>${esc(BLD[tb.key].name)}${tb.status ? ` <span class="small ${tb.status.startsWith('Idle') ? 'warn' : 'muted'}">${esc(tb.status)}</span>` : ''}</dd>` : ''}
     ${tile.rail != null && tile.bridge !== 'rail' ? `<dt>Railroad</dt><dd><span class="pdot" style="background:${pcol(tile.rail)}"></span>built by ${esc(pname(tile.rail))}</dd>` : ''}${tile.bridge ? `<dt>${tile.bridge === 'rail' ? 'Rail bridge' : 'Bridge'}</dt><dd>${tile.bridgeBy != null ? `<span class="pdot" style="background:${pcol(tile.bridgeBy)}"></span>built by ${esc(pname(tile.bridgeBy))}` : 'Yes'}</dd>` : ''}
-    ${(() => { const dp = Q.depotAt(S, t); return dp && Q.isSettlement(dp) ? settlementBlock(dp) : dp ? `<dt>Field depot</dt><dd><span class="pdot" style="background:${pcol(dp.owner)}"></span>${esc(pname(dp.owner))}${dp.owner === UI.me ? `<div class="small">${esc(fmtGoods(dp.stock) || 'empty')}</div><div class="small muted">Holds ${RR.DEPOT.storage.food} food, fuel and ammo, ${RR.DEPOT.other} of other goods; supplies units within ${RR.DEPOT.supplyRange} tiles.</div>` : ''}</dd>` : ''; })()}
+    ${(() => { const dp = Q.depotAt(S, t); return dp && Q.isSettlement(dp) ? settlementBlock(dp) : dp ? `<dt>Field depot</dt><dd><span class="pdot" style="background:${pcol(dp.owner)}"></span>${esc(pname(dp.owner))}${dp.owner === UI.me ? `<div class="small">${esc(fmtAmt(dp.stock) || 'empty')}</div><div class="small muted">Holds ${RR.DEPOT.storage.food} food, fuel and ammo, ${RR.DEPOT.other} of other goods; supplies units within ${RR.DEPOT.supplyRange} tiles.</div>` : ''}</dd>` : ''; })()}
     ${tile.tunnel != null ? `<dt>Rail tunnel</dt><dd><span class="pdot" style="background:${pcol(tile.tunnel)}"></span>built by ${esc(pname(tile.tunnel))}<div class="small muted">Only trains and infantry can pass.</div></dd>` : ''}
     ${tile.type === 'river' && !tile.bridge ? '<dt>Crossing</dt><dd class="small">Infantry, cavalry and caravans can wade in; it ends their move, and they cannot attack from the river.</dd>' : ''}
-    ${tile.trap != null ? `<dt>Tank trap</dt><dd>${esc(cityName(tile.trap))}</dd>` : ''}</dl>${clearBlock(t)}${demolishBlock(t)}</section>`);
+    ${tile.trap != null ? `<dt>Tank trap</dt><dd>${esc(S.players[tile.trap] ? S.players[tile.trap].name : '?')} — ends a tank's move</dd>` : ''}</dl>${clearBlock(t)}${demolishBlock(t)}</section>`);
   if (city) parts.push(cityPanel(city));
   const units = Q.unitsAt(S, t);
   if (units.length) {
@@ -859,7 +864,7 @@ function settlementBlock(dp) {
   const S = st(), own = dp.owner === UI.me, need = Q.settlementNeeds(S, dp), d = draft();
   let body = `<dt>Settlement</dt><dd><span class="pdot" style="background:${pcol(dp.owner)}"></span>${esc(pname(dp.owner))}`;
   if (own) {
-    body += `<div class="small">${Object.entries(need).map(([g, v]) => `${gl(g)} ${dp.stock[g] || 0} / ${v}`).join(' · ')}</div>
+    body += `<div class="small">${Object.entries(need).map(([g, v]) => `${gl(g)} ${amt(dp.stock[g])} / ${v}`).join(' · ')}</div>
       <div class="small muted">Placed on turn ${dp.born}. If any city's territory grows over this tile, the settlement is dissolved and that city takes its stores.${S.map.tiles[dp.t].type === 'forest' ? ` Founding here clears the forest (+${RR.CLEAR_FOREST.mp} manpower, gives the city ${RR.CLEAR_FOREST.lumber} lumber).` : ''}</div>`;
     const qi = d.found.findIndex((f) => f.depot === dp.id);
     if (qi >= 0) body += `<div class="row small"><span class="tag brass">Founding ${esc(d.found[qi].name)} this turn</span><button class="x" data-act="rm" data-list="found" data-idx="${qi}" aria-label="Cancel">✕</button></div>`;
@@ -910,9 +915,12 @@ function cityPanel(c) {
     const act = b.place === 'city' ? `<button class="btn small" data-act="build-city" data-city="${c.id}" data-key="${k}" ${err ? 'disabled' : ''}>Build</button>` : `<button class="btn small" data-act="mode-build" data-city="${c.id}" data-key="${k}">Place…</button>`;
     return `<div class="opt ${err ? 'no' : ''}"><span>${esc(b.name)}${err ? ` <span class="small warn">${esc(err)}</span>` : ''}</span>${act}<span class="cost">${esc(costText(b.cost))}</span></div>`;
   }).join('');
+  const retired = S.players[UI.me].retiredDesigns || [];
   const trainOpts = Object.entries(UNI).filter(([k]) => Q.unitUnlocked(S, UI.me, k)).map(([k, u]) => {
     const err = Q.checkTrain(S, UI.me, c.id, k);
-    return `<div class="opt ${err ? 'no' : ''}"><span>${esc(u.name)}${err ? ` <span class="small muted">${esc(err)}</span>` : ''}</span><button class="btn small" data-act="train" data-city="${c.id}" data-type="${k}" ${err ? 'disabled' : ''}>Build</button><span class="cost">${esc(costText(u.cost))}</span></div>`;
+    const line = (name, cost, designId) => `<div class="opt ${err ? 'no' : ''}"><span>${esc(name)}${err ? ` <span class="small muted">${esc(err)}</span>` : ''}</span><button class="btn small" data-act="train" data-city="${c.id}" data-type="${k}"${designId != null ? ` data-design="${designId}"` : ''} ${err ? 'disabled' : ''}>Build</button><span class="cost">${esc(costText(cost))}</span></div>`;
+    const designs = (S.designs || []).filter((dz) => dz.base === k && Q.canUseDesign(S, UI.me, dz) && !retired.includes(dz.id));
+    return line(u.name, u.cost) + designs.map((dz) => line(`${dz.name} (${u.name.toLowerCase()} design)`, Q.ustat(k, dz).cost, dz.id)).join('');
   }).join('');
   const weapons = ['fort', 'navalBattery'].filter((w) => Q.countB(S, c.id, w)).map((w) => `<button class="btn small" data-act="mode-weapon" data-city="${c.id}" data-w="${w}">Aim ${BLD[w].name.toLowerCase()}</button>`).join(' ');
   return `${head}</section>
@@ -921,7 +929,7 @@ function cityPanel(c) {
       ${(() => { const cb = blds.filter((b) => BLD[b.key].place === 'city'); if (!cb.length) return ''; return `<details class="small"><summary>Demolish a building…</summary>${cb.map((b) => { const qi = d.demolish.findIndex((o) => o.what === 'city' && o.id === b.id); return qi >= 0 ? `<div class="row small"><span class="tag war">Demolishing ${esc(BLD[b.key].name.toLowerCase())}</span><button class="x" data-act="rm" data-list="demolish" data-idx="${qi}">✕</button></div>` : `<div class="row small"><button class="btn small danger" data-act="demolish-city" data-id="${b.id}">Demolish ${esc((BLD[b.key].short || BLD[b.key].name).toLowerCase())}</button><span class="muted">${RR.DEMOLISH.mp} manpower; half its goods back</span></div>`; }).join('')}</details>`; })()}
       ${queued.length ? `<p class="small">Queued: ${queued.map((b) => `${esc(BLD[b.key].name)}${b.t != null ? ` at ${tl(b.t)}` : ''}`).join(', ')}</p>` : ''}
       <h4>Build</h4><div class="buildlist">${opts}</div></section>
-    <section><h3>Recruit</h3>${qTrain.length ? `<p class="small">Queued: ${qTrain.map((x) => esc(UNI[x.type].name)).join(', ')}</p>` : ''}<div class="buildlist">${trainOpts || '<p class="muted small">Research units first.</p>'}</div></section>
+    <section><h3>Recruit</h3>${qTrain.length ? `<p class="small">Queued: ${qTrain.map((x) => esc(x.design != null && Q.designById(S, x.design) ? Q.designById(S, x.design).name : UNI[x.type].name)).join(', ')}</p>` : ''}<div class="buildlist">${trainOpts || '<p class="muted small">Research units first.</p>'}</div></section>
     ${weapons ? `<section><h3>Defenses</h3>${weapons}</section>` : ''}`;
 }
 function unitStatus(S, u) {
@@ -936,17 +944,21 @@ function unitStatus(S, u) {
   if (Q.blitzing(S, u)) bits.push('<b>⚡ Mobile warfare</b>: moved last turn, +25% damage');
   return bits.join(' · ');
 }
+const DESIGN_LABELS = { hp: 'HP', speed: 'speed', dmg: 'damage', cargo: 'cargo' };
+const designSteps = (dz) => Object.entries(dz.steps || {}).filter(([, v]) => v).map(([k, v]) => `${DESIGN_LABELS[k]} ${v > 0 ? '+' : ''}${v}`).join(', ') || 'base model';
 function unitPanel(u) {
-  const S = st(), dd = UNI[u.type], d = draft(), own = u.owner === UI.me;
+  const S = st(), d = draft(), own = u.owner === UI.me, zd = Q.designOf(S, u), dd = Q.UU(S, u);
+  const secret = !own && zd && !Q.seesDesign(S, UI.me, zd); // others see a custom design's name and HP, not its recipe
   const mv = d.moves.find((m) => m.unit === u.id), at = d.attacks.find((a) => a.unit === u.id);
   const tr = u.carriedBy != null ? Q.unitById(S, u.carriedBy) : null;
   const aboard = Q.carried(S, u);
   const out = [`<section><h3>${esc(Q.unitName(u))} <span class="muted small">${esc(pname(u.owner))}</span></h3><dl class="kv">
-    <dt>HP</dt><dd class="num">${u.hp} / ${Q.maxHpU(S, u)}</dd><dt>Move</dt><dd>${own ? `${Q.moveOf(S, u)} tiles this turn` : `${dd.move} tiles`}${dd.cls === 'rail' ? ' (rail only)' : ''}</dd>
-    ${dd.range ? `<dt>Attack</dt><dd>range ${dd.range}, ${dd.ammo} ammo per attack</dd>` : ''}
-    ${dd.role === 'combat' ? `<dt>Stores</dt><dd class="small">${(() => { const cap = Q.storeCap(S, u), stv = u.store || {}; return Object.entries(cap).map(([g, v]) => `${gl(g)} ${stv[g] || 0} / ${v}`).join(' · ') || '—'; })()}<div class="muted">Used only when no city, field depot or logistics unit can supply it; refilled at the end of each turn in supply range.</div></dd>` : ''}
+    <dt>HP</dt><dd class="num">${u.hp} / ${Q.maxHpU(S, u)}</dd>${zd ? `<dt>Design</dt><dd>${esc(zd.name)} <span class="small muted">(${esc(UNI[u.type].name.toLowerCase())}${secret ? '; its settings are secret' : `: ${esc(designSteps(zd))}`})</span></dd>` : ''}
+    <dt>Move</dt><dd>${own ? `${Q.moveOf(S, u)} tiles this turn` : secret ? '<span class="muted">unknown</span>' : `${dd.move} tiles`}${dd.cls === 'rail' ? ' (rail only)' : ''}</dd>
+    ${dd.range ? `<dt>Attack</dt><dd>range ${dd.range}${secret ? '' : `, ${dd.ammo} ammo per attack`}</dd>` : ''}
+    ${dd.role === 'combat' && own ? `<dt>Stores</dt><dd class="small">${(() => { const cap = Q.storeCap(S, u), stv = u.store || {}; return Object.entries(cap).map(([g, v]) => `${gl(g)} ${amt(stv[g])} / ${v}`).join(' · ') || '—'; })()}<div class="muted">Used only when no city, field depot or logistics unit can supply it; refilled at the end of each turn in supply range.</div></dd>` : ''}
     ${dd.role === 'combat' ? `<dt>Rank</dt><dd>${RR.XP.names[Q.stars(u)]}${Q.stars(u) ? ` (+${Math.round(RR.XP.bonus[Q.stars(u)] * 100)}% damage)` : ` <span class="small muted">${u.xp || 0} of ${RR.XP.veteran} battles to veteran</span>`}</dd>` : ''}
-    ${dd.cargo ? `<dt>Cargo</dt><dd>${Q.cargoUsed(u)} / ${Q.cargoCap(S, u)}${Q.cargoUsed(u) ? `: ${esc(fmtGoods(u.cargo))}` : ''}</dd>` : ''}
+    ${dd.cargo && !secret ? `<dt>Cargo</dt><dd>${amt(Q.cargoUsed(u))} / ${Q.cargoCap(S, u)}${Q.cargoUsed(u) ? `: ${esc(fmtAmt(u.cargo))}` : ''}</dd>` : ''}
     ${dd.carry ? `<dt>Carrying</dt><dd>${aboard.reduce((a, x) => a + Q.carrySlots(u, x), 0)} / ${Q.carryCap(S, u)} slots${dd.carryTypes ? ` (${Object.entries(dd.carryTypes).map(([k, n]) => `${UNI[k].name.toLowerCase()} ${n}`).join(', ')})` : ''}${aboard.length ? `: ${aboard.map((x) => esc(Q.unitName(x))).join(', ')}` : ''}</dd>` : ''}
     ${tr ? `<dt>Aboard</dt><dd>${esc(Q.unitName(tr))}</dd>` : ''}
     ${u.route != null ? `<dt>Route</dt><dd>#${u.route} (${esc(u.leg || '')})</dd>` : ''}
@@ -971,7 +983,7 @@ function unitPanel(u) {
   if (u.carriedBy != null) acts.push(`<button class="btn small" data-act="mode-unload" data-unit="${u.id}">Unload…</button>`);
   // field depot here: load or unload
   const dpHere = Q.depotAt(S, u.t);
-  if (dd.cargo && dpHere && dpHere.owner === UI.me && u.carriedBy == null) acts.push(`<h4>${Q.isSettlement(dpHere) ? 'Settlement (unload only)' : 'Field depot'}</h4><div class="row"><select id="dg-good" aria-label="Good">${RR.GOODS.map((g) => `<option value="${g}">${GN(g)} (depot ${dpHere.stock[g] || 0}, aboard ${u.cargo[g] || 0})</option>`).join('')}</select><input type="number" id="dg-amt" min="1" value="10" aria-label="Amount"></div>
+  if (dd.cargo && dpHere && dpHere.owner === UI.me && u.carriedBy == null) acts.push(`<h4>${Q.isSettlement(dpHere) ? 'Settlement (unload only)' : 'Field depot'}</h4><div class="row"><select id="dg-good" aria-label="Good">${RR.GOODS.map((g) => `<option value="${g}">${GN(g)} (depot ${amt(dpHere.stock[g])}, aboard ${amt(u.cargo[g])})</option>`).join('')}</select><input type="number" id="dg-amt" min="1" value="10" aria-label="Amount"></div>
     <div class="row">${Q.isSettlement(dpHere) ? '' : `<button class="btn small" data-act="dcargo" data-unit="${u.id}" data-depot="${dpHere.id}" data-dir="1">Load</button>`}<button class="btn small" data-act="dcargo" data-unit="${u.id}" data-depot="${dpHere.id}" data-dir="-1">Unload</button></div>`);
   // dump cargo (logistics units) and disband
   if (dd.cargo && Q.cargoUsed(u)) acts.push(`<div class="row"><select id="dump-good" aria-label="Good to dump">${Object.entries(u.cargo).filter(([, v]) => v > 0).map(([g, v]) => `<option value="${g}">${GN(g)} (${v})</option>`).join('')}</select><button class="btn small" data-act="dump" data-unit="${u.id}">Dump it</button></div>`);
@@ -1005,7 +1017,7 @@ function unitPanel(u) {
   if (dd.role === 'logistic' && u.carriedBy == null) {
     const c = Q.cityAt(S, u.t);
     if (c && c.owner === UI.me && dd.cargo) {
-      acts.push(`<h4>Load or unload in ${esc(c.name)}</h4><div class="row"><select id="cg-good" aria-label="Good">${RR.GOODS.map((g) => `<option value="${g}">${GN(g)} (city ${c.stock[g] || 0}, aboard ${u.cargo[g] || 0})</option>`).join('')}</select><input type="number" id="cg-amt" min="1" value="10" aria-label="Amount"></div>
+      acts.push(`<h4>Load or unload in ${esc(c.name)}</h4><div class="row"><select id="cg-good" aria-label="Good">${RR.GOODS.map((g) => `<option value="${g}">${GN(g)} (city ${amt(c.stock[g])}, aboard ${amt(u.cargo[g])})</option>`).join('')}</select><input type="number" id="cg-amt" min="1" value="10" aria-label="Amount"></div>
         <div class="row"><button class="btn small" data-act="cargo" data-unit="${u.id}" data-city="${c.id}" data-dir="1">Load</button><button class="btn small" data-act="cargo" data-unit="${u.id}" data-city="${c.id}" data-dir="-1">Unload</button></div>`);
     }
   }
@@ -1111,14 +1123,14 @@ TAB_RENDER.stock = function () {
   const S = st(), p = meP();
   const cities = Q.citiesOf(S, UI.me);
   const head = `<tr><th>Location</th>${RR.GOODS.map((g) => `<th class="n">${GN(g)}</th>`).join('')}</tr>`;
-  const cityRows = cities.map((c) => `<tr><td><button class="linkbtn" data-act="goto" data-t="${c.t}">${esc(c.name)}</button></td>${RR.GOODS.map((g) => { const v = c.stock[g] || 0, cap = Q.capacity(S, c, g); return `<td class="n ${v >= cap ? 'full' : v >= cap * 0.9 ? 'near' : ''}">${v}<span class="muted small">/${cap}</span></td>`; }).join('')}</tr>`).join('');
+  const cityRows = cities.map((c) => `<tr><td><button class="linkbtn" data-act="goto" data-t="${c.t}">${esc(c.name)}</button></td>${RR.GOODS.map((g) => { const v = amt(c.stock[g]), cap = Q.capacity(S, c, g); return `<td class="n ${v >= cap ? 'full' : v >= cap * 0.9 ? 'near' : ''}">${v}<span class="muted small">/${cap}</span></td>`; }).join('')}</tr>`).join('');
   const units = Q.unitsOf(S, UI.me).filter((u) => UNI[u.type].cargo);
-  const unitRows = units.map((u) => `<tr><td><button class="linkbtn" data-act="goto-unit" data-id="${u.id}">${esc(Q.unitName(u))}</button> <span class="small muted">${tl(Q.posOf(S, u))}, ${Q.cargoUsed(u)}/${UNI[u.type].cargo}</span></td>${RR.GOODS.map((g) => `<td class="n">${u.cargo[g] || ''}</td>`).join('')}</tr>`).join('');
+  const unitRows = units.map((u) => `<tr><td><button class="linkbtn" data-act="goto-unit" data-id="${u.id}">${esc(Q.unitName(u))}</button> <span class="small muted">${tl(Q.posOf(S, u))}, ${amt(Q.cargoUsed(u))}/${Q.cargoCap(S, u)}</span></td>${RR.GOODS.map((g) => `<td class="n">${amt(u.cargo[g]) || ''}</td>`).join('')}</tr>`).join('');
   const tot = {}; for (const c of cities) for (const g of RR.GOODS) tot[g] = (tot[g] || 0) + (c.stock[g] || 0); for (const u of units) for (const g of RR.GOODS) tot[g] = (tot[g] || 0) + (u.cargo[g] || 0);
   return `<div class="page"><h2>Stockpiles</h2><p class="muted">Credits, manpower and science belong to the whole nation. Every other good sits in a city or a logistics unit and only moves by transport. Amounts show stock/capacity.</p>
     <div class="row" style="gap:24px;margin:10px 0 14px"><span>Credits <b class="num" style="font-size:1.3rem">${p.credits}</b></span><span>Manpower <b class="num" style="font-size:1.3rem">${p.manpower}</b></span><span>Science <b class="num" style="font-size:1.3rem">${p.science}</b></span></div>
     <div class="ledger"><table><thead>${head}</thead><tbody>${cityRows ? `<tr class="sub"><td colspan="${RR.GOODS.length + 1}">Cities</td></tr>${cityRows}` : ''}${unitRows ? `<tr class="sub"><td colspan="${RR.GOODS.length + 1}">Logistics units</td></tr>${unitRows}` : ''}
-    <tr class="sub"><td>Total</td>${RR.GOODS.map((g) => `<td class="n">${tot[g] || 0}</td>`).join('')}</tr></tbody></table></div></div>`;
+    <tr class="sub"><td>Total</td>${RR.GOODS.map((g) => `<td class="n">${amt(tot[g])}</td>`).join('')}</tr></tbody></table></div></div>`;
 };
 
 /* ---------- Buildings ---------- */
@@ -1128,7 +1140,7 @@ TAB_RENDER.buildings = function () {
     const blds = Q.cityBuildings(S, c.id).sort((a, b) => a.key.localeCompare(b.key));
     const rails = S.map.tiles.filter((t) => t.owner === c.id && t.rail != null).length;
     const bridges = S.map.tiles.filter((t) => t.owner === c.id && t.bridge).length;
-    const trap = S.map.tiles.findIndex((t) => t.trap === c.id);
+    const traps = S.map.tiles.filter((t) => t.owner === c.id && t.trap === UI.me).length;
     const effect = (b) => {
       const d = BLD[b.key];
       if (d.recipes) { const rc = Q.recipeOf(b), out = Q.buildingOutput(S, b); return `${fmtGoods(Q.inputsOf(b)) || 'no inputs'} → ${fmtGoods(out) || [rc.mpOut ? `${rc.mpOut} manpower` : '', rc.sciOut ? `${rc.sciOut} science` : '', Q.creditsOutOf(S, b) || rc.creditsPerResidence ? `${Q.creditsOutOf(S, b)} credits${rc.creditsPerResidence ? ` (${rc.creditsPerResidence} per working residence)` : ''}` : ''].filter(Boolean).join(', ')}`; }
@@ -1143,7 +1155,7 @@ TAB_RENDER.buildings = function () {
     return `<div class="ledger"><table><thead><tr><th colspan="4">${esc(c.name)} <span class="muted small">HP ${c.hp}/${Q.maxHp(S, c)}, territory ${Q.territoryRadius(S, c)}, supply range ${Q.supplyRadius(S, c)}</span></th></tr>
       <tr><th>Building</th><th>Where</th><th>Does</th><th>Last turn</th></tr></thead><tbody>
       ${blds.map((b) => `<tr><td>${esc(BLD[b.key].name)}</td><td>${BLD[b.key].place === 'tile' ? `<button class="linkbtn" data-act="goto" data-t="${b.t}">${esc(RR.TILES[S.map.tiles[b.t].type].name)} ${tl(b.t)}</button>` : 'City'}</td><td class="small">${esc(effect(b))}</td><td class="small ${b.status && b.status.startsWith('Idle') ? 'warn' : 'muted'}">${esc(b.status || '')}</td></tr>`).join('') || '<tr><td colspan="4" class="muted">No buildings yet.</td></tr>'}
-      ${rails || bridges || trap >= 0 ? `<tr class="sub"><td colspan="4">Infrastructure in territory: ${rails} railroad tile${rails === 1 ? '' : 's'}, ${bridges} bridge${bridges === 1 ? '' : 's'}${trap >= 0 ? `, tank trap at ${tl(trap)}` : ''}</td></tr>` : ''}
+      ${rails || bridges || traps ? `<tr class="sub"><td colspan="4">Infrastructure in territory: ${rails} railroad tile${rails === 1 ? '' : 's'}, ${bridges} bridge${bridges === 1 ? '' : 's'}${traps ? `, ${traps} tank trap${traps === 1 ? '' : 's'}` : ''}</td></tr>` : ''}
       </tbody></table></div>`;
   }).join('');
   return `<div class="page"><h2>Buildings</h2>${blocks || '<p class="muted">You have no cities.</p>'}</div>`;
@@ -1210,15 +1222,16 @@ TAB_RENDER.research = function () {
     return `<div class="ledger"><table><thead><tr><th colspan="4">Era ${era}: ${RR.ERA_NAMES[era]}</th></tr><tr><th>Building</th><th class="n">Science</th><th>Unlocks units</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
   }).join('');
   const sellable = p.researched.filter((k) => BLD[k]);
+  const myDesigns = (S.designs || []).filter((dz) => dz.owner === UI.me);
   const others = activePlayers().filter((x) => x.id !== UI.me);
   const offers = d.diplo.filter((o) => o.type === 'propose' && o.kind === 'blueprint');
   return `<div class="page"><h2>Research</h2><p class="muted">Universities turn 6 manpower and 500 credits into 1 science each turn; research facilities turn 12 manpower and 1,000 credits into 3. Research any building in any order; later eras cost more. Science is never lost.</p>
     <div class="row" style="gap:24px"><span>Science available <b class="num" style="font-size:1.3rem">${p.science}</b></span><span>Queued this turn <b class="num ${queuedCost > p.science ? 'warn' : ''}" style="font-size:1.3rem">${queuedCost}</b></span></div>
     <div class="cols" style="margin-top:12px"><div>${eras}<div class="ledger"><table><thead><tr><th colspan="3">Military doctrines (choose them on the War tab)</th></tr><tr><th>Doctrine</th><th class="n">Science</th><th></th></tr></thead><tbody>${docs}</tbody></table></div></div>
-    <div class="panel"><h3 style="margin-top:0">Sell a blueprint</h3><p class="small muted">Only buildings you researched yourself can be sold. The buyer accepts next turn and pays on acceptance.</p>
-      ${sellable.length && others.length ? `<div class="row"><select id="bp-key" aria-label="Blueprint">${sellable.map((k) => `<option value="${k}">${esc(BLD[k].name)}</option>`).join('')}</select><select id="bp-to" aria-label="Buyer">${others.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select><input type="number" id="bp-price" min="0" value="200" aria-label="Price in credits"><button class="btn small" data-act="bp-offer">Offer</button></div>` : '<p class="small muted">Nothing to sell yet.</p>'}
-      ${offers.length ? `<ul class="list">${offers.map((o) => `<li>${esc(BLD[o.payload.key].name)} to ${esc(pname(o.to))} for ${o.payload.price}<button class="x" data-act="rm" data-list="diplo" data-idx="${d.diplo.indexOf(o)}">✕</button></li>`).join('')}</ul>` : ''}
-      <h4>Bought blueprints</h4><p class="small">${p.blueprints.map((k) => esc(BLD[k].name)).join(', ') || '<span class="muted">None</span>'}</p></div></div></div>`;
+    <div class="panel"><h3 style="margin-top:0">Sell a blueprint</h3><p class="small muted">Only buildings you researched yourself, and unit designs you created, can be sold. The buyer accepts next turn and pays on acceptance.</p>
+      ${(sellable.length || myDesigns.length) && others.length ? `<div class="row"><select id="bp-key" aria-label="Blueprint">${sellable.map((k) => `<option value="${k}">${esc(BLD[k].name)}</option>`).join('')}${myDesigns.map((dz) => `<option value="design:${dz.id}">${esc(dz.name)} (${esc(UNI[dz.base].name.toLowerCase())} design)</option>`).join('')}</select><select id="bp-to" aria-label="Buyer">${others.map((x) => `<option value="${x.id}">${esc(x.name)}</option>`).join('')}</select><input type="number" id="bp-price" min="0" value="200" aria-label="Price in credits"><button class="btn small" data-act="bp-offer">Offer</button></div>` : '<p class="small muted">Nothing to sell yet.</p>'}
+      ${offers.length ? `<ul class="list">${offers.map((o) => `<li>${esc(o.payload.design != null ? `${(Q.designById(S, o.payload.design) || {}).name || 'Design'} design` : BLD[o.payload.key].name)} to ${esc(pname(o.to))} for ${o.payload.price}<button class="x" data-act="rm" data-list="diplo" data-idx="${d.diplo.indexOf(o)}">✕</button></li>`).join('')}</ul>` : ''}
+      <h4>Bought blueprints</h4><p class="small">${[...p.blueprints.map((k) => esc(BLD[k].name)), ...(p.designBlueprints || []).map((id) => { const dz = Q.designById(S, id); return dz ? `${esc(dz.name)} design` : ''; })].filter(Boolean).join(', ') || '<span class="muted">None</span>'}</p></div></div></div>`;
 };
 
 /* ---------- Market ---------- */
@@ -1231,7 +1244,7 @@ TAB_RENDER.market = function () {
   const rows = RR.GOODS.map((g) => {
     const pr = S.market.prices[g] || { sell: RR.BASE_PRICE[g], pays: Math.round(RR.BASE_PRICE[g] * 0.8), pool: 0, world: 0, r: 0 };
     return `<tr><td><i class="swatch" style="background:${RR.GOOD_COLORS[g]}"></i>${GN(g)}</td><td class="n">${RR.BASE_PRICE[g]}</td><td class="n"><strong>${pr.sell}</strong></td><td class="n">${pr.pays}</td><td class="n">${pr.pool}</td><td class="n">${pr.world}</td><td class="n">${Math.round(pr.r * 100)}%</td><td class="n small">${(S.market.last || {})[g] ? `${S.market.last[g].qty} at ${S.market.last[g].avg}${S.market.last[g].high > S.market.last[g].avg ? ` (top ${S.market.last[g].high})` : ''}` : '<span class="muted">—</span>'}</td>
-      <td>${c ? `<span class="small muted">${c.stock[g] || 0}</span>` : ''}</td>
+      <td>${c ? `<span class="small muted">${amt(c.stock[g])}</span>` : ''}</td>
       <td><div class="row" style="margin:0;flex-wrap:nowrap"><input type="number" min="1" class="w-sm" id="mk-${g}" value="10" aria-label="${GN(g)} amount"><input type="number" min="${pr.sell}" max="${RR.BASE_PRICE[g] * RR.MARKET.maxBidX}" class="w-sm" id="mkb-${g}" placeholder="max price" title="Optional: the most you will pay per unit if other nations bid for the same supply" aria-label="${GN(g)} maximum price per unit"><button class="btn small" data-act="buy" data-good="${g}" ${!c || blocked || !pr.pool ? 'disabled' : ''}>Buy</button><button class="btn small" data-act="sell" data-good="${g}" ${!c || blocked ? 'disabled' : ''}>Sell</button></div></td></tr>`;
   }).join('');
   const lines = [...d.buys.map((o, i) => ['buys', i, o.maxPrice ? `Buy ${o.amount} ${gl(o.good)} for ${cityName(o.city)}, bidding up to ${o.maxPrice} each (at most ${o.amount * o.maxPrice} credits)` : `Buy ${o.amount} ${gl(o.good)} for ${cityName(o.city)} at the market price (about ${o.amount * (S.market.prices[o.good] || {}).sell} credits)`]), ...d.sells.map((o, i) => ['sells', i, `Sell ${o.amount} ${gl(o.good)} from ${cityName(o.city)} (about ${o.amount * (S.market.prices[o.good] || {}).pays} credits)`])];
@@ -1293,7 +1306,7 @@ TAB_RENDER.war = function () {
     const dis = d.disband.some((o) => o.unit === u.id);
     return `<tr><td><button class="linkbtn" data-act="goto-unit" data-id="${u.id}">${esc(Q.unitName(u))}</button></td><td class="small">${tl(Q.posOf(S, u))}</td><td class="n">${u.hp} / ${Q.maxHpU(S, u)}</td><td>${['', '★', '★★'][Q.stars(u)]} <span class="small">${RR.XP.names[Q.stars(u)]}</span></td><td class="n">${Q.canAct(S, u) ? `${mult}%` : '—'}</td><td class="n">${Q.moveOf(S, u)}</td><td class="n">${Q.payOf(S, u)}</td><td class="small">${status.join(', ') || 'ready'}</td><td>${dis ? '<span class="tag war">disbanding</span>' : `<button class="btn small danger" data-act="disband" data-unit="${u.id}">Disband</button>`}</td></tr>`;
   }).join('');
-  const lrows = logi.map((u) => `<tr><td><button class="linkbtn" data-act="goto-unit" data-id="${u.id}">${esc(Q.unitName(u))}</button></td><td class="small">${tl(Q.posOf(S, u))}</td><td class="n">${u.hp} / ${Q.maxHpU(S, u)}</td><td class="small">${esc(fmtGoods(u.cargo) || 'empty')}</td><td class="small">${u.route != null ? `route #${u.route}` : ''}</td><td>${d.disband.some((o) => o.unit === u.id) ? '<span class="tag war">disbanding</span>' : `<button class="btn small danger" data-act="disband" data-unit="${u.id}">Disband</button>`}</td></tr>`).join('');
+  const lrows = logi.map((u) => `<tr><td><button class="linkbtn" data-act="goto-unit" data-id="${u.id}">${esc(Q.unitName(u))}</button></td><td class="small">${tl(Q.posOf(S, u))}</td><td class="n">${u.hp} / ${Q.maxHpU(S, u)}</td><td class="small">${esc(fmtAmt(u.cargo) || 'empty')}</td><td class="small">${u.route != null ? `route #${u.route}` : ''}</td><td>${d.disband.some((o) => o.unit === u.id) ? '<span class="tag war">disbanding</span>' : `<button class="btn small danger" data-act="disband" data-unit="${u.id}">Disband</button>`}</td></tr>`).join('');
   return `<div class="page"><h2>War</h2><p class="muted">Mobilization, doctrines and every unit you command. Attack strength shows the unit's own modifiers (mobilization, pay, supply, experience); hover a red target on the map for the full damage forecast.</p>
     <div class="cols" style="grid-template-columns:1fr 1fr 1fr;gap:14px">
       <div class="panel"><h3 style="margin-top:0">Mobilization</h3><p class="small">Now: <b>${esc(mobLabel(S, p))}</b></p>${mobRadio}
@@ -1304,8 +1317,42 @@ TAB_RENDER.war = function () {
     <div class="row" style="gap:24px;margin-top:12px"><span>Combat units <b class="num">${combat.length}</b></span><span>Pay next turn about <b class="num">${payTotal}</b> credits <span class="small muted">(before free barracks and port berths)</span></span><span>Manpower draw <b class="num">${Math.round(combat.length * RR.MANPOWER_DRAW * 10) / 10}</b> a turn</span></div>
     <div class="ledger" style="margin-top:10px"><table><thead><tr><th>Unit</th><th>Location</th><th class="n">HP</th><th>Rank</th><th class="n">Attack</th><th class="n">Move</th><th class="n">Pay</th><th>Status</th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="9" class="muted">No combat units.</td></tr>'}</tbody></table></div>
     <div class="ledger" style="margin-top:10px"><table><thead><tr><th>Logistics unit</th><th>Location</th><th class="n">HP</th><th>Cargo</th><th></th><th></th></tr></thead><tbody>${lrows || '<tr><td colspan="6" class="muted">No logistics units.</td></tr>'}</tbody></table></div>
-    <p class="small muted">Disbanding returns half the goods used to build a unit (never the manpower), plus any cargo, to your cities, field depots or logistics units in range; anything that does not fit is lost.</p></div>`;
+    <p class="small muted">Disbanding returns half the goods used to build a unit (never the manpower), plus any cargo, to your cities, field depots or logistics units in range; anything that does not fit is lost.</p>
+    ${designPanel(S, p, d)}</div>`;
 };
+/* ---------- Unit designs ---------- */
+const DLAB = { hp: 'HP', speed: 'Speed', dmg: 'Damage', cargo: 'Cargo' };
+function designPanel(S, p, d) {
+  const bases = Object.keys(UNI).filter((k) => Q.researchedUnitSelf(S, UI.me, k));
+  if (!UI.designForm || !bases.includes(UI.designForm.base)) UI.designForm = { base: bases[0] || null, name: '', steps: {} };
+  const f = UI.designForm, retired = p.retiredDesigns || [];
+  const mine = (S.designs || []).filter((dz) => Q.canUseDesign(S, UI.me, dz));
+  const pend = d.designs || [];
+  const list = mine.map((dz) => {
+    const u = Q.ustat(dz.base, dz), b = UNI[dz.base], isRet = retired.includes(dz.id), op = pend.find((o) => o.id === dz.id);
+    return `<tr class="${isRet ? 'muted' : ''}"><td><b>${esc(dz.name)}</b><div class="small muted">${esc(b.name)}${dz.owner === UI.me ? '' : `, bought from ${esc(pname(dz.owner))}`}</div></td><td class="small">${esc(designSteps(dz))}</td><td class="small">${u.hp} HP, move ${u.move}${u.ammo ? `, ${u.ammo} ammo/attack` : ''}${u.cargo ? `, cargo ${u.cargo}` : ''}</td><td class="small">${esc(costText(u.cost))}</td><td>${op ? `<span class="tag">${op.op === 'retire' ? 'retiring' : 'restoring'}</span>` : `<button class="btn small" data-act="design-${isRet ? 'restore' : 'retire'}" data-id="${dz.id}">${isRet ? 'Restore' : 'Retire'}</button>`}</td></tr>`;
+  }).join('');
+  let form = '<p class="small muted">Research a unit\'s building yourself to design variants of it (a bought blueprint is not enough).</p>';
+  if (f.base) {
+    const b = UNI[f.base], keys = Object.keys(RR.DESIGN.ranges).filter((k) => (k !== 'dmg' || b.role === 'combat') && (k !== 'cargo' || b.cargo));
+    const prev = Q.ustat(f.base, { id: -1, name: f.name || 'New design', steps: f.steps });
+    const err = Q.checkDesign(S, UI.me, { base: f.base, name: f.name, steps: f.steps });
+    const cmp = (label, a, z) => `<tr><td>${label}</td><td class="n">${a}</td><td class="n ${z !== a ? 'warn' : ''}">${z}</td></tr>`;
+    const gt = (o) => Object.entries(o || {}).map(([g, v]) => `${v} ${gl(g)}`).join(', ') || '—';
+    form = `<div class="row"><label>Unit <select data-chg="df-base">${bases.map((k) => `<option value="${k}" ${k === f.base ? 'selected' : ''}>${esc(UNI[k].name)}</option>`).join('')}</select></label><label>Name <input type="text" maxlength="30" data-chg="df-name" value="${esc(f.name)}" placeholder="e.g. Heavy tank"></label></div>
+      <div class="row">${keys.map((k) => { const [lo, hi] = RR.DESIGN.ranges[k]; return `<label>${DLAB[k]} <input type="number" min="${lo}" max="${hi}" step="1" class="w-sm" data-chg="df-step" data-k="${k}" value="${f.steps[k] || 0}" style="width:60px"></label>`; }).join('')}</div>
+      <table class="small" style="margin:6px 0"><thead><tr><th></th><th class="n">${esc(b.name)}</th><th class="n">${esc(f.name || 'New design')}</th></tr></thead><tbody>
+        ${cmp('HP', b.hp, prev.hp)}${cmp('Move', b.move, prev.move)}${b.role === 'combat' ? cmp('Damage', '100%', `${Math.round(100 * (1 + prev.dmgMod))}%`) + cmp('Ammo per attack', b.ammo, prev.ammo) : ''}${b.cargo ? cmp('Cargo', b.cargo, prev.cargo) : ''}
+        ${cmp('Idle upkeep', gt(b.idle), gt(prev.idle))}${cmp('Per tile', gt(b.perTile), gt(prev.perTile))}${cmp('Build cost', costText(b.cost), costText(prev.cost))}</tbody></table>
+      <div class="row"><button class="btn small brass" data-act="design-create" ${err ? 'disabled' : ''}>Create design (${RR.DESIGN.sci} science)</button><span class="small ${err ? 'warn' : 'muted'}">${esc(err || 'Each + step adds 15% to the build cost; each − step takes 10% off (except cargo cuts). HP +: −1 move, +15% per-tile upkeep. HP −: −15% per-tile. Speed ±: ±1 move, ±10% idle, +25%/−15% per-tile. Damage ±: ±10% idle, +25%/−10% ammo. Cargo +: −1 move, +10% idle; cargo −: +1 move. Every step must have its full effect.')}</span></div>`;
+  }
+  const queued = pend.filter((o) => o.op === 'create');
+  return `<div class="panel" style="margin-top:14px"><h3 style="margin-top:0">Unit designs</h3>
+    <p class="small muted">Named variants of a unit with more or less HP, speed, damage (combat units) or cargo (logistics units). Build them like the base unit. Other nations see a design's name, HP and the damage it deals, but not its other settings unless they buy its blueprint (Research tab).</p>
+    ${list ? `<div class="ledger"><table><thead><tr><th>Design</th><th>Settings</th><th>Stats</th><th>Build cost</th><th></th></tr></thead><tbody>${list}</tbody></table></div>` : ''}
+    ${queued.length ? `<p class="small">Creating this turn: ${queued.map((o) => esc(o.name)).join(', ')}</p>` : ''}
+    <h4>New design</h4>${form}</div>`;
+}
 
 /* ---------- Diplomacy ---------- */
 function peaceDraft(to) {
@@ -1421,7 +1468,8 @@ function orderGroups() {
   d.demolish.forEach((o, i) => add('Buildings', 'demolish', i, `Demolish ${o.what === 'building' ? (Q.tileBuilding(S, o.t) ? BLD[Q.tileBuilding(S, o.t).key].name.toLowerCase() : 'building') : o.what === 'trap' ? 'tank trap' : o.what === 'rail' ? 'railroad' : 'bridge'} at ${tl(o.t)}`));
   d.found.forEach((o, i) => add('Buildings', 'found', i, `Found ${o.name} from ${destName({ type: 'depot', id: o.depot })}`));
   d.builds.forEach((o, i) => add('Buildings', 'builds', i, `Build ${BLD[o.key].name} ${o.unit != null ? `with ${uname(o.unit)}'s cargo` : `for ${cityName(o.city)}`}${o.t != null ? ` at ${tl(o.t)}` : ''}`));
-  d.trains.forEach((o, i) => add('Units', 'trains', i, `Build ${UNI[o.type].name} in ${cityName(o.city)}`));
+  d.trains.forEach((o, i) => add('Units', 'trains', i, `Build ${o.design != null && Q.designById(st(), o.design) ? Q.designById(st(), o.design).name : UNI[o.type].name} in ${cityName(o.city)}`));
+  (d.designs || []).forEach((o, i) => add('Research', 'designs', i, o.op === 'create' ? `Create the ${o.name} design (${UNI[o.base].name.toLowerCase()}, ${RR.DESIGN.sci} science)` : `${o.op === 'retire' ? 'Retire' : 'Restore'} ${(Q.designById(st(), o.id) || {}).name || 'design'}`));
   if (d.settings && (d.settings.priority || ['products', 'halt', 'labor', 'fuel'].some((k) => d.settings[k] && Object.keys(d.settings[k]).length))) add('Production', 'settings', 0, 'Production priority, products, workers, fuel or on/off switches changed');
   d.cargo.forEach((o, i) => add('Logistics', 'cargo', i, `${uname(o.unit)} ${o.amount > 0 ? 'loads' : 'unloads'} ${Math.abs(o.amount)} ${gl(o.good)}`));
   d.routeOps.forEach((o, i) => add('Logistics', 'routeOps', i, o.op === 'remove' ? `Close route #${o.id}` : o.op === 'update' ? `Change route #${o.id}` : `New route ${cityName(o.from)} → ${destName(o.to)}`));
@@ -1465,7 +1513,7 @@ const ACT = {
   'mode-weapon'(el) { UI.mode = { kind: 'weapon', city: Number(el.dataset.city), w: el.dataset.w }; computeHL(); if (!UI.hl.attack.size) { UI.mode = null; toast('No enemy in range.'); } render(); },
   'mode-unload'(el) { UI.mode = { kind: 'unload', unit: Number(el.dataset.unit) }; render(); },
   'cancel-mode'() { const back = UI.mode && UI.mode.kind === 'cede'; UI.mode = null; if (back) UI.tab = 'diplomacy'; render(); },
-  train(el) { mutate((d) => d.trains.push({ city: Number(el.dataset.city), type: el.dataset.type })); toast(`${UNI[el.dataset.type].name} queued`); },
+  train(el) { const design = el.dataset.design != null ? Number(el.dataset.design) : null; mutate((d) => d.trains.push(Object.assign({ city: Number(el.dataset.city), type: el.dataset.type }, design != null ? { design } : {}))); toast(`${design != null && Q.designById(st(), design) ? Q.designById(st(), design).name : UNI[el.dataset.type].name} queued`); },
   board(el) { const unit = Number(el.dataset.unit), transport = Number(el.dataset.tr); mutate((d) => { d.board = d.board.filter((b) => b.unit !== unit); d.moves = d.moves.filter((m) => m.unit !== unit); d.board.push({ unit, transport }); }); },
   found(el) { const name = ($('#found-name') || {}).value || ''; const depot = Number(el.dataset.depot); mutate((d) => { d.found = d.found.filter((f) => f.depot !== depot); d.found.push({ depot, name: name.trim() || 'New city' }); }); },
   cargo(el) { const good = $('#cg-good').value, amt = Math.abs(Math.floor(Number($('#cg-amt').value) || 0)) * Number(el.dataset.dir); if (!amt) return; mutate((d) => d.cargo.push({ unit: Number(el.dataset.unit), city: Number(el.dataset.city), good, amount: amt })); },
@@ -1489,7 +1537,10 @@ const ACT = {
     s.priority = list; saveDraft(); render();
   },
   // research & diplomacy
-  'bp-offer'() { const key = $('#bp-key').value, to = Number($('#bp-to').value), price = Math.max(0, Math.floor(Number($('#bp-price').value) || 0)); mutate((d) => d.diplo.push({ type: 'propose', kind: 'blueprint', to, payload: { key, price } })); },
+  'design-create'() { const f = UI.designForm; mutate((d) => { d.designs = d.designs || []; d.designs.push({ op: 'create', base: f.base, name: f.name.trim(), steps: Object.assign({}, f.steps) }); }); UI.designForm = { base: f.base, name: '', steps: {} }; render(); },
+  'design-retire'(el) { const id = Number(el.dataset.id); mutate((d) => { d.designs = (d.designs || []).filter((o) => o.id !== id); d.designs.push({ op: 'retire', id }); }); },
+  'design-restore'(el) { const id = Number(el.dataset.id); mutate((d) => { d.designs = (d.designs || []).filter((o) => o.id !== id); d.designs.push({ op: 'restore', id }); }); },
+  'bp-offer'() { const key = $('#bp-key').value, to = Number($('#bp-to').value), price = Math.max(0, Math.floor(Number($('#bp-price').value) || 0)); const payload = key.startsWith('design:') ? { design: Number(key.slice(7)), price } : { key, price }; mutate((d) => d.diplo.push({ type: 'propose', kind: 'blueprint', to, payload })); },
   buy(el) {
     const g = el.dataset.good, amount = Math.floor(Number($(`#mk-${g}`).value) || 0), bv = $(`#mkb-${g}`), S = st();
     let maxPrice = bv && bv.value !== '' ? Math.floor(Number(bv.value) || 0) : null;
@@ -1621,6 +1672,9 @@ const CHG = {
   halt(el) { const s = settings(); s.halt = s.halt || {}; const b = st().buildings.find((x) => x.id === Number(el.dataset.id)); const want = !el.checked; if (b && !!b.halted === want) delete s.halt[el.dataset.id]; else s.halt[el.dataset.id] = want; saveDraft(); render(); },
   product(el) { const s = settings(); s.products = s.products || {}; s.products[el.dataset.id] = el.value; saveDraft(); render(); },
   research(el) { mutate((d) => { d.research = d.research.filter((k) => k !== el.value); if (el.checked) d.research.push(el.value); }); },
+  'df-base'(el) { UI.designForm = { base: el.value, name: UI.designForm.name, steps: {} }; render(); },
+  'df-name'(el) { UI.designForm.name = el.value; render(); },
+  'df-step'(el) { const k = el.dataset.k, [lo, hi] = RR.DESIGN.ranges[k]; UI.designForm.steps[k] = Math.max(lo, Math.min(hi, Math.round(Number(el.value) || 0))); render(); },
   'mk-city'(el) { UI.marketCity = Number(el.value); render(); },
   respond(el) { const id = Number(el.dataset.id); mutate((d) => { d.diplo = d.diplo.filter((o) => !(o.type === 'respond' && o.id === id)); d.diplo.push({ type: 'respond', id, accept: el.value === '1' }); }); },
   endvote(el) { mutate((d) => { d.diplo = d.diplo.filter((o) => o.type !== 'endVote'); if (el.checked) d.diplo.push({ type: 'endVote' }); }); },

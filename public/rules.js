@@ -59,7 +59,7 @@ const RULES = (() => {
     residence: { name: 'Residence', era: 1, sci: 0, place: 'city', cost: { lumber: 10, tools: 2, mp: 2 }, recipes: { manpower: { in: { food: 3 }, mpOut: 3 } } },
     apartment: { name: 'Apartment', era: 2, sci: 6, place: 'city', cost: { lumber: 20, metal: 6, tools: 6, mp: 4 }, recipes: { manpower: { in: { food: 5 }, mpOut: 6 } } },
     highrise: { name: 'Highrise', era: 3, sci: 12, place: 'city', cost: { lumber: 20, metal: 20, tools: 10, machinery: 4, mp: 6 }, recipes: { manpower: { in: { food: 8 }, mpOut: 10 } } },
-    farm: { name: 'Farm', abbr: 'Fm', era: 1, sci: 0, place: 'tile', tiles: ['grassland'], cost: { lumber: 6, tools: 2, mp: 1 }, recipes: { food: { mp: 1, out: { food: 10 } } }, waterBonus: 3 },
+    farm: { name: 'Farm', abbr: 'Fm', era: 1, sci: 0, place: 'tile', tiles: ['grassland'], cost: { lumber: 6, tools: 2, mp: 1 }, recipes: { food: { mp: 1, out: { food: 10 } } }, waterMult: 1.3 }, // x1.3 next to a river or lake, after tier bonuses
     fishery: { name: 'Fishery', abbr: 'Fs', era: 1, sci: 2, place: 'tile', tiles: ['lake', 'ocean'], cost: { lumber: 6, tools: 2, mp: 1 }, recipes: { food: { mp: 1, out: { food: 8 } } }, oceanFood: 10 },
     fiberFarm: { name: 'Fiber farm', abbr: 'Fb', era: 1, sci: 2, place: 'tile', tiles: ['grassland'], cost: { lumber: 6, tools: 2, mp: 1 }, recipes: { fiber: { mp: 1, out: { fiber: 6 } } } },
     rubberPlantation: { name: 'Rubber plantation', abbr: 'Rb', era: 1, sci: 3, place: 'tile', tiles: ['rubber'], cost: { lumber: 8, tools: 2, mp: 1 }, recipes: { rawRubber: { mp: 1, out: { rawRubber: 6 } } } },
@@ -128,7 +128,7 @@ const RULES = (() => {
     walls: { name: 'Walls', era: 1, sci: 4, place: 'city', limit: 1, cost: { lumber: 15, metal: 5, tools: 4, mp: 3 }, hp: 10 },
     fort: { name: 'Fort', era: 3, sci: 12, place: 'city', limit: 1, cost: { lumber: 30, metal: 30, tools: 12, machinery: 3, mp: 6 }, hp: 20, weapon: true },
     navalBattery: { name: 'Naval battery', era: 2, sci: 8, place: 'city', limit: 1, needsWater: true, cost: { lumber: 20, metal: 30, tools: 12, machinery: 8, mp: 6 }, hp: 10, weapon: true },
-    tankTrap: { name: 'Tank trap', abbr: 'TT', era: 3, sci: 8, place: 'tile', tiles: 'anyLand', limit: 1, cost: { metal: 6, tools: 2, mp: 1 } },
+    tankTrap: { name: 'Tank trap', abbr: 'TT', era: 3, sci: 8, place: 'tile', tiles: 'anyLand', cost: { metal: 6, tools: 2, mp: 1 } },
   };
 
   // Era 2 and era 3 versions of the extraction buildings (demolish the old one first)
@@ -165,35 +165,33 @@ const RULES = (() => {
     train: { name: 'Train', abbr: 'Tr', cls: 'rail', role: 'logistic', hp: 10, move: 6, idle: { fuel: 1 }, perTile: { fuel: 1 }, repair: 'mech', cargo: 120, carry: 4, cost: { mp: 4, clothing: 2, lumber: 4, metal: 12, tools: 4, machinery: 3 }, builtAt: ['machineryWorkshop', 'machineryFactory'], unlock: 'machineryWorkshop' },
     merchantman: { name: 'Merchantman', abbr: 'Me', cls: 'ship', power: 'sail', role: 'logistic', hp: 10, move: 3, idle: { food: 1 }, perTile: { food: 0.5 }, repair: 'sail', cargo: 100, carry: 3, cost: { mp: 4, clothing: 2, cloth: 4, lumber: 16, metal: 2, tools: 2 }, builtAt: ['shipyard'], unlock: 'shipyard' },
     frigate: { name: 'Frigate', abbr: 'Fg', cls: 'ship', power: 'sail', role: 'combat', hp: 25, move: 4, range: 2, ammo: 2, idle: { food: 2 }, perTile: { food: 1 }, repair: 'sail', cost: { mp: 6, clothing: 3, cloth: 6, smallArms: 4, lumber: 20, metal: 4, tools: 4 }, builtAt: ['shipyard'], unlock: 'shipyard' },
-    freighter: { name: 'Freighter', abbr: 'Fr', cls: 'ship', power: 'steam', role: 'logistic', hp: 15, move: 5, idle: { food: 1, fuel: 1 }, perTile: { fuel: 1 }, repair: 'mech', cargo: 200, carry: 6, cost: { mp: 4, clothing: 2, lumber: 12, metal: 8, tools: 4, machinery: 2, rubber: 2 }, builtAt: ['navalYard'], unlock: 'navalYard' },
+    freighter: { name: 'Freighter', abbr: 'Fr', cls: 'ship', power: 'steam', role: 'logistic', hp: 15, move: 5, idle: { food: 1, fuel: 1 }, perTile: { fuel: 1 }, repair: 'mech', cargo: 200, carry: 6, cost: { mp: 4, clothing: 2, lumber: 12, metal: 12, tools: 4, machinery: 2, rubber: 2 }, builtAt: ['navalYard'], unlock: 'navalYard' },
     warship: { name: 'Warship', abbr: 'W', cls: 'ship', power: 'steam', role: 'combat', hp: 50, move: 5, range: 2, ammo: 4, idle: { food: 2, fuel: 1 }, perTile: { fuel: 1 }, repair: 'mech', cost: { mp: 8, clothing: 4, smallArms: 2, lumber: 10, metal: 20, tools: 6, machinery: 5, rubber: 2 }, builtAt: ['navalYard'], unlock: 'navalYard' },
   };
 
-  // Damage per attack. Rows = attacker, columns = target. Missing = cannot hit.
+  // Base damage per attack (attacker row -> target column). Missing = cannot attack that target.
   const DAMAGE = {
-    infantry: { infantry: 2, cavalry: 3, tank: 2, artillery: 3, train: 3, city: 1 },
-    cavalry: { infantry: 3, cavalry: 3, tank: 1, artillery: 4, train: 4, city: 1 },
-    tank: { infantry: 4, cavalry: 5, tank: 5, artillery: 5, train: 5, city: 3 },
-    artillery: { infantry: 3, cavalry: 2, tank: 4, artillery: 3, train: 5, merchantman: 3, frigate: 3, freighter: 3, warship: 3, city: 4 },
-    frigate: { infantry: 2, cavalry: 1, tank: 1, artillery: 2, train: 2, merchantman: 10, frigate: 6, freighter: 8, warship: 4, city: 2 },
-    warship: { infantry: 3, cavalry: 2, tank: 3, artillery: 3, train: 4, merchantman: 15, frigate: 15, freighter: 15, warship: 10, city: 4 },
-    navalBattery: { merchantman: 20, frigate: 20, freighter: 20, warship: 20 },
-    fort: { infantry: 3, cavalry: 3, tank: 2, artillery: 3 },
+    infantry: { infantry: 2, cavalry: 2, tank: 2, artillery: 3, caravan: 3, supplyTruck: 5, train: 4, city: 2 },
+    cavalry: { infantry: 3, cavalry: 3, tank: 1, artillery: 4, caravan: 4, supplyTruck: 5, train: 2, city: 1 },
+    tank: { infantry: 5, cavalry: 4, tank: 5, artillery: 5, caravan: 6, supplyTruck: 8, train: 10, city: 3 },
+    artillery: { infantry: 3, cavalry: 2, tank: 4, artillery: 3, caravan: 4, supplyTruck: 5, train: 5, merchantman: 5, frigate: 5, freighter: 5, warship: 5, city: 5 },
+    frigate: { infantry: 2, cavalry: 1, artillery: 2, caravan: 3, supplyTruck: 2, train: 1, merchantman: 12, frigate: 10, freighter: 5, warship: 4, city: 2 },
+    warship: { infantry: 3, cavalry: 2, tank: 3, artillery: 3, caravan: 4, supplyTruck: 6, train: 10, merchantman: 30, frigate: 30, freighter: 15, warship: 15, city: 5 },
+    navalBattery: { merchantman: 30, frigate: 30, freighter: 20, warship: 20 },
+    fort: { infantry: 3, cavalry: 3, tank: 4, artillery: 3, caravan: 4, supplyTruck: 4 },
   };
-  const WEAPON_AMMO = 2; // forts and naval batteries, from the city's stockpile
+  const WEAPON_AMMO = { fort: 3, navalBattery: 4 }; // per attack, from the city's stockpile
   const WEAPON_RANGE = 2;
 
   function dmg(attacker, target) {
     const row = DAMAGE[attacker];
     if (!row) return 0;
     if (target === 'city') return row.city || 0;
-    if (target === 'caravan') return row.infantry ? 1 : 0; // 1 HP: any hit that can reach land units destroys it
-    if (target === 'supplyTruck') return attacker === 'fort' ? 3 : (row.train || 0);
     return row[target] || 0;
   }
 
   const CITY = {
-    baseStorage: 100, baseHp: 10, regen: 2, territory: 2, supplyRadius: 3, maxDepots: 2,
+    baseStorage: 100, baseHp: 10, hpPerBuilding: 0.5, regenShare: 0.1, healLumber: 1, territory: 2, supplyRadius: 3, maxDepots: 2,
     portRadius: 2, unitSupplyRadius: 2, foundCost: { lumber: 50, food: 50, tools: 20 }, foundMp: 20,
     productionStorageTurns: 3,
   };
@@ -249,13 +247,27 @@ const RULES = (() => {
     navalWarfare: { group: 'naval', name: 'Naval warfare', era: 2, sci: 8, text: 'Combat ships: +50% damage against ships.' },
     bombardment: { group: 'naval', name: 'Naval bombardment', era: 2, sci: 8, text: 'Combat ships: +75% damage against land units and cities.' },
     quantity: { group: 'army', name: 'Quantity', era: 1, sci: 4, text: 'Land combat units: -20% max HP, half idle supply, cheaper pay.' },
-    quality: { group: 'army', name: 'Quality', era: 1, sci: 4, text: 'Land combat units: +20% max HP, +1 move, dearer pay.' },
+    quality: { group: 'army', name: 'Quality', era: 1, sci: 4, text: 'Land combat units: +20% max HP, +15% damage, dearer pay.' },
     entrenchment: { group: 'warfare', name: 'Entrenchment', era: 2, sci: 6, text: 'At full mobilization, infantry dig in one level for each turn in a row they do not move (up to 5): -10% damage taken per level (tanks ignore this and deal +25%). Entrenched infantry deal +25% damage, +50% to cavalry.' },
     mobileWarfare: { group: 'warfare', name: 'Mobile warfare', era: 3, sci: 10, text: 'At full mobilization: tanks, artillery, trains and supply trucks +1 move; tanks and artillery that moved last turn +25% damage.' },
   };
   const DOCTRINE_GROUPS = { naval: 'Naval', army: 'Army size', warfare: 'Warfare' };
   const ENTRENCH = { max: 5, perLevel: 0.1, fire: 0.25, vsCavalry: 0.5, tankBonus: 0.25 };
   const DOCTRINE_LOCK = 10;
+  const QUALITY_DAMAGE = 0.15;
+  const SUMMER_FARM = 1.5; // farms of every tier make 50% more in summer (months 4-6), applied last
+  const WINTER_ATTRITION = 2; // HP a land unit out of supply loses per winter turn (1 the rest of the year)
+  const CAPTURE_CARGO = 0.75; // share of cargo kept when a logistics unit is captured
+  // Unit designs: named variants with steps on HP, speed, damage (combat units) and cargo (logistics units).
+  // Per step, + / - : build cost, idle upkeep, per-tile upkeep and move. Cargo - steps give speed but no discount;
+  // HP - steps give a discount but no speed. Repairs cost repairShare of the build cost, in proportion to HP restored.
+  const DESIGN = {
+    sci: 3, ranges: { hp: [-2, 3], speed: [-2, 3], dmg: [-2, 3], cargo: [-2, 3] },
+    hpStep: 0.2, dmgStep: 0.15, cargoStep: 0.25, ammoUp: 0.25, ammoDown: 0.1, repairShare: 0.5,
+    build: { hp: [0.15, 0.10], speed: [0.15, 0.10], dmg: [0.15, 0.10], cargo: [0.15, 0] },
+    idle: { hp: [0, 0], speed: [0.10, 0.10], dmg: [0.10, 0.10], cargo: [0.10, 0] },
+    perTile: { hp: [0.15, 0.15], speed: [0.25, 0.15], dmg: [0, 0], cargo: [0, 0] },
+  };
   // Combat units carry their own stores: 2 turns of supply at full speed and ammo for 2 attacks
   const UNIT_STORE = { turns: 2, attacks: 2 };
   // A settlement becomes a city once it holds a city's founding goods
@@ -292,7 +304,7 @@ const RULES = (() => {
 
   return {
     GOODS, GOOD_NAMES, GOOD_COLORS, BASE_PRICE, MARKET, SPECIAL_STORAGE, TILES, BUILDINGS, UNITS, DAMAGE, WEAPON_AMMO, WEAPON_RANGE,
-    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, ENTRENCH, UNIT_STORE, SETTLEMENT, CITY_RUN_LUMBER, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
+    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, QUALITY_DAMAGE, WINTER_ATTRITION, SUMMER_FARM, CAPTURE_CARGO, DESIGN, ENTRENCH, UNIT_STORE, SETTLEMENT, CITY_RUN_LUMBER, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = RULES;
