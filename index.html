@@ -4164,14 +4164,15 @@ TAB_RENDER.production = function () {
     const rows = lines.map((b) => {
       const d = BLD[b.key], keys = Object.keys(d.recipes);
       const cur = products[b.id] || Q.recipeKey(b);
-      const rc = d.recipes[cur], out = Q.buildingOutput(S, Object.assign({}, b, { product: cur }));
+      const bp = Object.assign({}, b, { product: cur }); // preview the product chosen this turn
+      const rc = d.recipes[cur], out = Q.buildingOutput(S, bp), ins = Q.inputsOf(bp);
       const off = isHalted(b);
       const labor = rc.labor ? (labors[b.id] != null ? labors[b.id] : Q.laborOf(b)) : 0;
       const credOut = rc.labor ? labor * rc.creditsPerMp : Q.creditsOutOf(S, b);
-      const mpUse = rc.labor ? labor : Q.mpOf(S, b);
+      const mpUse = rc.labor ? labor : Q.mpOf(S, bp);
       const mpMade = rc.mpOut ? Q.mpOutOf(S, b) : 0;
       if (!off) {
-        for (const [g, v] of Object.entries(Q.inputsOf(b))) totIn[g] = (totIn[g] || 0) + v;
+        for (const [g, v] of Object.entries(ins)) totIn[g] = (totIn[g] || 0) + v;
         for (const [g, v] of Object.entries(out)) totOut[g] = (totOut[g] || 0) + v;
         mp += mpUse; mpOut += mpMade; cr += rc.credits || 0; crOut += credOut; sci += rc.sciOut || 0;
       }
@@ -4179,7 +4180,7 @@ TAB_RENDER.production = function () {
       const outs = [fmtGoods(out), mpMade ? `${mpMade} manpower` : '', rc.sciOut ? `${rc.sciOut} science` : '', credOut || rc.creditsPerResidence || rc.labor ? `${credOut} credits${rc.creditsPerResidence ? ` (${rc.creditsPerResidence} × residences)` : rc.labor ? ` (${rc.creditsPerMp} per worker, up to ${rc.maxLabor})` : ''}` : ''].filter(Boolean).join(', ');
       const fuelPend = fuels[b.id] != null ? fuels[b.id] : b.fuelOn !== false;
       const toggle = `<label class="ck small"><input type="checkbox" data-chg="halt" data-id="${b.id}" ${off ? '' : 'checked'}> On</label>${d.fuelUse ? `<br><label class="ck small" title="1 fuel a turn: +100% instead of +50%"><input type="checkbox" data-chg="fuel" data-id="${b.id}" ${fuelPend ? 'checked' : ''}> Fuel</label>` : ''}`;
-      return `<tr class="${off ? 'muted' : ''}"><td>${toggle}</td><td>${esc(d.short || d.name)}${d.place === 'tile' ? ` <span class="small muted">${tl(b.t)}</span>` : ''}</td><td>${sel}</td><td class="small">${esc(fmtGoods(Q.inputsOf(b)) || '—')}${rc.credits ? `${Object.keys(Q.inputsOf(b)).length ? ', ' : ''}${rc.credits} credits` : ''}</td><td class="small">${esc(outs)}</td><td class="n">${rc.labor ? `<input type="number" min="0" max="${rc.maxLabor || ''}" step="1" class="w-sm" data-chg="labor" data-id="${b.id}" value="${labor}" aria-label="Workers" title="Manpower put to work each turn${rc.maxLabor ? ` (up to ${rc.maxLabor})` : ''}" style="width:64px">` : mpUse}</td><td class="small ${b.status && b.status.startsWith('Idle') ? 'warn' : 'muted'}">${esc(off ? (b.halted ? 'Halted' : 'Halts this turn') : b.halted ? 'Restarts this turn' : (b.status || 'New'))}</td></tr>`;
+      return `<tr class="${off ? 'muted' : ''}"><td>${toggle}</td><td>${esc(d.short || d.name)}${d.place === 'tile' ? ` <span class="small muted">${tl(b.t)}</span>` : ''}</td><td>${sel}</td><td class="small">${esc(fmtGoods(ins) || '—')}${rc.credits ? `${Object.keys(ins).length ? ', ' : ''}${rc.credits} credits` : ''}</td><td class="small">${esc(outs)}</td><td class="n">${rc.labor ? `<input type="number" min="0" max="${rc.maxLabor || ''}" step="1" class="w-sm" data-chg="labor" data-id="${b.id}" value="${labor}" aria-label="Workers" title="Manpower put to work each turn${rc.maxLabor ? ` (up to ${rc.maxLabor})` : ''}" style="width:64px">` : mpUse}</td><td class="small ${b.status && b.status.startsWith('Idle') ? 'warn' : 'muted'}">${esc(off ? (b.halted ? 'Halted' : 'Halts this turn') : b.halted ? 'Restarts this turn' : (b.status || 'New'))}</td></tr>`;
     }).join('');
     return `<div class="ledger"><table><thead><tr><th colspan="7">${esc(c.name)}</th></tr><tr><th>Running</th><th>Production line</th><th>Making</th><th>Uses per turn</th><th>Makes per turn</th><th class="n">Manpower</th><th>Last turn</th></tr></thead><tbody>
       ${rows || '<tr><td colspan="7" class="muted">No production buildings yet.</td></tr>'}
