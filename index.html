@@ -290,7 +290,7 @@ const RULES = (() => {
       recipes: {
         tools: { mp: 2, in: { metal: 2, lumber: 2 }, out: { tools: 2 } },
         smallArms: { mp: 2, in: { metal: 2, lumber: 2 }, out: { smallArms: 2 } },
-        ammo: { mp: 2, in: { metal: 1 }, out: { ammo: 3 } },
+        ammo: { mp: 2, in: { metal: 1, fuel: 1 }, out: { ammo: 3 } },
       },
     },
     textileWorkshop: {
@@ -305,7 +305,7 @@ const RULES = (() => {
     metalFactory: { name: 'Metal factory', era: 3, sci: 10, place: 'city', cost: { lumber: 15, metal: 20, tools: 10, machinery: 5, mp: 4 }, recipes: { metal: { mp: 4, in: { ore: 6, fuel: 2 }, out: { metal: 6 } } }, riverMpLess: 1 },
     toolsFactory: { name: 'Tools factory', era: 3, sci: 10, place: 'city', cost: { lumber: 15, metal: 20, tools: 10, machinery: 5, mp: 4 }, recipes: { tools: { mp: 4, in: { metal: 4, lumber: 4 }, out: { tools: 8 } } }, riverMpLess: 1 },
     smallArmsFactory: { name: 'Small arms factory', era: 3, sci: 10, place: 'city', cost: { lumber: 15, metal: 20, tools: 10, machinery: 5, rubber: 2, mp: 4 }, recipes: { smallArms: { mp: 4, in: { metal: 4, lumber: 4 }, out: { smallArms: 8 } } }, riverMpLess: 1 },
-    ammoFactory: { name: 'Ammo factory', era: 3, sci: 10, place: 'city', cost: { lumber: 15, metal: 20, tools: 10, machinery: 5, rubber: 2, mp: 4 }, recipes: { ammo: { mp: 4, in: { metal: 2 }, out: { ammo: 12 } } }, riverMpLess: 1 },
+    ammoFactory: { name: 'Ammo factory', era: 3, sci: 10, place: 'city', cost: { lumber: 15, metal: 20, tools: 10, machinery: 5, rubber: 2, mp: 4 }, recipes: { ammo: { mp: 4, in: { metal: 2, fuel: 2 }, out: { ammo: 12 } } }, riverMpLess: 1 },
     clothFactory: { name: 'Cloth factory', era: 2, sci: 8, place: 'city', cost: { lumber: 15, metal: 15, tools: 8, machinery: 3, mp: 4 }, recipes: { cloth: { mp: 4, in: { fiber: 10 }, out: { cloth: 4 } } }, riverMpLess: 1 },
     clothingFactory: { name: 'Clothing factory', era: 2, sci: 8, place: 'city', cost: { lumber: 15, metal: 15, tools: 8, machinery: 3, mp: 4 }, recipes: { clothing: { mp: 4, in: { cloth: 4 }, out: { clothing: 4 } } }, riverMpLess: 1 },
     rubberRefinery: { name: 'Rubber refinery', era: 3, sci: 10, place: 'city', cost: { lumber: 15, metal: 20, tools: 10, machinery: 5, mp: 4 }, recipes: { rubber: { mp: 4, in: { rawRubber: 8, fuel: 2 }, out: { rubber: 8 } } }, riverMpLess: 1 },
