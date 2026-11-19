@@ -452,8 +452,18 @@ function buildMapSvg(kind) {
   // tiles
   out.push(`<g${flow ? ' opacity="0.55"' : ''}>`);
   const season = Q.seasonOf(S.turn);
-  const tint = { winter: { grassland: '#e4e9e4', forest: '#88a58c' }, autumn: { forest: '#7a7434' } }[season] || {};
-  for (let i = 0; i < n; i++) { const [x, y] = center(m, i); const ty = m.tiles[i].type; out.push(`<polygon class="hx" data-t="${i}" points="${hexPts(x, y)}" fill="${tint[ty] || RR.TILES[ty].color}"/>`); }
+  const tint = { winter: { grassland: '#e4e9e4' } }[season] || {};
+  // forests take a random (but fixed per tile) colour from the season's palette
+  const forestPal = {
+    autumn: ['rgb(166,45,45)', 'rgb(225,139,34)', 'rgb(242,184,75)', 'rgb(50,91,67)'],
+    winter: ['rgb(60,74,50)', 'rgb(50,91,67)', 'rgb(92,43,17)'],
+  }[season];
+  const pick = (i) => { let h = (i + 1) * 2654435761; h ^= h >>> 15; h = Math.imul(h, 2246822519); h ^= h >>> 13; return (h >>> 0) % forestPal.length; };
+  for (let i = 0; i < n; i++) {
+    const [x, y] = center(m, i); const ty = m.tiles[i].type;
+    const fill = ty === 'forest' && forestPal ? forestPal[pick(i)] : tint[ty] || RR.TILES[ty].color;
+    out.push(`<polygon class="hx" data-t="${i}" points="${hexPts(x, y)}" fill="${fill}"/>`);
+  }
   out.push('</g><g pointer-events="none">');
   // territory tint
   for (let i = 0; i < n; i++) { const p = tileOwnerP(i); if (p == null) continue; const [x, y] = center(m, i); out.push(`<polygon points="${hexPts(x, y)}" fill="${pcol(p)}" opacity="${flow ? 0.08 : 0.11}"/>`); }
