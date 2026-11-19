@@ -430,20 +430,49 @@ const RULES = (() => {
      Going down takes effect when the turn resolves. Ships are unaffected and always cost their full pay. */
   const MOBILIZE = {
     levels: ['peace', 'partial', 'full'],
-    toFullTurns: 3,             // partial -> full, counting the turn it is chosen
+    toFullTurns: 3,             // partial -> full, counting the turn it is chosen (autocracies: 2)
     partialDamage: -0.5,        // modifier for land combat units at partial mobilization
     partialSpeed: 0.5,          // land combat units move at half speed (rounded down, at least 1)
-    fullHousingCut: 1 / 3,      // housing makes a third less manpower at full mobilization
+    fullMpCut: 0.2,             // full mobilization: housing makes 20 percentage points less manpower (added to the tax effect)
   };
-  // Credits per combat unit per turn, by doctrine and mobilization (paid at the end of each turn)
+  // Credits per combat unit per turn (paid at the end of each turn). Land units by army doctrine and mobilization;
+  // ships a flat rate by type. Autocracies pay 25% less for land combat units.
   const PAY = {
-    standard: { peace: 10, partial: 20, full: 50 },
-    quantity: { peace: 5, partial: 10, full: 30 },
-    quality: { peace: 20, partial: 30, full: 70 },
-    ship: 100,
+    standard: { peace: 50, partial: 100, full: 250 },
+    quantity: { peace: 25, partial: 50, full: 150 },
+    quality: { peace: 100, partial: 150, full: 350 },
+    ship: { frigate: 350, warship: 650 },
+    shipDefault: 650,
   };
   const FREE_BERTHS = { barracks: 1, port: 1 }; // per barracks: 1 land unit on the city tile; per city with a harbor/port: 1 ship
-  const MANPOWER_DRAW = 0.1;    // manpower per combat unit per turn, wherever it is
+  const MANPOWER_DRAW = { land: 0.2, ship: 0.5 }; // manpower per combat unit per turn, wherever it is
+
+  /* ---------------- Government ----------------
+     Every nation has a government (all start as monarchies) and a tax rate. The tax rate sets the credits a tax
+     office makes per manpower its city's housing produces, and how much manpower that housing produces. */
+  const TAX_LEVELS = ['low', 'normal', 'high', 'war'];
+  const TAX_NAMES = { low: 'Low', normal: 'Normal', high: 'High', war: 'War tax' };
+  const GOVERNMENTS = {
+    democracy: {
+      name: 'Democracy', taxEvery: 6, notice: 4, toFullTurns: 3, rally: true,
+      tax: { low: { rate: 100, mp: 1.2 }, normal: { rate: 150, mp: 1.1 }, high: { rate: 200, mp: 0.9 }, war: { rate: 250, mp: 0.85 } },
+      text: 'Most manpower in peacetime. War needs 4 turns\' notice (an ultimatum) unless the enemy is at war with a partner. If war is declared on it, it reaches full mobilization in 1 turn.',
+    },
+    monarchy: {
+      name: 'Monarchy', taxEvery: 4, notice: 1, toFullTurns: 3, settlementCut: 0.25,
+      tax: { low: { rate: 100, mp: 1.1 }, normal: { rate: 150, mp: 1.0 }, high: { rate: 200, mp: 0.95 }, war: { rate: 250, mp: 0.9 } },
+      text: 'Holds up best under high and war taxes. War needs 1 turn\'s notice (an ultimatum). Settlements cost 25% less.',
+    },
+    autocracy: {
+      name: 'Autocracy', taxEvery: 2, notice: 0, toFullTurns: 2, landPay: 0.75,
+      tax: { low: { rate: 130, mp: 1.0 }, normal: { rate: 200, mp: 0.9 }, high: { rate: 250, mp: 0.8 }, war: { rate: 350, mp: 0.75 } },
+      text: 'Most credits, least manpower. Declares war instantly, mobilizes in 2 turns, and pays land units 25% less.',
+    },
+  };
+  const GOV_CHANGE = { every: 12, upheavalTurns: 3, upheavalMp: 0.5 }; // housing makes half its manpower for 3 turns after a change
+  // Monarchy settlements: 25% off, rounded to whole goods (forest clearing still costs the normal amount)
+  const SETTLEMENT_MONARCHY = { cost: { lumber: 4, tools: 1 }, storage: { lumber: 38, food: 38, tools: 15 }, foundMp: 15 };
+
   // Combat modifiers are summed, then: damage = base x (1 + sum), never below base x 0.25
   const MODS = { floor: -0.75, unpaid: -0.5, unsupplied: -0.25, helplessCounter: -0.5 };
   const XP = { veteran: 2, elite: 5, bonus: [0, 0.25, 0.5], names: ['Recruit', 'Veteran', 'Elite'] };
@@ -509,7 +538,7 @@ const RULES = (() => {
 
   return {
     GOODS, GOOD_NAMES, GOOD_COLORS, BASE_PRICE, MARKET, SPECIAL_STORAGE, TILES, BUILDINGS, UNITS, DAMAGE, WEAPON_AMMO, WEAPON_RANGE,
-    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, QUALITY_DAMAGE, WINTER_ATTRITION, SUMMER_FARM, CAPTURE_CARGO, DESIGN, ENTRENCH, UNIT_STORE, SETTLEMENT, CITY_RUN_LUMBER, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
+    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, TAX_LEVELS, TAX_NAMES, GOVERNMENTS, GOV_CHANGE, SETTLEMENT_MONARCHY, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, QUALITY_DAMAGE, WINTER_ATTRITION, SUMMER_FARM, CAPTURE_CARGO, DESIGN, ENTRENCH, UNIT_STORE, SETTLEMENT, CITY_RUN_LUMBER, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = RULES;
@@ -1081,12 +1110,25 @@ const Engine = ((R) => {
     if (d.riverMpLess && b.t != null && nbrs(S.map, b.t).some((j) => S.map.tiles[j].type === 'river')) mp = Math.max(0, mp - d.riverMpLess);
     return mp;
   }
-  // Manpower a housing building makes (a third less at full mobilization)
+  // Government and tax
+  const govOf = (S, pid) => { const p = S.players[pid]; return R.GOVERNMENTS[(p && p.gov) || 'monarchy']; };
+  const taxOf = (S, pid) => { const p = S.players[pid]; return govOf(S, pid).tax[(p && p.tax) || 'normal']; };
+  // Manpower multiplier for a nation's housing: tax effect, minus 0.2 at full mobilization, halved during upheaval
+  function mpMult(S, pid, turn) {
+    const p = S.players[pid];
+    if (!p) return 1;
+    let m = taxOf(S, pid).mp - (p.mob === 'full' ? R.MOBILIZE.fullMpCut : 0);
+    if (p.upheavalUntil != null && (turn != null ? turn : S.turn) <= p.upheavalUntil) m *= R.GOV_CHANGE.upheavalMp;
+    return Math.max(0, m);
+  }
+  const taxCooldownEnds = (S, pid) => { const p = S.players[pid]; return p.taxSince == null ? 0 : p.taxSince + govOf(S, pid).taxEvery; };
+  const govCooldownEnds = (S, pid) => { const p = S.players[pid]; return p.govSince == null ? 0 : p.govSince + R.GOV_CHANGE.every; };
+  // Manpower a housing building makes, after the tax rate, mobilization and any government upheaval
   function mpOutOf(S, b) {
     const rc = recipeOf(b);
     if (!rc || !rc.mpOut) return 0;
-    const p = S.players[buildingOwner(S, b)];
-    return p && p.mob === 'full' ? Math.round(rc.mpOut * (1 - R.MOBILIZE.fullHousingCut)) : rc.mpOut;
+    const pid = buildingOwner(S, b);
+    return Math.round(rc.mpOut * mpMult(S, pid) * 100 + 1e-9) / 100;
   }
   // Workers (manpower per turn) assigned to a silver or gold mine
   const laborOf = (b) => { const rc = recipeOf(b), n = b.labor == null ? R.MINE_LABOR : b.labor; return rc && rc.maxLabor ? Math.min(n, rc.maxLabor) : n; };
@@ -1097,8 +1139,9 @@ const Engine = ((R) => {
     if (!rc) return 0;
     if (rc.labor) return laborOf(b) * rc.creditsPerMp;
     if (rc.creditsPerMp) {
+      const rate = taxOf(S, buildingOwner(S, b)).rate; // the tax rate replaces the base 150 per manpower
       const mp = mpMade != null ? mpMade : S.buildings.filter((x) => x.city === b.city && !x.halted && recipeOf(x) && recipeOf(x).mpOut).reduce((a, x) => a + mpOutOf(S, x), 0);
-      return mp * rc.creditsPerMp;
+      return Math.round(mp * rate);
     }
     return rc.creditsOut || 0;
   }
@@ -1127,8 +1170,13 @@ const Engine = ((R) => {
   const isSettlement = (dp) => dp && dp.kind === 'settlement';
   const fieldDepots = (S) => (S.depots || []).filter((d) => !isSettlement(d));
   // A settlement stores exactly what a new city needs (plus the forest-clearing tools on a forest)
+  const isMonarchy = (S, pid) => S && S.players[pid] && (S.players[pid].gov || 'monarchy') === 'monarchy';
+  const settlementBase = (S, pid) => (isMonarchy(S, pid) ? R.SETTLEMENT_MONARCHY.storage : R.SETTLEMENT.storage);
+  // Build cost of a building for a nation (monarchies place settlements for 25% less)
+  const buildCost = (S, pid, key) => (key === 'settlement' && isMonarchy(S, pid) ? Object.assign({}, R.SETTLEMENT_MONARCHY.cost) : B[key].cost);
+  const foundMpOf = (S, pid) => (isMonarchy(S, pid) ? R.SETTLEMENT_MONARCHY.foundMp : R.CITY.foundMp);
   function settlementNeeds(S, dp) {
-    const need = Object.assign({}, R.SETTLEMENT.storage);
+    const need = Object.assign({}, settlementBase(S, dp.owner));
     if (S && S.map.tiles[dp.t].type === 'forest') need.tools = (need.tools || 0) + R.CLEAR_FOREST.tools;
     return need;
   }
@@ -1396,9 +1444,9 @@ const Engine = ((R) => {
   function payOf(S, u) {
     const d = U[u.type];
     if (d.role !== 'combat') return 0;
-    if (d.cls === 'ship') return R.PAY.ship;
+    if (d.cls === 'ship') return R.PAY.ship[u.type] != null ? R.PAY.ship[u.type] : R.PAY.shipDefault;
     const table = R.PAY[doctrineOf(S, u.owner, 'army') || 'standard'] || R.PAY.standard;
-    return table[mobOf(S, u.owner)];
+    return Math.round(table[mobOf(S, u.owner)] * (govOf(S, u.owner).landPay || 1));
   }
   const stars = (u) => ((u.xp || 0) >= R.XP.elite ? 2 : (u.xp || 0) >= R.XP.veteran ? 1 : 0);
   // Entrenchment level 0-5: infantry of a nation with the Entrenchment doctrine at full mobilization gains a level
@@ -1761,7 +1809,7 @@ const Engine = ((R) => {
     const need = settlementNeeds(S, dp), short = {};
     for (const [g, v] of Object.entries(need)) if ((dp.stock[g] || 0) < v) short[g] = round1(v - (dp.stock[g] || 0));
     if (Object.keys(short).length) return `The settlement still needs ${goodsText(short)}`;
-    const mp = R.CITY.foundMp + (S.map.tiles[dp.t].type === 'forest' ? R.CLEAR_FOREST.mp : 0);
+    const mp = foundMpOf(S, pid) + (S.map.tiles[dp.t].type === 'forest' ? R.CLEAR_FOREST.mp : 0);
     if (S.players[pid].manpower < mp) return `Needs ${mp} manpower`;
     return null;
   }
@@ -1949,6 +1997,37 @@ const Engine = ((R) => {
     return pr.kind;
   }
 
+  // Agreement partners: an active peace treaty, a transit/port/rail treaty, or an accepted trade route
+  function partnersOf(S, pid) {
+    const out = new Set();
+    for (const t of S.treaties) if (t.a === pid || t.b === pid) out.add(t.a === pid ? t.b : t.a);
+    for (const r of S.routes) if (r.partner != null && r.accepted && (r.owner === pid || r.partner === pid)) out.add(r.owner === pid ? r.partner : r.owner);
+    out.delete(pid);
+    return out;
+  }
+  // Can pid declare war on target right now? Autocracies always may; anyone may against a nation at war with one of
+  // their partners; otherwise democracies and monarchies must send an ultimatum.
+  function checkDeclare(S, pid, target) {
+    if (atWar(S, pid, target)) return 'already at war';
+    const pact = S.treaties.find((t) => t.type === 'peace' && pairs(t, pid, target));
+    if (pact) return `your peace treaty is in force until turn ${pact.endsTurn}`;
+    if ((S.players[pid].gov || 'monarchy') === 'autocracy') return null;
+    for (const q of partnersOf(S, pid)) if (q !== target && atWar(S, target, q)) return null;
+    const g = R.GOVERNMENTS[S.players[pid].gov || 'monarchy'];
+    return `a ${g.name.toLowerCase()} must send an ultimatum (${g.notice} turn${g.notice === 1 ? '' : 's'}' notice) unless ${S.players[target].name} is at war with one of your partners`;
+  }
+  function checkUltimatum(S, pid, target) {
+    if (atWar(S, pid, target)) return 'already at war';
+    const pact = S.treaties.find((t) => t.type === 'peace' && pairs(t, pid, target));
+    if (pact) return `your peace treaty is in force until turn ${pact.endsTurn}`;
+    if ((S.ultimatums || []).some((u) => u.from === pid && u.to === target)) return 'you already have an ultimatum waiting on them';
+    return null;
+  }
+  function describeUltimatum(S, u) {
+    const terms = peaceTerms(S, { from: u.from, to: u.to, payload: u.payload });
+    return `${terms || 'no terms'}${u.note ? ` ("${u.note}")` : ''}`;
+  }
+
   /* ---------------- new game ---------------- */
   function claim(S, c) {
     for (const j of within(S.map, c.t, territoryRadius(S, c))) if (S.map.tiles[j].owner == null) S.map.tiles[j].owner = c.id;
@@ -1978,9 +2057,9 @@ const Engine = ((R) => {
     const { map, starts } = genMap(list.length, rng, { mapType: opts.mapType, tilesPerPlayer: opts.tilesPerPlayer });
     const start = startingResources(opts.start);
     const S = {
-      version: 5, id: opts.id || `game-${seed.toString(36)}-${Date.now().toString(36)}`, name: opts.name || 'Guns, Pacts, and Commerce', start,
+      version: 6, id: opts.id || `game-${seed.toString(36)}-${Date.now().toString(36)}`, name: opts.name || 'Guns, Pacts, and Commerce', start,
       seed, turn: 1, map, players: [], cities: [], units: [], buildings: [], routes: [], treaties: [], wars: [], proposals: [],
-      market: { pool: {}, prices: {} }, reports: {}, nextId: 1, gameOver: null, history: [], depots: [], designs: [],
+      market: { pool: {}, prices: {} }, reports: {}, nextId: 1, gameOver: null, history: [], depots: [], designs: [], ultimatums: [],
     };
     list.forEach((pl, i) => {
       S.players.push({
@@ -1988,6 +2067,7 @@ const Engine = ((R) => {
         credits: start.credits, manpower: start.manpower, science: 0, researched: [], blueprints: [], designBlueprints: [], retiredDesigns: [],
         eliminated: false, priority: R.DEFAULT_PRIORITY.slice(), endVote: false,
         mob: 'peace', mobPending: null, mobDown: null, doctrine: { naval: null, army: null, warfare: null }, doctrineSince: {}, supplyPriority: R.SUPPLY_PRIORITY.slice(),
+        gov: 'monarchy', govSince: null, tax: 'normal', taxSince: null, upheavalUntil: null, rally: false,
       });
       const c = foundCityAt(S, i, starts[i], pl.cityName || `${pl.name || 'Player ' + (i + 1)} Capital`);
       for (const g of Object.keys(start.stock)) c.stock[g] = Math.min(start.stock[g], capacity(S, c, g));
@@ -2034,7 +2114,9 @@ const Engine = ((R) => {
       if (!p.doctrineSince) p.doctrineSince = {};
       if (!p.mob) p.mob = 'peace';
       if (!p.supplyPriority) p.supplyPriority = R.SUPPLY_PRIORITY.slice();
+      if (!p.gov) { p.gov = 'monarchy'; p.govSince = null; p.tax = 'normal'; p.taxSince = null; p.upheavalUntil = null; p.rally = false; }
     }
+    S.ultimatums = S.ultimatums || [];
     S.proposals = (S.proposals || []).filter((pr) => ['peace', 'treaty', 'blueprint', 'route'].includes(pr.kind));
     if ((S.version || 1) < 4) {
       // version 4: charcoal refineries move into their city; rubber plantations make raw rubber
@@ -2048,7 +2130,7 @@ const Engine = ((R) => {
       // version 5: tank traps belong to a nation (they used to record a city)
       for (const tile of S.map.tiles) if (tile.trap != null) { const c = cityById(S, tile.trap); tile.trap = c ? c.owner : null; }
     }
-    S.version = 5;
+    S.version = 6;
     return S;
   }
   function normalizeOrders(o) {
@@ -2124,6 +2206,7 @@ const Engine = ((R) => {
       S.treaties = S.treaties.filter((t) => t.a !== loser.id && t.b !== loser.id);
       S.wars = S.wars.filter((w) => w.a !== loser.id && w.b !== loser.id);
       S.proposals = S.proposals.filter((pr) => pr.from !== loser.id && pr.to !== loser.id);
+      S.ultimatums = (S.ultimatums || []).filter((u) => u.from !== loser.id && u.to !== loser.id);
       for (const tile of S.map.tiles) { if (tile.rail === loser.id) tile.rail = byPid; if (tile.bridgeBy === loser.id) tile.bridgeBy = byPid; if (tile.tunnel === loser.id) tile.tunnel = byPid; if (tile.trap === loser.id) tile.trap = byPid; }
       for (const dp of S.depots) if (dp.owner === loser.id) dp.owner = byPid;
       for (const q of S.players) rep(q.id, 'diplomacy', `${loser.name} lost its last city to ${winner.name} and is out of the game. ${winner.name} took its ${took}.`);
@@ -2166,10 +2249,22 @@ const Engine = ((R) => {
       if (tile.trap === old) tile.trap = to;
       if (tile.bridgeBy === old) tile.bridgeBy = to;
     }
+    function startWar(p, target, msg) {
+      S.wars.push({ id: S.nextId++, a: p.id, b: target.id, kind: 'war', since: turn });
+      S.treaties = S.treaties.filter((t) => !pairs(t, p.id, target.id));
+      for (const r of S.routes.slice()) if ((r.owner === p.id && r.partner === target.id) || (r.owner === target.id && r.partner === p.id)) removeRoute(r.id, 'war was declared');
+      S.ultimatums = S.ultimatums.filter((x) => !pairs({ a: x.from, b: x.to }, p.id, target.id));
+      for (const q of S.players) if (!q.eliminated) rep(q.id, 'diplomacy', msg);
+      if (govOf(S, target.id).rally) {
+        target.rally = true;
+        if (target.mobPending && target.mobPending.to === 'full') target.mobPending.at = turn; // a countdown already under way completes now
+        rep(target.id, 'war', 'War was declared on you: your nation rallies. Order full mobilization and it takes effect when the turn resolves.');
+      }
+    }
     function applyPeace(pr) {
       const a = S.players[pr.from], b = S.players[pr.to], pl = normPeace(pr.payload);
       const err = checkPeace(S, a.id, b.id, pl);
-      if (err) { both(a.id, b.id, 'diplomacy', `The peace treaty between ${a.name} and ${b.name} could not be signed: ${err}.`); return; }
+      if (err) { both(a.id, b.id, 'diplomacy', `The ${pr.ultimatum ? 'ultimatum\'s terms' : 'peace treaty'} between ${a.name} and ${b.name} could not be carried out: ${err}.`); return false; }
       const wasWar = atWar(S, a.id, b.id);
       S.wars = S.wars.filter((w) => !pairs(w, a.id, b.id));
       if (pl.term > 0) {
@@ -2189,7 +2284,8 @@ const Engine = ((R) => {
         }
       }
       refreshTraits(S);
-      both(a.id, b.id, 'diplomacy', `${a.name} and ${b.name} signed ${desc}${wasWar ? ', ending their war' : ''}.${pl.term > 0 ? ` Neither may declare war on the other before turn ${turn + pl.term + 1}.` : ''}`);
+      if (!pr.ultimatum) both(a.id, b.id, 'diplomacy', `${a.name} and ${b.name} signed ${desc}${wasWar ? ', ending their war' : ''}.${pl.term > 0 ? ` Neither may declare war on the other before turn ${turn + pl.term + 1}.` : ''}`);
+      return true;
     }
 
     /* ----- 0. settings & diplomacy ----- */
@@ -2224,9 +2320,12 @@ const Engine = ((R) => {
       if (st.mobilize && R.MOBILIZE.levels.includes(st.mobilize)) {
         const L = R.MOBILIZE.levels, want = L.indexOf(st.mobilize), cur = L.indexOf(p.mob), pend = p.mobPending ? L.indexOf(p.mobPending.to) : -1;
         if (want < cur || (p.mobPending && want <= cur)) { p.mobDown = st.mobilize; p.mobPending = null; }
-        else if (want > cur && pend < 0) {
+        else if (want > cur && p.rally && st.mobilize === 'full') {
+          // a democracy that has had war declared on it reaches full mobilization when this turn resolves
+          p.mobPending = { to: 'full', at: turn, since: p.mobPending ? p.mobPending.since : turn, rally: true };
+        } else if (want > cur && pend < 0) {
           if (p.mob === 'peace') p.mobPending = { to: 'partial', at: turn, since: turn };
-          else if (p.mob === 'partial') p.mobPending = { to: 'full', at: turn + R.MOBILIZE.toFullTurns - 1, since: turn };
+          else if (p.mob === 'partial') p.mobPending = { to: 'full', at: turn + govOf(S, p.id).toFullTurns - 1, since: turn };
         }
       }
       if (st.labor) for (const [bid, n] of Object.entries(st.labor)) {
@@ -2236,6 +2335,29 @@ const Engine = ((R) => {
       if (st.halt) for (const [bid, on] of Object.entries(st.halt)) {
         const b = S.buildings.find((x) => x.id === Number(bid));
         if (b && buildingOwner(S, b) === p.id && B[b.key].recipes) b.halted = !!on;
+      }
+      // government: change at most every 12 turns; housing makes half its manpower for 3 turns, and full mobilization drops to partial
+      if (st.government && R.GOVERNMENTS[st.government] && st.government !== (p.gov || 'monarchy')) {
+        const ready = govCooldownEnds(S, p.id);
+        if (turn < ready) rep(p.id, 'government', `You cannot change government again before turn ${ready}.`);
+        else {
+          const was = govOf(S, p.id).name;
+          p.gov = st.government; p.govSince = turn; p.upheavalUntil = turn + R.GOV_CHANGE.upheavalTurns - 1;
+          if (p.mob === 'full') { p.mob = 'partial'; p.mobPending = null; }
+          else if (p.mobPending && p.mobPending.to === 'full') p.mobPending = null;
+          for (const q of S.players) rep(q.id, 'government', `${p.name} changed its government from ${was} to ${govOf(S, p.id).name}.`);
+          rep(p.id, 'government', `Upheaval: your housing makes half its manpower until turn ${p.upheavalUntil} is over.`);
+        }
+      }
+      // tax rate: democracies every 6 turns, monarchies 4, autocracies 2; war tax only at partial or full mobilization
+      if (st.tax && R.TAX_LEVELS.includes(st.tax) && st.tax !== (p.tax || 'normal')) {
+        const ready = taxCooldownEnds(S, p.id);
+        if (turn < ready) rep(p.id, 'government', `You cannot change your tax rate again before turn ${ready}.`);
+        else if (st.tax === 'war' && p.mob === 'peace') rep(p.id, 'government', 'War tax needs partial or full mobilization.');
+        else {
+          p.tax = st.tax; p.taxSince = turn;
+          for (const q of S.players) rep(q.id, 'government', `${p.name} set its tax rate to ${R.TAX_NAMES[p.tax].toLowerCase()}.`);
+        }
       }
     }
     S.treaties = S.treaties.filter((t) => t.endsTurn == null || t.endsTurn > turn);
@@ -2286,6 +2408,30 @@ const Engine = ((R) => {
     }
     S.proposals = S.proposals.filter((pr) => pr.turn > turn);
 
+    // ultimatums: the target may accept (the terms are carried out, no war) or the sender cancel; otherwise war at the deadline
+    for (const p of active) for (const o of O[p.id].diplo) {
+      const u = S.ultimatums.find((x) => x.id === o.id);
+      if (!u) continue;
+      if (o.type === 'ultCancel' && u.from === p.id) {
+        S.ultimatums = S.ultimatums.filter((x) => x !== u);
+        for (const q of S.players) if (!q.eliminated) rep(q.id, 'diplomacy', `${p.name} withdrew its ultimatum to ${pname(u.to)}.`);
+      } else if (o.type === 'ultAccept' && u.to === p.id && turn > u.issued) {
+        if (applyPeace({ from: u.from, to: u.to, payload: Object.assign({}, u.payload, { term: 0 }), ultimatum: true })) {
+          S.ultimatums = S.ultimatums.filter((x) => x !== u);
+          for (const q of S.players) if (!q.eliminated) rep(q.id, 'diplomacy', `${p.name} accepted ${pname(u.from)}'s ultimatum (${describeUltimatum(S, u)}). There is no war.`);
+        }
+      }
+    }
+    for (const u of S.ultimatums.slice()) {
+      if (u.deadline > turn) continue;
+      S.ultimatums = S.ultimatums.filter((x) => x !== u);
+      const a = S.players[u.from], b = S.players[u.to];
+      if (a.eliminated || b.eliminated || atWar(S, a.id, b.id)) continue;
+      const pact = S.treaties.find((t) => t.type === 'peace' && pairs(t, a.id, b.id));
+      if (pact) { both(a.id, b.id, 'diplomacy', `${a.name}'s ultimatum to ${b.name} lapsed: a peace treaty is now in force.`); continue; }
+      startWar(a, b, `${b.name} did not accept ${a.name}'s ultimatum: ${a.name} is now at war with ${b.name}.`);
+    }
+
     for (const p of active) for (const o of O[p.id].diplo) {
       const target = o.to != null ? S.players[o.to] : null;
       switch (o.type) {
@@ -2300,12 +2446,20 @@ const Engine = ((R) => {
         case 'declare': {
           if (!target || target.eliminated || target.id === p.id) break;
           if (atWar(S, p.id, target.id)) break;
-          const pact = S.treaties.find((t) => t.type === 'peace' && pairs(t, p.id, target.id));
-          if (pact) { rep(p.id, 'diplomacy', `You cannot declare war on ${target.name} before turn ${pact.endsTurn}: your peace treaty is still in force.`); break; }
-          S.wars.push({ id: S.nextId++, a: p.id, b: target.id, kind: 'war', since: turn });
-          S.treaties = S.treaties.filter((t) => !pairs(t, p.id, target.id));
-          for (const r of S.routes.slice()) if ((r.owner === p.id && r.partner === target.id) || (r.owner === target.id && r.partner === p.id)) removeRoute(r.id, 'war was declared');
-          for (const q of S.players) if (!q.eliminated) rep(q.id, 'diplomacy', `${p.name} declared war on ${target.name}.`);
+          const err = checkDeclare(S, p.id, target.id);
+          if (err) { rep(p.id, 'diplomacy', `Could not declare war on ${target.name}: ${err}.`); break; }
+          startWar(p, target, `${p.name} declared war on ${target.name}.`);
+          break;
+        }
+        case 'ultimatum': {
+          if (!target || target.eliminated || target.id === p.id) break;
+          const err = checkUltimatum(S, p.id, target.id);
+          if (err) { rep(p.id, 'diplomacy', `Could not send an ultimatum to ${target.name}: ${err}.`); break; }
+          const pl = normPeace(Object.assign({}, o.payload || {}, { term: 0 }));
+          const notice = Math.max(1, govOf(S, p.id).notice);
+          const u = { id: S.nextId++, from: p.id, to: target.id, payload: pl, note: String(o.note || '').slice(0, 300), issued: turn, deadline: turn + notice };
+          S.ultimatums.push(u);
+          for (const q of S.players) if (!q.eliminated) rep(q.id, 'diplomacy', `${p.name} sent ${target.name} an ultimatum: ${describeUltimatum(S, u)}. Unless ${target.name} accepts, war begins on turn ${u.deadline}.`);
           break;
         }
         case 'cancelTreaty': {
@@ -2772,9 +2926,9 @@ const Engine = ((R) => {
       const err = checkFound(S, p.id, f.depot);
       if (err) { rep(p.id, 'construction', `Could not found a city: ${err}.`); continue; }
       const dp = depotById(S, Number(f.depot)), tile = S.map.tiles[dp.t], forest = tile.type === 'forest';
-      p.manpower = round1(p.manpower - R.CITY.foundMp - (forest ? R.CLEAR_FOREST.mp : 0));
+      p.manpower = round1(p.manpower - foundMpOf(S, p.id) - (forest ? R.CLEAR_FOREST.mp : 0));
       const left = Object.assign({}, dp.stock);
-      for (const [g, v] of Object.entries(R.CITY.foundCost)) left[g] = round1((left[g] || 0) - v);
+      for (const [g, v] of Object.entries(settlementBase(S, p.id))) left[g] = round1((left[g] || 0) - v);
       if (forest) { left.tools = round1((left.tools || 0) - R.CLEAR_FOREST.tools); tile.type = 'grassland'; }
       S.depots = S.depots.filter((x) => x !== dp);
       for (const r of S.routes.slice()) if (r.to.type === 'depot' && r.to.id === dp.id) removeRoute(r.id, 'its settlement became a city');
@@ -2789,12 +2943,12 @@ const Engine = ((R) => {
       const d = B[o.key];
       if (err) { rep(p.id, 'construction', `Could not build ${d ? d.name : o.key}: ${err}.`); continue; }
       const c = cityById(S, o.city), bu = (d.place === 'infra' || d.place === 'depot') && o.unit != null ? unitById(S, o.unit) : null;
-      const store = bu ? bu.cargo : c.stock, from = bu ? unitName(bu) : c.name;
-      if (!hasGoods(store, d.cost)) { rep(p.id, 'construction', `Could not build ${d.name} ${bu ? 'from' : 'in'} ${from}: needs ${goodsText(goodsOnly(d.cost))} ${bu ? 'aboard' : 'in the city'}.`); continue; }
-      if (p.manpower < (d.cost.mp || 0)) { rep(p.id, 'construction', `Could not build ${d.name}: needs ${d.cost.mp} manpower.`); continue; }
-      takeGoods(store, d.cost); p.manpower -= d.cost.mp || 0;
+      const store = bu ? bu.cargo : c.stock, from = bu ? unitName(bu) : c.name, cost = buildCost(S, p.id, o.key);
+      if (!hasGoods(store, cost)) { rep(p.id, 'construction', `Could not build ${d.name} ${bu ? 'from' : 'in'} ${from}: needs ${goodsText(goodsOnly(cost))} ${bu ? 'aboard' : 'in the city'}.`); continue; }
+      if (p.manpower < (cost.mp || 0)) { rep(p.id, 'construction', `Could not build ${d.name}: needs ${cost.mp} manpower.`); continue; }
+      takeGoods(store, cost); p.manpower -= cost.mp || 0;
       if (o.key === 'settlement') {
-        const dp = { id: S.nextId++, owner: p.id, t: o.t, stock: goodsOnly(d.cost), kind: 'settlement', born: turn };
+        const dp = { id: S.nextId++, owner: p.id, t: o.t, stock: goodsOnly(cost), kind: 'settlement', born: turn };
         S.depots.push(dp);
         rep(p.id, 'construction', `Placed ${depotName(dp)} at ${tileLabel(S, o.t)}. Bring it ${goodsText(settlementNeeds(S, dp))} and found the city.`);
       } else if (d.place === 'depot') {
@@ -3034,7 +3188,8 @@ const Engine = ((R) => {
       for (const u of byPrio()) {
         if (U[u.type].role !== 'combat' || !S.units.includes(u)) continue;
         const p = S.players[u.owner];
-        if (p.manpower >= R.MANPOWER_DRAW - 1e-9) { p.manpower = round1(p.manpower - R.MANPOWER_DRAW); u.mpShort = false; continue; }
+        const draw = U[u.type].cls === 'ship' ? R.MANPOWER_DRAW.ship : R.MANPOWER_DRAW.land;
+        if (p.manpower >= draw - 1e-9) { p.manpower = round1(p.manpower - draw); u.mpShort = false; continue; }
         u.mpShort = true; u.hp = round1(u.hp - 1); short[p.id] = (short[p.id] || 0) + 1;
         if (u.hp <= 0) destroyUnit(u, 'no manpower to sustain it');
       }
@@ -3102,6 +3257,8 @@ const Engine = ((R) => {
       if (p.mobPending && turn >= p.mobPending.at) { p.mob = p.mobPending.to; p.mobPending = null; }
       if (p.mob !== before) for (const q of S.players) rep(q.id, 'war', `${p.name} is now at ${p.mob === 'full' ? 'full mobilization' : p.mob === 'partial' ? 'partial mobilization' : 'peacetime'}.`);
       if (p.mobPending && p.mobPending.since === turn) for (const q of S.players) if (q.id !== p.id) rep(q.id, 'war', `${p.name} has begun ${p.mobPending.to === 'full' ? 'full' : 'partial'} mobilization.`);
+      if (p.tax === 'war' && p.mob === 'peace') { p.tax = 'high'; rep(p.id, 'government', 'Back at peacetime mobilization: your war tax dropped to the high rate.'); }
+      if (p.rally && !S.wars.some((w) => w.a === p.id || w.b === p.id)) p.rally = false;
     }
     // military pay for next turn. Free: 1 land unit per barracks that started the turn on its city tile,
     // and 1 ship per city with a harbor or port that started the turn there. Unpaid units fight at half strength.
@@ -3170,7 +3327,7 @@ const Engine = ((R) => {
       garrisonOf, posOf, carried, atWar, friendly, hasTreaty, isUnlocked, unitUnlocked, territoryRadius, supplyRadius, maxHp,
       capacity, freeSpace, recipeOf, recipeKey, buildingOutput, creditsOutOf, mpOf, mpOutOf, buildingOwner, reachable, findPath, canEnter, pickTarget, attackTargets,
       cityWeaponTargets, supplySources, sourceName, upkeepOf, inBase, checkBuild, checkTrain, checkFound, routeEstimate, describeProposal,
-      cargoUsed, cargoFree, portOk, dockable, slotFree, canCarry, carrySlots, demolishable, checkDemolish, checkDisband, inputsOf, monthOf, yearOf, seasonOf, isWinter, isSummer, rawMove, ustat, UU, designById, designOf, canUseDesign, seesDesign, checkDesign, researchedUnitSelf, repairCost, isSettlement, settlementNeeds, storeCap, giftError, depotAt, depotById, depotCap, depotFree, depotName, routeDest, checkClear, checkSabotage, sabotageTarget, sabotageTargetFor, bridgeSiteError, fording, inRiver, canAct, whyIdle, moveOf, payOf, laborOf, maxHpU, cargoCap, carryCap, stars, entrenched, entrenchLevel, blitzing, attackDamage, previewAttack, landCombat, mobOf, doctrineOf, supplyMoveLimit, normPeace, checkPeace, peaceTerms, isWater, isLand, nearWater, tileLabel, goodsText, terrain,
+      cargoUsed, cargoFree, portOk, dockable, slotFree, canCarry, carrySlots, demolishable, checkDemolish, checkDisband, inputsOf, monthOf, yearOf, seasonOf, isWinter, isSummer, govOf, taxOf, mpMult, taxCooldownEnds, govCooldownEnds, buildCost, foundMpOf, partnersOf, checkDeclare, checkUltimatum, describeUltimatum, rawMove, ustat, UU, designById, designOf, canUseDesign, seesDesign, checkDesign, researchedUnitSelf, repairCost, isSettlement, settlementNeeds, storeCap, giftError, depotAt, depotById, depotCap, depotFree, depotName, routeDest, checkClear, checkSabotage, sabotageTarget, sabotageTargetFor, bridgeSiteError, fording, inRiver, canAct, whyIdle, moveOf, payOf, laborOf, maxHpU, cargoCap, carryCap, stars, entrenched, entrenchLevel, blitzing, attackDamage, previewAttack, landCombat, mobOf, doctrineOf, supplyMoveLimit, normPeace, checkPeace, peaceTerms, isWater, isLand, nearWater, tileLabel, goodsText, terrain,
     },
   };
 })(typeof RULES !== 'undefined' ? RULES : require('./rules.js'));
@@ -3322,7 +3479,7 @@ function reserved(cityId) {
   const d = draft(), goods = {};
   let mp = 0;
   const addCost = (cost) => { for (const [g, v] of Object.entries(cost)) { if (g === 'mp') mp += v; else goods[g] = (goods[g] || 0) + v; } };
-  for (const b of d.builds) if (b.city === cityId && BLD[b.key]) addCost(BLD[b.key].cost);
+  for (const b of d.builds) if (b.city === cityId && BLD[b.key]) addCost(Q.buildCost(st(), UI.me, b.key));
   for (const t of d.trains) if (t.city === cityId && UNI[t.type]) addCost(UNI[t.type].cost);
   for (const s of d.sells) if (s.city === cityId) goods[s.good] = (goods[s.good] || 0) + Number(s.amount || 0);
   for (const c of d.cargo) if (c.city === cityId && c.amount > 0) goods[c.good] = (goods[c.good] || 0) + Number(c.amount);
@@ -3331,9 +3488,9 @@ function reserved(cityId) {
 }
 function reservedMp() {
   const d = draft(); let mp = 0;
-  for (const b of d.builds) if (BLD[b.key]) mp += BLD[b.key].cost.mp || 0;
+  for (const b of d.builds) if (BLD[b.key]) mp += Q.buildCost(st(), UI.me, b.key).mp || 0;
   for (const t of d.trains) if (UNI[t.type]) mp += UNI[t.type].cost.mp || 0;
-  if (d.found.length) mp += RR.CITY.foundMp * d.found.length;
+  if (d.found.length) mp += Q.foundMpOf(st(), UI.me) * d.found.length;
   mp += RR.DEMOLISH.mp * d.demolish.length;
   mp += RR.CLEAR_FOREST.mp * d.clear.length;
   return mp;
@@ -3366,8 +3523,8 @@ function computeHL() {
       const who = md.unit != null ? { unit: md.unit } : { city: c.id };
       if (md.unit != null) { // stop highlighting once the unit's cargo can't pay for another one
         const u = Q.unitById(S, md.unit), left = Object.assign({}, u ? u.cargo : {});
-        for (const b of draft().builds.filter((x) => x.unit === md.unit)) for (const [g, v] of Object.entries(BLD[b.key].cost)) if (g !== 'mp') left[g] = (left[g] || 0) - v;
-        if (Object.entries(d.cost).some(([g, v]) => g !== 'mp' && (left[g] || 0) < v)) return;
+        for (const b of draft().builds.filter((x) => x.unit === md.unit)) for (const [g, v] of Object.entries(Q.buildCost(S, UI.me, b.key))) if (g !== 'mp') left[g] = (left[g] || 0) - v;
+        if (Object.entries(Q.buildCost(S, UI.me, md.key)).some(([g, v]) => g !== 'mp' && (left[g] || 0) < v)) return;
       }
       for (const t of pool) if (!taken.has(t) && !Q.checkBuild(S, UI.me, Object.assign({ key: md.key, t }, who))) hl.build.add(t);
     } else if (md.kind === 'weapon') {
@@ -3715,7 +3872,7 @@ function onTileClick(t) {
    ===================================================================== */
 const TABS = [
   ['map', 'Map'], ['flow', 'Flow'], ['supply', 'Supply'], ['stock', 'Stockpiles'], ['buildings', 'Buildings'], ['production', 'Production'],
-  ['research', 'Research'], ['market', 'Market'], ['war', 'War'], ['diplomacy', 'Diplomacy'], ['reports', 'Reports'], ['orders', 'Orders'],
+  ['research', 'Research'], ['market', 'Market'], ['war', 'War'], ['government', 'Government'], ['diplomacy', 'Diplomacy'], ['reports', 'Reports'], ['orders', 'Orders'],
 ];
 function renderHeader() {
   const S = st(), p = meP(), d = draft();
@@ -3909,7 +4066,7 @@ function cityPanel(c) {
   const opts = Object.entries(BLD).filter(([k]) => Q.isUnlocked(S, UI.me, k)).map(([k, b]) => {
     const err = b.place === 'city' ? (Q.checkBuild(S, UI.me, { city: c.id, key: k }) || (b.limit && queued.filter((x) => x.key === k).length + (counts[k] || 0) >= b.limit ? `Only ${b.limit} per city` : null)) : null;
     const act = b.place === 'city' ? `<button class="btn small" data-act="build-city" data-city="${c.id}" data-key="${k}" ${err ? 'disabled' : ''}>Build</button>` : `<button class="btn small" data-act="mode-build" data-city="${c.id}" data-key="${k}">Place…</button>`;
-    return `<div class="opt ${err ? 'no' : ''}"><span>${esc(b.name)}${err ? ` <span class="small warn">${esc(err)}</span>` : ''}</span>${act}<span class="cost">${esc(costText(b.cost))}</span></div>`;
+    return `<div class="opt ${err ? 'no' : ''}"><span>${esc(b.name)}${err ? ` <span class="small warn">${esc(err)}</span>` : ''}</span>${act}<span class="cost">${esc(costText(Q.buildCost(S, UI.me, k)))}</span></div>`;
   }).join('');
   const retired = S.players[UI.me].retiredDesigns || [];
   const trainOpts = Object.entries(UNI).filter(([k]) => Q.unitUnlocked(S, UI.me, k)).map(([k, u]) => {
@@ -4002,12 +4159,13 @@ function unitPanel(u) {
   if (dd.role === 'logistic' && dd.cls !== 'ship' && dd.cargo && u.carriedBy == null) {
     const queuedHere = d.builds.filter((b) => b.unit === u.id);
     const left = Object.assign({}, u.cargo);
-    for (const b of queuedHere) for (const [g, v] of Object.entries(BLD[b.key].cost)) if (g !== 'mp') left[g] = (left[g] || 0) - v;
+    for (const b of queuedHere) for (const [g, v] of Object.entries(Q.buildCost(S, UI.me, b.key))) if (g !== 'mp') left[g] = (left[g] || 0) - v;
     for (const b of queuedHere) ord.push(`<li>Build ${esc(BLD[b.key].name.toLowerCase())} at ${tl(b.t)} with its cargo<button class="x" data-act="rm" data-list="builds" data-idx="${d.builds.indexOf(b)}" aria-label="Cancel">✕</button></li>`);
     const infra = Object.entries(BLD).filter(([k, b]) => (b.place === 'infra' || b.place === 'depot') && Q.isUnlocked(S, UI.me, k));
     if (infra.length) acts.push(`<h4>Build in the field</h4><p class="small muted">Railroads, bridges, field depots and settlements within ${RR.CITY.unitSupplyRadius} tiles, paid from this unit's cargo. A settlement becomes a city once it holds ${esc(fmtGoods(RR.SETTLEMENT.storage))}.</p>${infra.map(([k, b]) => {
-      const short = Object.entries(b.cost).filter(([g, v]) => g !== 'mp' && (left[g] || 0) < v).map(([g, v]) => `${v} ${gl(g)}`);
-      return `<div class="opt ${short.length ? 'no' : ''}"><span>${esc(b.name)}${short.length ? ` <span class="small warn">needs ${esc(short.join(', '))} aboard</span>` : ''}</span><button class="btn small" data-act="mode-build-unit" data-unit="${u.id}" data-key="${k}" ${short.length ? 'disabled' : ''}>Place…</button><span class="cost">${esc(costText(b.cost))}</span></div>`;
+      const bc = Q.buildCost(S, UI.me, k);
+      const short = Object.entries(bc).filter(([g, v]) => g !== 'mp' && (left[g] || 0) < v).map(([g, v]) => `${v} ${gl(g)}`);
+      return `<div class="opt ${short.length ? 'no' : ''}"><span>${esc(b.name)}${short.length ? ` <span class="small warn">needs ${esc(short.join(', '))} aboard</span>` : ''}</span><button class="btn small" data-act="mode-build-unit" data-unit="${u.id}" data-key="${k}" ${short.length ? 'disabled' : ''}>Place…</button><span class="cost">${esc(costText(bc))}</span></div>`;
     }).join('')}`);
   }
   if (dd.role === 'logistic' && u.carriedBy == null) {
@@ -4139,7 +4297,7 @@ TAB_RENDER.buildings = function () {
     const traps = S.map.tiles.filter((t) => t.owner === c.id && t.trap === UI.me).length;
     const effect = (b) => {
       const d = BLD[b.key];
-      if (d.recipes) { const rc = Q.recipeOf(b), out = Q.buildingOutput(S, b); return `${fmtGoods(Q.inputsOf(b)) || 'no inputs'} → ${fmtGoods(out) || [rc.mpOut ? `${rc.mpOut} manpower` : '', rc.sciOut ? `${rc.sciOut} science` : '', Q.creditsOutOf(S, b) || rc.creditsPerResidence ? `${Q.creditsOutOf(S, b)} credits${rc.creditsPerResidence ? ` (${rc.creditsPerResidence} per working residence)` : ''}` : ''].filter(Boolean).join(', ')}`; }
+      if (d.recipes) { const rc = Q.recipeOf(b), out = Q.buildingOutput(S, b); return `${fmtGoods(Q.inputsOf(b)) || 'no inputs'} → ${fmtGoods(out) || [rc.mpOut ? `${Q.mpOutOf(S, b)} manpower` : '', rc.sciOut ? `${rc.sciOut} science` : '', Q.creditsOutOf(S, b) || rc.creditsPerResidence ? `${Q.creditsOutOf(S, b)} credits${rc.creditsPerResidence ? ` (${rc.creditsPerResidence} per working residence)` : ''}` : ''].filter(Boolean).join(', ')}`; }
       if (d.storage) return `Stores ${fmtGoods(d.storage)}`;
       if (d.storageAll) return `Stores +${d.storageAll} of every good except food and fuel${d.supplyBonus ? '; +1 supply range' : ''}`;
       if (d.builds) return `Builds ${d.builds.map((k) => UNI[k].name.toLowerCase()).join(', ')}`;
@@ -4266,9 +4424,10 @@ TAB_RENDER.war = function () {
   const L = RR.MOBILIZE.levels, cur = p.mob || 'peace', ci = L.indexOf(cur);
   const chosen = st0.mobilize || null;
   const mobRadio = L.map((lv, i) => {
-    const allowed = i <= ci + 1 && !(p.mobPending && i > ci);
+    const allowed = (i <= ci + 1 || (p.rally && lv === 'full')) && !(p.mobPending && i > ci && !p.rally);
     const isCur = (chosen || (p.mobPending ? p.mobPending.to : cur)) === lv;
-    const note = i < ci ? 'stand down when the turn resolves' : i === ci ? (p.mobPending ? 'cancel the countdown' : 'current') : lv === 'partial' ? 'ready next turn' : `ready in ${RR.MOBILIZE.toFullTurns} turns counting this one; others see it next turn`;
+    const g = Q.govOf(S, UI.me);
+    const note = i < ci ? 'stand down when the turn resolves' : i === ci ? (p.mobPending ? 'cancel the countdown' : 'current') : lv === 'partial' ? 'ready next turn' : p.rally ? 'your nation rallies: ready when this turn resolves' : `ready in ${g.toFullTurns} turns counting this one; others see it next turn`;
     return `<label class="ck" style="display:block;margin:4px 0"><input type="radio" name="mob" data-chg="mobilize" value="${lv}" ${isCur ? 'checked' : ''} ${allowed ? '' : 'disabled'}> <b>${MOB_NAMES[lv]}</b> <span class="small muted">${note}</span></label>`;
   }).join('');
   const docRows = Object.entries(RR.DOCTRINE_GROUPS).map(([g, gname]) => {
@@ -4307,11 +4466,11 @@ TAB_RENDER.war = function () {
   return `<div class="page"><h2>War</h2><p class="muted">Mobilization, doctrines and every unit you command. Attack strength shows the unit's own modifiers (mobilization, pay, supply, experience); hover a red target on the map for the full damage forecast.</p>
     <div class="cols" style="grid-template-columns:1fr 1fr 1fr;gap:14px">
       <div class="panel"><h3 style="margin-top:0">Mobilization</h3><p class="small">Now: <b>${esc(mobLabel(S, p))}</b></p>${mobRadio}
-        <p class="small muted">Peacetime: land units cannot move or attack, eat only their idle food, pay ${RR.PAY.standard.peace}. Partial: half speed, −50% attack, pay ${RR.PAY.standard.partial}. Full: normal, pay ${RR.PAY.standard.full}, but housing makes a third less manpower. Defense is never affected. Ships always work normally and cost ${RR.PAY.ship}.</p></div>
+        <p class="small muted">Peacetime: land units cannot move or attack and eat only their idle food. Partial: half speed, −50% attack. Full: normal, but housing makes 20% less manpower. Pay per land unit (${esc(p.doctrine && p.doctrine.army ? RR.DOCTRINES[p.doctrine.army].name : 'standard')}): ${(() => { const t = RR.PAY[(p.doctrine && p.doctrine.army) || 'standard']; const f = Q.govOf(S, UI.me).landPay || 1; return `${Math.round(t.peace * f)} / ${Math.round(t.partial * f)} / ${Math.round(t.full * f)}`; })()} credits. Ships always work normally: frigates ${RR.PAY.ship.frigate}, warships ${RR.PAY.ship.warship} a turn. Defense is never affected.</p></div>
       <div class="panel"><h3 style="margin-top:0">Doctrines</h3><p class="small muted">One per group, once researched. A choice is locked for ${RR.DOCTRINE_LOCK} turns.</p>${docRows}</div>
       <div class="panel"><h3 style="margin-top:0">Supply priority</h3><p class="small muted">When supply or manpower runs short, units higher on this list are served first. A unit gets its full need or nothing. Units draw from your cities in range first, then field depots, then nearby logistics units, and only then their own stores; combat units refill their stores at the end of the turn.</p><ol class="list prio">${prioList}</ol></div>
     </div>
-    <div class="row" style="gap:24px;margin-top:12px"><span>Combat units <b class="num">${combat.length}</b></span><span>Pay next turn about <b class="num">${payTotal}</b> credits <span class="small muted">(before free barracks and port berths)</span></span><span>Manpower draw <b class="num">${Math.round(combat.length * RR.MANPOWER_DRAW * 10) / 10}</b> a turn</span></div>
+    <div class="row" style="gap:24px;margin-top:12px"><span>Combat units <b class="num">${combat.length}</b></span><span>Pay next turn about <b class="num">${payTotal}</b> credits <span class="small muted">(before free barracks and port berths)</span></span><span>Manpower draw <b class="num">${Math.round(combat.reduce((a, u) => a + (UNI[u.type].cls === 'ship' ? RR.MANPOWER_DRAW.ship : RR.MANPOWER_DRAW.land), 0) * 10) / 10}</b> a turn</span></div>
     <div class="ledger" style="margin-top:10px"><table><thead><tr><th>Unit</th><th>Location</th><th class="n">HP</th><th>Rank</th><th class="n">Attack</th><th class="n">Move</th><th class="n">Pay</th><th>Status</th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="9" class="muted">No combat units.</td></tr>'}</tbody></table></div>
     <div class="ledger" style="margin-top:10px"><table><thead><tr><th>Logistics unit</th><th>Location</th><th class="n">HP</th><th>Cargo</th><th></th><th></th></tr></thead><tbody>${lrows || '<tr><td colspan="6" class="muted">No logistics units.</td></tr>'}</tbody></table></div>
     <p class="small muted">Disbanding returns half the goods used to build a unit (never the manpower), plus any cargo, to your cities, field depots or logistics units in range; anything that does not fit is lost.</p>
@@ -4351,6 +4510,47 @@ function designPanel(S, p, d) {
     <h4>New design</h4>${form}</div>`;
 }
 
+/* ---------- Government ---------- */
+const GOV_KEYS = ['democracy', 'monarchy', 'autocracy'];
+TAB_RENDER.government = function () {
+  const S = st(), p = meP(), d = draft(), st0 = d.settings || {};
+  const curG = p.gov || 'monarchy', curT = p.tax || 'normal', g = RR.GOVERNMENTS[curG];
+  const govReady = Q.govCooldownEnds(S, UI.me), taxReady = Q.taxCooldownEnds(S, UI.me);
+  const wantG = st0.government || curG, wantT = st0.tax || curT;
+  const pct = (m) => `${m >= 1 ? '+' : '−'}${Math.round(Math.abs(m - 1) * 100)}%`;
+  const govRadio = GOV_KEYS.map((k) => {
+    const G = RR.GOVERNMENTS[k], dis = k !== curG && S.turn < govReady;
+    return `<label class="ck" style="display:block;margin:6px 0"><input type="radio" name="gov" data-chg="government" value="${k}" ${wantG === k ? 'checked' : ''} ${dis ? 'disabled' : ''}> <b>${G.name}</b>${k === curG ? ' <span class="tag ok">current</span>' : ''}<div class="small muted" style="margin-left:22px">${esc(G.text)}</div></label>`;
+  }).join('');
+  const taxRadio = RR.TAX_LEVELS.map((lv) => {
+    const t = g.tax[lv], dis = (lv !== curT && S.turn < taxReady) || (lv === 'war' && p.mob === 'peace');
+    return `<label class="ck" style="display:block;margin:4px 0"><input type="radio" name="tax" data-chg="tax" value="${lv}" ${wantT === lv ? 'checked' : ''} ${dis ? 'disabled' : ''}> <b>${RR.TAX_NAMES[lv]}</b> <span class="small muted">${t.rate} credits per manpower, housing ${pct(t.mp)}${lv === 'war' ? '; needs partial or full mobilization' : ''}</span>${lv === curT ? ' <span class="tag ok">current</span>' : ''}</label>`;
+  }).join('');
+  const housing = S.buildings.filter((b) => Q.buildingOwner(S, b) === UI.me && Q.recipeOf(b) && Q.recipeOf(b).mpOut && !b.halted);
+  const mpNow = Math.round(housing.reduce((a, b) => a + Q.mpOutOf(S, b), 0) * 10) / 10;
+  const taxNow = S.buildings.filter((b) => b.key === 'taxOffice' && Q.buildingOwner(S, b) === UI.me).reduce((a, b) => a + Q.creditsOutOf(S, b), 0);
+  const cmp = `<table><thead><tr><th>Tax rate</th>${GOV_KEYS.map((k) => `<th colspan="2">${RR.GOVERNMENTS[k].name}</th>`).join('')}</tr><tr><th></th>${GOV_KEYS.map(() => '<th class="n">Credits</th><th class="n">Housing</th>').join('')}</tr></thead><tbody>${RR.TAX_LEVELS.map((lv) => `<tr><td>${RR.TAX_NAMES[lv]}</td>${GOV_KEYS.map((k) => { const t = RR.GOVERNMENTS[k].tax[lv]; return `<td class="n">${t.rate}</td><td class="n">×${t.mp}</td>`; }).join('')}</tr>`).join('')}</tbody></table>`;
+  const feat = [
+    ['Change tax rate', (G) => `every ${G.taxEvery} turns`],
+    ['Going to war', (G) => (G.notice ? `ultimatum: ${G.notice} turn${G.notice === 1 ? '' : 's'}' notice` : 'declare war instantly')],
+    ['Partial → full mobilization', (G) => `${G.toFullTurns} turns${G.rally ? ' (1 if war is declared on you)' : ''}`],
+    ['Land unit pay', (G) => (G.landPay ? `${Math.round((1 - G.landPay) * 100)}% less` : 'normal')],
+    ['Settlements', (G) => (G.settlementCut ? `${Math.round(G.settlementCut * 100)}% cheaper` : 'normal')],
+  ];
+  const featT = `<table><thead><tr><th></th>${GOV_KEYS.map((k) => `<th>${RR.GOVERNMENTS[k].name}</th>`).join('')}</tr></thead><tbody>${feat.map(([lab, f]) => `<tr><td>${lab}</td>${GOV_KEYS.map((k) => `<td class="small">${esc(f(RR.GOVERNMENTS[k]))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+  return `<div class="page"><h2>Government</h2><p class="muted">Your government sets your tax rates, how you go to war and how fast you mobilize. Other nations can see your government and tax rate on the Diplomacy tab.</p>
+    <div class="row" style="gap:24px"><span>Government <b>${g.name}</b></span><span>Tax rate <b>${RR.TAX_NAMES[curT]}</b></span><span>Housing makes <b class="num">${mpNow}</b> manpower a turn (×${Math.round(Q.mpMult(S, UI.me) * 100) / 100})</span><span>Tax offices <b class="num">${taxNow}</b> credits a turn</span></div>
+    ${p.upheavalUntil != null && S.turn <= p.upheavalUntil ? `<p class="warn">Upheaval: housing makes half its manpower until turn ${p.upheavalUntil} is over.</p>` : ''}
+    ${p.rally ? '<p class="ok">War was declared on you: your nation rallies. Full mobilization takes effect when this turn resolves.</p>' : ''}
+    <div class="cols" style="grid-template-columns:1fr 1fr;gap:14px;margin-top:12px">
+      <div class="panel"><h3 style="margin-top:0">Tax rate</h3><p class="small muted">${S.turn < taxReady ? `You can change it again on turn ${taxReady}.` : 'You can change it this turn.'} A tax office pays the rate for each manpower its city's housing makes. Full mobilization takes a further 20% off housing.</p>${taxRadio}</div>
+      <div class="panel"><h3 style="margin-top:0">Form of government</h3><p class="small muted">${S.turn < govReady ? `You can change it again on turn ${govReady}.` : 'You can change it this turn.'} Changing halves your housing's manpower for ${RR.GOV_CHANGE.upheavalTurns} turns and drops full mobilization to partial. After a change you must wait ${RR.GOV_CHANGE.every} turns.</p>${govRadio}</div>
+    </div>
+    <h3>Tax rates by government</h3><div class="ledger">${cmp}</div>
+    <h3>How the governments differ</h3><div class="ledger">${featT}</div>
+    <p class="small muted">Democracies and monarchies may declare war at once on a nation that is at war with one of their partners (any nation with a peace treaty in force, a trade route, or transit, port or rail rights with them). Otherwise they send an ultimatum from the Diplomacy tab.</p></div>`;
+};
+
 /* ---------- Diplomacy ---------- */
 function peaceDraft(to) {
   if (!UI.peace || UI.peace.to !== to) UI.peace = { to, term: 5, give: { credits: 0, science: 0, cities: [], tiles: [], units: [] }, get: { credits: 0, science: 0, cities: [], tiles: [], units: [] } };
@@ -4369,6 +4569,14 @@ function peaceBuilder() {
       <p class="small">${part.tiles.length} tile${part.tiles.length === 1 ? '' : 's'} chosen${part.tiles.length ? ` (${part.tiles.map(tl).join(', ')})` : ''}</p>
       ${(() => { const recv = pid === UI.me ? pd.to : UI.me; const us = Q.unitsOf(S, pid).filter((u) => !Q.giftError(S, pid, recv, u.id)); return `<div class="small"><b>Units</b> <span class="muted">(must stand in ${pid === UI.me ? 'their' : 'your'} territory; ships in waters of a city with a harbor or port)</span><br>${us.map((u) => `<label class="ck"><input type="checkbox" data-chg="pc-unit" data-side="${key}" value="${u.id}" ${(part.units || []).includes(u.id) ? 'checked' : ''}> ${esc(Q.unitName(u))}</label>`).join('<br>') || '<span class="muted">None eligible</span>'}</div>`; })()}</div>`;
   };
+  if (pd.ult) {
+    const g = Q.govOf(S, UI.me), n = Math.max(1, g.notice);
+    return `<div class="panel" id="peace-builder"><h3 style="margin-top:0">Ultimatum to ${playerLabel(pd.to)}</h3>
+    <p class="small muted">Set out your demands (what ${esc(them.name)} gives) and anything you offer in return. If ${esc(them.name)} accepts within ${n} turn${n === 1 ? '' : 's'}, the terms are carried out and there is no war; otherwise war begins on turn ${S.turn + n}. You can withdraw it before then. Every nation is told.</p>
+    <div class="cols" style="grid-template-columns:1fr 1fr;gap:12px">${side('get', pd.to)}${side('give', UI.me)}</div>
+    <label style="display:block;margin:8px 0">Message (optional, not enforced) <input type="text" maxlength="300" style="width:100%" data-chg="ult-note" value="${esc(pd.note || '')}"></label>
+    <div class="row"><button class="btn" data-act="pc-pick">Pick tiles on the map</button><button class="btn danger" data-act="ult-send">Send ultimatum</button><button class="btn" data-act="pc-close">Cancel</button></div></div>`;
+  }
   return `<div class="panel" id="peace-builder"><h3 style="margin-top:0">Treaty with ${playerLabel(pd.to)}</h3>
     <p class="small muted">${Q.atWar(S, UI.me, pd.to) ? 'Signing ends your war.' : 'You are at peace; a term adds a guaranteed non-aggression period, and a term of 0 is a plain exchange (for example lend-lease).'} Neither side may declare war until the term ends. Units can only be given between nations at peace. ${esc(them.name)} answers next turn, and the transfers happen only if both sides still have what they promised.</p>
     <div class="row"><label>Term <select data-chg="pc-term">${Array.from({ length: RR.PEACE.maxTerm - RR.PEACE.minTerm + 1 }, (_, i) => i + RR.PEACE.minTerm).map((n) => `<option value="${n}" ${n === pl.term ? 'selected' : ''}>${n ? `${n} turns` : '0 turns (no non-aggression term)'}</option>`).join('')}</select></label></div>
@@ -4390,15 +4598,21 @@ TAB_RENDER.diplomacy = function () {
     return '<span class="tag ok">At peace</span>';
   };
   const rows = others.map((x) => {
-    if (x.eliminated) return `<tr><td>${playerLabel(x.id)}</td><td>${rel(x)}</td><td colspan="4"></td></tr>`;
+    if (x.eliminated) return `<tr><td>${playerLabel(x.id)}</td><td>${rel(x)}</td><td colspan="5"></td></tr>`;
     const war = Q.atWar(S, UI.me, x.id);
     const tr = S.treaties.filter((t) => t.type !== 'peace' && ((t.a === UI.me && t.b === x.id) || (t.b === UI.me && t.a === x.id)));
     const acts = [];
     acts.push(queued((o) => o.type === 'propose' && o.kind === 'peace' && o.to === x.id) ? '<span class="tag brass">Peace offered</span>' : `<button class="btn small" data-act="pc-open" data-to="${x.id}">${war ? 'Propose peace…' : 'Offer peace treaty…'}</button>`);
-    if (!war && !pact(x)) acts.push(queued((o) => o.type === 'declare' && o.to === x.id) ? '<span class="tag war">War declared this turn</span>' : `<button class="btn small danger" data-act="declare" data-to="${x.id}">Declare war</button>`);
+    if (!war && !pact(x)) {
+      const decErr = Q.checkDeclare(S, UI.me, x.id), pendU = (S.ultimatums || []).some((u) => u.from === UI.me && u.to === x.id);
+      if (queued((o) => o.type === 'declare' && o.to === x.id)) acts.push('<span class="tag war">War declared this turn</span>');
+      else if (!decErr) acts.push(`<button class="btn small danger" data-act="declare" data-to="${x.id}">Declare war</button>`);
+      if (queued((o) => o.type === 'ultimatum' && o.to === x.id)) acts.push('<span class="tag war">Ultimatum queued</span>');
+      else if (!pendU) acts.push(`<button class="btn small danger" data-act="ult-open" data-to="${x.id}" title="${esc(decErr || '')}">Send ultimatum…</button>`);
+    }
     if (!war) for (const type of ['transit', 'port', 'rail']) if (!tr.some((t) => t.type === type) && !queued((o) => o.type === 'propose' && o.kind === 'treaty' && o.to === x.id && o.payload.type === type)) acts.push(`<button class="btn small" data-act="treaty" data-to="${x.id}" data-type="${type}">Offer ${type} rights</button>`);
     acts.push(`<span class="row" style="margin:0"><input type="number" min="1" class="w-sm" id="cr-${x.id}" placeholder="0" aria-label="Credits to send"><button class="btn small" data-act="credits" data-to="${x.id}">Send credits</button></span>`);
-    return `<tr><td>${playerLabel(x.id)}</td><td>${rel(x)}</td>
+    return `<tr><td>${playerLabel(x.id)}</td><td>${rel(x)}</td><td class="small">${esc(RR.GOVERNMENTS[x.gov || 'monarchy'].name)}<div class="muted">${esc(RR.TAX_NAMES[x.tax || 'normal'])} tax</div></td>
       <td class="small">${tr.map((t) => `${t.type} rights${t.endsTurn ? ` (ends turn ${t.endsTurn})` : ` <button class="linkbtn" data-act="cancel-treaty" data-id="${t.id}">cancel</button>`}`).join('<br>') || '<span class="muted">None</span>'}</td>
       <td class="small ${x.mob === 'full' || x.mobPending ? 'warn' : ''}">${esc(mobLabel(S, x))}</td>
       <td class="small">${citiesOf(x.id).length} cit${citiesOf(x.id).length === 1 ? 'y' : 'ies'}, ${Q.unitsOf(S, x.id).length} units</td><td><div class="row" style="margin:0">${acts.join(' ')}</div></td></tr>`;
@@ -4409,13 +4623,20 @@ TAB_RENDER.diplomacy = function () {
       <span><label class="ck"><input type="radio" name="pr-${pr.id}" data-chg="respond" data-id="${pr.id}" value="1" ${ans && ans.accept ? 'checked' : ''}> Accept</label> <label class="ck"><input type="radio" name="pr-${pr.id}" data-chg="respond" data-id="${pr.id}" value="0" ${ans && !ans.accept ? 'checked' : ''}> Reject</label></span></li>`;
   }).join('');
   const outgoing = S.proposals.filter((pr) => pr.from === UI.me).map((pr) => `<li>${esc(Q.describeProposal(S, pr))} to ${esc(pname(pr.to))}<span class="small muted">answer due turn ${pr.turn}</span></li>`).join('');
+  const ults = S.ultimatums || [];
+  const ultIn = ults.filter((u) => u.to === UI.me).map((u) => {
+    const acc = queued((o) => o.type === 'ultAccept' && o.id === u.id);
+    return `<li><span><b class="warn">Ultimatum</b> from ${playerLabel(u.from)}: ${esc(Q.describeUltimatum(S, u))}. War on turn ${u.deadline} unless you accept.</span><label class="ck"><input type="checkbox" data-chg="ult-accept" data-id="${u.id}" ${acc ? 'checked' : ''}> Accept the terms</label></li>`;
+  }).join('');
+  const ultOut = ults.filter((u) => u.from === UI.me).map((u) => `<li><span>Your ultimatum to ${playerLabel(u.to)}: ${esc(Q.describeUltimatum(S, u))}. War on turn ${u.deadline}.</span>${queued((o) => o.type === 'ultCancel' && o.id === u.id) ? '<span class="tag">withdrawing</span>' : `<button class="btn small" data-act="ult-cancel" data-id="${u.id}">Withdraw</button>`}</li>`).join('');
   const alive = S.players.filter((x) => !x.eliminated);
   return `<div class="page"><h2>Diplomacy</h2><p class="small">Your mobilization: <b>${esc(mobLabel(S, p))}</b> <button class="linkbtn" data-act="tab" data-tab="war">change on the War tab</button></p><p class="muted">Peace treaties, rights treaties and trade routes are enforced by the game. Alliances, promises and informal arrangements are just words. Proposals reach the other nation next turn.</p>
     ${peaceBuilder()}
-    <div class="ledger" style="margin-top:14px"><table><thead><tr><th>Nation</th><th>Status</th><th>Rights treaties</th><th>Mobilization</th><th>Size</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="ledger" style="margin-top:14px"><table><thead><tr><th>Nation</th><th>Status</th><th>Government</th><th>Rights treaties</th><th>Mobilization</th><th>Size</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div>
     <div class="cols" style="margin-top:16px">
-      <div class="panel"><h3 style="margin-top:0">Answer this turn</h3><ul class="list">${incoming || '<li class="muted">Nothing to answer.</li>'}</ul><h4>Waiting on others</h4><ul class="list">${outgoing || '<li class="muted">None</li>'}</ul></div>
+      <div class="panel"><h3 style="margin-top:0">Answer this turn</h3><ul class="list">${ultIn}${incoming || (ultIn ? '' : '<li class="muted">Nothing to answer.</li>')}</ul><h4>Waiting on others</h4><ul class="list">${ultOut}${outgoing || (ultOut ? '' : '<li class="muted">None</li>')}</ul></div>
       <div class="panel"><h3 style="margin-top:0">Wars and treaties</h3><ul class="list">${S.wars.map((w) => `<li>${playerLabel(w.a)} vs ${playerLabel(w.b)}<span class="small muted">since turn ${w.since}</span></li>`).join('') || '<li class="muted">No wars.</li>'}
+        ${ults.map((u) => `<li>${playerLabel(u.from)} → ${playerLabel(u.to)}<span class="small muted">ultimatum, war on turn ${u.deadline} unless accepted</span></li>`).join('')}
         ${S.treaties.filter((t) => t.type === 'peace').map((t) => `<li>${playerLabel(t.a)} and ${playerLabel(t.b)}<span class="small muted">peace, no war before turn ${t.endsTurn}</span></li>`).join('')}</ul>
         <h4>End the game</h4><p class="small">The game ends when one nation is left, or when every remaining nation (${alive.map((x) => esc(x.name)).join(', ')}) votes to end it in the same turn while none are at war.</p>
         ${!p.eliminated ? `<label class="ck"><input type="checkbox" data-chg="endvote" ${queued((o) => o.type === 'endVote') ? 'checked' : ''}> Vote to end the game this turn</label>` : ''}</div>
@@ -4445,6 +4666,9 @@ function orderGroups() {
         : o.type === 'respond' ? `${o.accept ? 'Accept' : 'Reject'} ${Q.describeProposal(S, S.proposals.find((p) => p.id === o.id) || { kind: '?' })}`
           : o.type === 'credits' ? `Send ${o.amount} credits to ${pname(o.to)}`
             : o.type === 'cancelTreaty' ? 'Cancel a treaty'
+              : o.type === 'ultimatum' ? `Ultimatum to ${pname(o.to)}`
+                : o.type === 'ultAccept' ? 'Accept an ultimatum'
+                  : o.type === 'ultCancel' ? 'Withdraw an ultimatum'
               : o.type === 'endVote' ? 'Vote to end the game' : o.type;
     add('Diplomacy', 'diplo', i, t);
   });
@@ -4548,6 +4772,13 @@ const ACT = {
     if (amount > 0) mutate((d) => d.buys.push(Object.assign({ good: g, amount, city: UI.marketCity }, maxPrice ? { maxPrice } : {})));
   },
   sell(el) { const g = el.dataset.good, amount = Math.floor(Number($(`#mk-${g}`).value) || 0); if (amount > 0) mutate((d) => d.sells.push({ good: g, amount, city: UI.marketCity })); },
+  'ult-open'(el) { const pd = peaceDraft(Number(el.dataset.to)); pd.ult = true; render(); const pb = $('#peace-builder'); if (pb) pb.scrollIntoView({ block: 'nearest' }); },
+  'ult-send'() {
+    const pd = UI.peace; const payload = Q.normPeace(Object.assign({}, pd, { term: 0 }));
+    mutate((d) => { d.diplo = d.diplo.filter((o) => !(o.type === 'ultimatum' && o.to === pd.to)); d.diplo.push({ type: 'ultimatum', to: pd.to, payload, note: pd.note || '' }); });
+    UI.peace = null; toast('Ultimatum queued'); render();
+  },
+  'ult-cancel'(el) { const id = Number(el.dataset.id); mutate((d) => { if (!d.diplo.some((o) => o.type === 'ultCancel' && o.id === id)) d.diplo.push({ type: 'ultCancel', id }); }); },
   declare(el) { const to = Number(el.dataset.to); if (confirm(`Declare war on ${pname(to)}? It takes effect at the start of this turn's resolution.`)) mutate((d) => d.diplo.push({ type: 'declare', to })); },
   'pc-open'(el) { peaceDraft(Number(el.dataset.to)); render(); const pb = $('#peace-builder'); if (pb) pb.scrollIntoView({ block: 'nearest' }); },
   'pc-close'() { UI.peace = null; render(); },
@@ -4662,6 +4893,10 @@ const CHG = {
   'rf-back'(el) { const v = Math.floor(Number(el.value) || 0); if (v > 0) UI.routeEdit.back[el.dataset.good] = v; else delete UI.routeEdit.back[el.dataset.good]; render(); },
   'rf-prio'(el) { UI.routeEdit.priority = el.value; render(); },
   fuel(el) { const s = settings(); s.fuel = s.fuel || {}; const b = st().buildings.find((x) => x.id === Number(el.dataset.id)); if (b && (b.fuelOn !== false) === el.checked) delete s.fuel[el.dataset.id]; else s.fuel[el.dataset.id] = el.checked; saveDraft(); render(); },
+  'ult-note'(el) { if (UI.peace) UI.peace.note = el.value; },
+  'ult-accept'(el) { const id = Number(el.dataset.id); mutate((d) => { d.diplo = d.diplo.filter((o) => !(o.type === 'ultAccept' && o.id === id)); if (el.checked) d.diplo.push({ type: 'ultAccept', id }); }); },
+  government(el) { const s = settings(); if (el.value === (meP().gov || 'monarchy')) delete s.government; else s.government = el.value; saveDraft(); render(); },
+  tax(el) { const s = settings(); if (el.value === (meP().tax || 'normal')) delete s.tax; else s.tax = el.value; saveDraft(); render(); },
   mobilize(el) { const s = settings(); const p = meP(); if (el.value === p.mob && !p.mobPending) delete s.mobilize; else s.mobilize = el.value; saveDraft(); render(); },
   doctrine(el) { const s = settings(); s.doctrine = s.doctrine || {}; const p = meP(); if (p.doctrine && p.doctrine[el.dataset.group] === el.value) delete s.doctrine[el.dataset.group]; else s.doctrine[el.dataset.group] = el.value; if (!Object.keys(s.doctrine).length) delete s.doctrine; saveDraft(); render(); },
   'pc-unit'(el) { const pd = UI.peace; if (!pd) return; const part = pd[el.dataset.side]; part.units = part.units || []; const id = Number(el.value); part.units = el.checked ? [...new Set([...part.units, id])] : part.units.filter((x) => x !== id); render(); },
