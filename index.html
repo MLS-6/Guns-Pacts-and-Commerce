@@ -567,7 +567,7 @@ const Engine = ((R) => {
   const clone = (o) => JSON.parse(JSON.stringify(o));
   const sum = (o) => Object.values(o || {}).reduce((a, b) => a + b, 0);
   const round1 = (x) => Math.round(x * 10) / 10; // HP, damage and manpower keep one decimal place
-  const goodsText = (o) => Object.entries(o || {}).filter(([, v]) => v > 0).map(([g, v]) => `${v} ${(R.GOOD_NAMES[g] || g).toLowerCase()}`).join(', ') || 'nothing';
+  const goodsText = (o) => Object.entries(o || {}).filter(([, v]) => v > 0).map(([g, v]) => `${Math.round(v * 100) / 100} ${(R.GOOD_NAMES[g] || g).toLowerCase()}`).join(', ') || 'nothing';
 
   /* ---------------- random numbers ---------------- */
   function makeRng(seed) {
@@ -2876,10 +2876,11 @@ const Engine = ((R) => {
         if (fu && b.fuelOn !== false && (c.stock.fuel || 0) >= fu) { c.stock.fuel = round1(c.stock.fuel - fu); fueled = true; }
         const out = buildingOutput(S, b, { fueled });
         const why = [];
-        if (needMp > p.manpower) why.push(`${needMp} manpower`);
-        if (runCr > p.credits) why.push(`${runCr} credits`);
+        const r2 = (v) => Math.round(v * 100) / 100;
+        if (needMp > p.manpower) why.push(`${r2(needMp)} manpower`);
+        if (runCr > p.credits) why.push(`${r2(runCr)} credits`);
         const inputs = inputsOf(b, S);
-        for (const [g, v] of Object.entries(inputs)) if ((c.stock[g] || 0) < v - 1e-9) why.push(`${v} ${R.GOOD_NAMES[g].toLowerCase()}`);
+        for (const [g, v] of Object.entries(inputs)) if ((c.stock[g] || 0) < v - 1e-9) why.push(`${r2(v)} ${R.GOOD_NAMES[g].toLowerCase()}`);
         if (why.length) {
           b.status = `Idle: missing ${why.join(', ')}`; b.lastOut = {};
           const key = `${c.name}|${d.short || d.name}|${why.join(', ')}`;
@@ -3400,8 +3401,10 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
 // Goods are tracked to one decimal; amounts held are shown rounded down so what you see is always there
 const amt = (v) => Math.floor((v || 0) + 1e-9);
 const fmtAmt = (o) => Object.entries(o || {}).map(([g, v]) => [g, amt(v)]).filter(([, v]) => v > 0).map(([g, v]) => `${v} ${gl(g)}`).join(', ');
-const fmtGoods = (o) => Object.entries(o || {}).filter(([, v]) => v > 0).map(([g, v]) => `${v} ${gl(g)}`).join(', ');
-const costText = (cost) => [cost.mp ? `${cost.mp} manpower` : null, ...Object.entries(cost).filter(([g]) => g !== 'mp').map(([g, v]) => `${v} ${gl(g)}`)].filter(Boolean).join(', ');
+// Show at most 2 decimal places for any quantity
+const n2 = (v) => { const r = Math.round((+v || 0) * 100) / 100; return Object.is(r, -0) ? 0 : r; };
+const fmtGoods = (o) => Object.entries(o || {}).filter(([, v]) => v > 0).map(([g, v]) => `${n2(v)} ${gl(g)}`).join(', ');
+const costText = (cost) => [cost.mp ? `${n2(cost.mp)} manpower` : null, ...Object.entries(cost).filter(([g]) => g !== 'mp').map(([g, v]) => `${n2(v)} ${gl(g)}`)].filter(Boolean).join(', ');
 
 const UI = {
   bundle: null, me: 0, locked: false, tab: 'map', sel: null, mode: null, views: {}, menu: false,
@@ -4397,14 +4400,14 @@ TAB_RENDER.production = function () {
         mp += mpUse; mpOut += mpMade; cr += runCr; crOut += credOut; sci += sciO;
       }
       const sel = keys.length > 1 ? `<select data-chg="product" data-id="${b.id}" aria-label="Product">${keys.map((k) => `<option value="${k}" ${k === cur ? 'selected' : ''}>${GN(k) || k}</option>`).join('')}</select>` : '';
-      const outs = [fmtGoods(out), mpMade ? `${mpMade} manpower` : '', sciO ? `${sciO} science` : '', credOut || rc.creditsPerResidence || rc.labor ? `${credOut} credits${rc.creditsPerResidence ? ` (${rc.creditsPerResidence} × residences)` : rc.labor ? ` (${Math.round(Q.perWorkerOf(S, bp))} per worker, up to ${maxL})` : ''}` : ''].filter(Boolean).join(', ');
+      const outs = [fmtGoods(out), mpMade ? `${n2(mpMade)} manpower` : '', sciO ? `${n2(sciO)} science` : '', credOut || rc.creditsPerResidence || rc.labor ? `${credOut} credits${rc.creditsPerResidence ? ` (${rc.creditsPerResidence} × residences)` : rc.labor ? ` (${Math.round(Q.perWorkerOf(S, bp))} per worker, up to ${maxL})` : ''}` : ''].filter(Boolean).join(', ');
       const fuelPend = fuels[b.id] != null ? fuels[b.id] : b.fuelOn !== false;
       const toggle = `<label class="ck small"><input type="checkbox" data-chg="halt" data-id="${b.id}" ${off ? '' : 'checked'}> On</label>${d.fuelUse ? `<br><label class="ck small" title="1 fuel a turn: +100% instead of +50%"><input type="checkbox" data-chg="fuel" data-id="${b.id}" ${fuelPend ? 'checked' : ''}> Fuel</label>` : ''}`;
-      return `<tr class="${off ? 'muted' : ''}"><td>${toggle}</td><td>${esc(d.short || d.name)}${d.place === 'tile' ? ` <span class="small muted">${tl(b.t)}</span>` : ''}</td><td>${sel}</td><td class="small">${esc(fmtGoods(ins) || '—')}${runCr ? `${Object.keys(ins).length ? ', ' : ''}${runCr} credits` : ''}</td><td class="small">${esc(outs)}</td><td class="n">${rc.labor ? `<input type="number" min="0" max="${maxL === Infinity ? '' : maxL}" step="1" class="w-sm" data-chg="labor" data-id="${b.id}" value="${labor}" aria-label="Workers" title="Manpower put to work each turn${maxL !== Infinity ? ` (up to ${rc.maxLabor})` : ''}" style="width:64px">` : mpUse}</td><td class="small ${b.status && b.status.startsWith('Idle') ? 'warn' : 'muted'}">${esc(off ? (b.halted ? 'Halted' : 'Halts this turn') : b.halted ? 'Restarts this turn' : (b.status || 'New'))}</td></tr>`;
+      return `<tr class="${off ? 'muted' : ''}"><td>${toggle}</td><td>${esc(d.short || d.name)}${d.place === 'tile' ? ` <span class="small muted">${tl(b.t)}</span>` : ''}</td><td>${sel}</td><td class="small">${esc(fmtGoods(ins) || '—')}${runCr ? `${Object.keys(ins).length ? ', ' : ''}${n2(runCr)} credits` : ''}</td><td class="small">${esc(outs)}</td><td class="n">${rc.labor ? `<input type="number" min="0" max="${maxL === Infinity ? '' : maxL}" step="1" class="w-sm" data-chg="labor" data-id="${b.id}" value="${labor}" aria-label="Workers" title="Manpower put to work each turn${maxL !== Infinity ? ` (up to ${rc.maxLabor})` : ''}" style="width:64px">` : n2(mpUse)}</td><td class="small ${b.status && b.status.startsWith('Idle') ? 'warn' : 'muted'}">${esc(off ? (b.halted ? 'Halted' : 'Halts this turn') : b.halted ? 'Restarts this turn' : (b.status || 'New'))}</td></tr>`;
     }).join('');
     return `<div class="ledger"><table><thead><tr><th colspan="7">${esc(c.name)}</th></tr><tr><th>Running</th><th>Production line</th><th>Making</th><th>Uses per turn</th><th>Makes per turn</th><th class="n">Manpower</th><th>Last turn</th></tr></thead><tbody>
       ${rows || '<tr><td colspan="7" class="muted">No production buildings yet.</td></tr>'}
-      ${rows ? `<tr class="sub"><td colspan="3">If every line that is on runs</td><td class="small">${esc(fmtGoods(totIn) || '—')}${cr ? `, ${cr} credits` : ''}</td><td class="small">${esc([fmtGoods(totOut), mpOut ? `${mpOut} manpower` : '', sci ? `${sci} science` : '', crOut ? `${crOut} credits` : ''].filter(Boolean).join(', '))}</td><td class="n">${mp}</td><td></td></tr>` : ''}</tbody></table></div>`;
+      ${rows ? `<tr class="sub"><td colspan="3">If every line that is on runs</td><td class="small">${esc(fmtGoods(totIn) || '—')}${cr ? `, ${n2(cr)} credits` : ''}</td><td class="small">${esc([fmtGoods(totOut), mpOut ? `${n2(mpOut)} manpower` : '', sci ? `${n2(sci)} science` : '', crOut ? `${n2(crOut)} credits` : ''].filter(Boolean).join(', '))}</td><td class="n">${n2(mp)}</td><td></td></tr>` : ''}</tbody></table></div>`;
   }).join('');
   return `<div class="page"><h2>Production</h2><p class="muted">Untick a line to halt it: it uses no manpower or inputs and makes nothing until you switch it back on.</p><div class="cols" style="grid-template-columns: 1fr 300px">
     <div>${blocks}</div>
@@ -4450,7 +4453,7 @@ TAB_RENDER.market = function () {
   const blocked = false;
   const rows = RR.GOODS.map((g) => {
     const pr = S.market.prices[g] || { sell: RR.BASE_PRICE[g], pays: Math.round(RR.BASE_PRICE[g] * 0.8), pool: 0, world: 0, r: 0 };
-    return `<tr><td><i class="swatch" style="background:${RR.GOOD_COLORS[g]}"></i>${GN(g)}</td><td class="n">${RR.BASE_PRICE[g]}</td><td class="n"><strong>${pr.sell}</strong></td><td class="n">${S.market.prices[g] ? Q.sellPriceFor(S, UI.me, g) : pr.pays}</td><td class="n">${pr.pool}</td><td class="n">${pr.world}</td><td class="n">${Math.round(pr.r * 100)}%</td><td class="n small">${(S.market.last || {})[g] ? `${S.market.last[g].qty} at ${S.market.last[g].avg}${S.market.last[g].high > S.market.last[g].avg ? ` (top ${S.market.last[g].high})` : ''}` : '<span class="muted">—</span>'}</td>
+    return `<tr><td><i class="swatch" style="background:${RR.GOOD_COLORS[g]}"></i>${GN(g)}</td><td class="n">${RR.BASE_PRICE[g]}</td><td class="n"><strong>${pr.sell}</strong></td><td class="n">${S.market.prices[g] ? Q.sellPriceFor(S, UI.me, g) : pr.pays}</td><td class="n">${n2(pr.pool)}</td><td class="n">${n2(pr.world)}</td><td class="n">${Math.round(pr.r * 100)}%</td><td class="n small">${(S.market.last || {})[g] ? `${n2(S.market.last[g].qty)} at ${n2(S.market.last[g].avg)}${S.market.last[g].high > S.market.last[g].avg ? ` (top ${S.market.last[g].high})` : ''}` : '<span class="muted">—</span>'}</td>
       <td>${c ? `<span class="small muted">${amt(c.stock[g])}</span>` : ''}</td>
       <td><div class="row" style="margin:0;flex-wrap:nowrap"><input type="number" min="1" class="w-sm" id="mk-${g}" value="10" aria-label="${GN(g)} amount"><input type="number" min="${pr.sell}" max="${RR.BASE_PRICE[g] * RR.MARKET.maxBidX}" class="w-sm" id="mkb-${g}" placeholder="max price" title="Optional: the most you will pay per unit if other nations bid for the same supply" aria-label="${GN(g)} maximum price per unit"><button class="btn small" data-act="buy" data-good="${g}" ${!c || blocked || !pr.pool ? 'disabled' : ''}>Buy</button><button class="btn small" data-act="sell" data-good="${g}" ${!c || blocked ? 'disabled' : ''}>Sell</button></div></td></tr>`;
   }).join('');
