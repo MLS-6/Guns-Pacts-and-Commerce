@@ -453,10 +453,15 @@ const RULES = (() => {
   const TAX_LEVELS = ['low', 'normal', 'high', 'war'];
   const TAX_NAMES = { low: 'Low', normal: 'Normal', high: 'High', war: 'War tax' };
   const GOVERNMENTS = {
+    provisional: {
+      name: 'Provisional Government', taxEvery: 0, fixedTax: true, notice: 0, toFullTurns: 3,
+      tax: { low: { rate: 150, mp: 1.0 }, normal: { rate: 150, mp: 1.0 }, high: { rate: 150, mp: 1.0 }, war: { rate: 150, mp: 1.0 } },
+      text: 'Every nation starts here. A fixed normal tax (150 credits per manpower, housing ×1.0), war declared instantly, no other effects. Leaving it causes no upheaval.',
+    },
     democracy: {
-      name: 'Democracy', taxEvery: 6, notice: 4, toFullTurns: 3, rally: true,
+      name: 'Democracy', taxEvery: 6, notice: 4, toFullTurns: 3, rally: true, marketSell: 0.9, science: { credits: 0.75, mp: 2 / 3 },
       tax: { low: { rate: 100, mp: 1.2 }, normal: { rate: 150, mp: 1.1 }, high: { rate: 200, mp: 0.9 }, war: { rate: 250, mp: 0.85 } },
-      text: 'Most manpower in peacetime. War needs 4 turns\' notice (an ultimatum) unless the enemy is at war with a partner. If war is declared on it, it reaches full mobilization in 1 turn.',
+      text: 'Most manpower in peacetime, cheaper research (universities and research facilities cost 25% fewer credits and a third less manpower) and 90% of the price for market sales. War needs 4 turns\' notice (an ultimatum) unless the enemy is at war with a partner. If war is declared on it, it reaches full mobilization in 1 turn.',
     },
     monarchy: {
       name: 'Monarchy', taxEvery: 4, notice: 1, toFullTurns: 3, settlementCut: 0.25,
@@ -468,8 +473,15 @@ const RULES = (() => {
       tax: { low: { rate: 130, mp: 1.0 }, normal: { rate: 200, mp: 0.9 }, high: { rate: 250, mp: 0.8 }, war: { rate: 350, mp: 0.75 } },
       text: 'Most credits, least manpower. Declares war instantly, mobilizes in 2 turns, and pays land units 25% less.',
     },
+    communism: {
+      name: 'Communism', taxEvery: 3, notice: 0, toFullTurns: 3, landPay: 0.65, marketSell: 0.6, fullMpCut: 0.1, taxOnUse: true,
+      production: { out: 2, mp: 3, inputs: 2.5 }, housing: { out: 1.5, inputs: 2.5 },
+      tax: { low: { rate: 65, mp: 1.1 }, normal: { rate: 110, mp: 1.0 }, high: { rate: 150, mp: 0.9 }, war: { rate: 185, mp: 0.85 } },
+      text: 'A planned economy: every production and extraction building makes 2× its output but needs 3× the manpower and 2.5× the inputs; housing makes 1.5× the manpower and eats 2.5× the food. Tax offices pay for manpower used in production, not manpower made. Market sales pay only 60%. Land units cost 35% less, full mobilization costs only 10% of manpower, and war is declared instantly.',
+    },
   };
-  const GOV_CHANGE = { every: 12, upheavalTurns: 3, upheavalMp: 0.5 }; // housing makes half its manpower for 3 turns after a change
+  const GOV_KEYS = ['provisional', 'democracy', 'monarchy', 'autocracy', 'communism'];
+  const GOV_CHANGE = { every: 12, upheavalTurns: 3, upheavalMp: 0.5 }; // for 3 turns after a change, 0.5 comes off the housing multiplier (never below 0)
   // Monarchy settlements: 25% off, rounded to whole goods (forest clearing still costs the normal amount)
   const SETTLEMENT_MONARCHY = { cost: { lumber: 4, tools: 1 }, storage: { lumber: 38, food: 38, tools: 15 }, foundMp: 15 };
 
@@ -538,7 +550,7 @@ const RULES = (() => {
 
   return {
     GOODS, GOOD_NAMES, GOOD_COLORS, BASE_PRICE, MARKET, SPECIAL_STORAGE, TILES, BUILDINGS, UNITS, DAMAGE, WEAPON_AMMO, WEAPON_RANGE,
-    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, TAX_LEVELS, TAX_NAMES, GOVERNMENTS, GOV_CHANGE, SETTLEMENT_MONARCHY, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, QUALITY_DAMAGE, WINTER_ATTRITION, SUMMER_FARM, CAPTURE_CARGO, DESIGN, ENTRENCH, UNIT_STORE, SETTLEMENT, CITY_RUN_LUMBER, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
+    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, TAX_LEVELS, TAX_NAMES, GOVERNMENTS, GOV_KEYS, GOV_CHANGE, SETTLEMENT_MONARCHY, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, QUALITY_DAMAGE, WINTER_ATTRITION, SUMMER_FARM, CAPTURE_CARGO, DESIGN, ENTRENCH, UNIT_STORE, SETTLEMENT, CITY_RUN_LUMBER, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = RULES;
@@ -1074,6 +1086,22 @@ const Engine = ((R) => {
     return d.recipes[d.recipes[b.product] ? b.product : keys[0]];
   }
   function recipeKey(b) { const d = B[b.key]; if (!d.recipes) return null; return d.recipes[b.product] ? b.product : Object.keys(d.recipes)[0]; }
+  // Government helpers (needed by the economy functions below)
+  const govKey = (S, pid) => { const p = S && S.players[pid]; return (p && p.gov) || 'provisional'; };
+  const govOf = (S, pid) => R.GOVERNMENTS[govKey(S, pid)];
+  // A production or extraction building: has a recipe and is not housing or a tax office
+  const isProductionRc = (rc) => !!rc && !rc.mpOut && !(rc.creditsPerMp && !rc.labor);
+  // Government multipliers for one building: communism scales production and housing; democracies run science cheaper
+  function govMods(S, b) {
+    const m = { out: 1, mp: 1, inputs: 1, credits: 1, sci: 1, labor: 1 };
+    const rc = recipeOf(b);
+    if (!rc || !S) return m;
+    const g = govOf(S, buildingOwner(S, b));
+    if (g.production && isProductionRc(rc)) { m.out = g.production.out; m.mp = g.production.mp; m.inputs = g.production.inputs; m.credits = g.production.inputs; m.sci = g.production.out; m.labor = g.production.mp; }
+    if (g.housing && rc.mpOut) { m.inputs = g.housing.inputs; }
+    if (g.science && rc.sciOut) { m.credits *= g.science.credits; m.mp *= g.science.mp; }
+    return m;
+  }
   // Output = base x (1 + sum of percentage bonuses) + flat bonuses (farm water +3, railroad +2)
   // opts.fueled: whether an era 3 building got its fuel (default: if its fuel switch is on)
   function buildingOutput(S, b, opts) {
@@ -1093,54 +1121,69 @@ const Engine = ((R) => {
     const wet = d.waterMult && nbrs(S.map, b.t).some((j) => ['river', 'lake'].includes(S.map.tiles[j].type));
     if (d.railBonus && tile.rail != null) flat += d.railBonus;
     const sun = (d.base || b.key) === 'farm' && !(opts && opts.season === false) && isSummer(S.turn) ? R.SUMMER_FARM : 1;
-    for (const g of Object.keys(out)) out[g] = round1((Math.round(out[g] * (1 + pct)) * (wet ? d.waterMult : 1) + flat) * sun);
+    const gm = opts && opts.gov === false ? 1 : govMods(S, b).out; // storage uses the normal output
+    for (const g of Object.keys(out)) out[g] = round1((Math.round(out[g] * (1 + pct)) * (wet ? d.waterMult : 1) + flat) * sun * gm);
     return out;
   }
   // Goods a building uses when it runs: its recipe, plus 0.5 lumber upkeep for buildings in the city itself
-  function inputsOf(b) {
+  // (communism: the recipe's inputs ×2.5; the 0.5 lumber upkeep is unchanged)
+  function inputsOf(b, S) {
     const rc = recipeOf(b), d = B[b.key], inp = Object.assign({}, (rc && rc.in) || {});
+    const k = govMods(S, b).inputs;
+    if (k !== 1) for (const g of Object.keys(inp)) inp[g] = round1(inp[g] * k);
     if (d.place === 'city' && R.CITY_RUN_LUMBER) inp.lumber = round1((inp.lumber || 0) + R.CITY_RUN_LUMBER);
     return inp;
   }
+  const fuelUseOf = (S, b) => round1((B[b.key].fuelUse || 0) * govMods(S, b).inputs);
+  const runCreditsOf = (S, b) => { const rc = recipeOf(b); return rc && rc.credits ? Math.round(rc.credits * govMods(S, b).credits) : 0; };
+  const sciOutOf = (S, b) => { const rc = recipeOf(b); return rc && rc.sciOut ? round1(rc.sciOut * govMods(S, b).sci) : 0; };
   // Manpower a building needs per turn (factories by a river need 1 less)
   function mpOf(S, b) {
     const rc = recipeOf(b), d = B[b.key];
     if (!rc) return 0;
     let mp = rc.mp || 0;
     if (d.riverMpLess && b.t != null && nbrs(S.map, b.t).some((j) => S.map.tiles[j].type === 'river')) mp = Math.max(0, mp - d.riverMpLess);
-    return mp;
+    return Math.round(mp * govMods(S, b).mp * 100 + 1e-9) / 100;
   }
-  // Government and tax
-  const govOf = (S, pid) => { const p = S.players[pid]; return R.GOVERNMENTS[(p && p.gov) || 'monarchy']; };
+  // Tax
   const taxOf = (S, pid) => { const p = S.players[pid]; return govOf(S, pid).tax[(p && p.tax) || 'normal']; };
-  // Manpower multiplier for a nation's housing: tax effect, minus 0.2 at full mobilization, halved during upheaval
+  // Manpower multiplier for a nation's housing: tax effect, minus the full-mobilization cut (0.2; communism 0.1),
+  // minus 0.5 during upheaval; never below 0
   function mpMult(S, pid, turn) {
     const p = S.players[pid];
     if (!p) return 1;
-    let m = taxOf(S, pid).mp - (p.mob === 'full' ? R.MOBILIZE.fullMpCut : 0);
-    if (p.upheavalUntil != null && (turn != null ? turn : S.turn) <= p.upheavalUntil) m *= R.GOV_CHANGE.upheavalMp;
-    return Math.max(0, m);
+    const g = govOf(S, pid);
+    let m = taxOf(S, pid).mp - (p.mob === 'full' ? (g.fullMpCut != null ? g.fullMpCut : R.MOBILIZE.fullMpCut) : 0);
+    if (p.upheavalUntil != null && (turn != null ? turn : S.turn) <= p.upheavalUntil) m -= R.GOV_CHANGE.upheavalMp;
+    return Math.max(0, Math.round(m * 1000) / 1000);
   }
   const taxCooldownEnds = (S, pid) => { const p = S.players[pid]; return p.taxSince == null ? 0 : p.taxSince + govOf(S, pid).taxEvery; };
+  // What the market pays this nation per unit sold (democracy 90%, communism 60%, others 80% of the price)
+  const sellPriceFor = (S, pid, g) => { const pr = (S.market.prices || {})[g]; if (!pr) return 0; const k = govOf(S, pid).marketSell || R.MARKET.buyRatio; return Math.max(1, Math.round(pr.sell * k)); };
   const govCooldownEnds = (S, pid) => { const p = S.players[pid]; return p.govSince == null ? 0 : p.govSince + R.GOV_CHANGE.every; };
   // Manpower a housing building makes, after the tax rate, mobilization and any government upheaval
   function mpOutOf(S, b) {
     const rc = recipeOf(b);
     if (!rc || !rc.mpOut) return 0;
-    const pid = buildingOwner(S, b);
-    return Math.round(rc.mpOut * mpMult(S, pid) * 100 + 1e-9) / 100;
+    const pid = buildingOwner(S, b), g = govOf(S, pid);
+    return Math.round(rc.mpOut * (g.housing ? g.housing.out : 1) * mpMult(S, pid) * 100 + 1e-9) / 100;
   }
-  // Workers (manpower per turn) assigned to a silver or gold mine
-  const laborOf = (b) => { const rc = recipeOf(b), n = b.labor == null ? R.MINE_LABOR : b.labor; return rc && rc.maxLabor ? Math.min(n, rc.maxLabor) : n; };
+  // Workers (manpower per turn) assigned to a silver or gold mine (communism: 3× the cap, 2/3 the credits per worker)
+  const maxLaborOf = (S, b) => { const rc = recipeOf(b); return rc && rc.maxLabor ? rc.maxLabor * govMods(S, b).labor : Infinity; };
+  const laborOf = (b, S) => { const n = b.labor == null ? R.MINE_LABOR : b.labor; return Math.min(n, maxLaborOf(S, b)); };
+  const perWorkerOf = (S, b) => { const rc = recipeOf(b), m = govMods(S, b); return rc.creditsPerMp * m.out / m.labor; };
+  // Manpower a city's production and extraction buildings would use this turn (what a communist tax office taxes)
+  const cityProductionMp = (S, cid) => S.buildings.filter((x) => x.city === cid && !x.halted && isProductionRc(recipeOf(x))).reduce((a, x) => a + (recipeOf(x).labor ? laborOf(x, S) : mpOf(S, x)), 0);
   // Credits a building makes. A tax office pays per manpower its city's housing made this turn
   // (mpMade); without that it estimates from the housing that is switched on.
   function creditsOutOf(S, b, mpMade) {
     const rc = recipeOf(b);
     if (!rc) return 0;
-    if (rc.labor) return laborOf(b) * rc.creditsPerMp;
+    if (rc.labor) return Math.round(laborOf(b, S) * perWorkerOf(S, b));
     if (rc.creditsPerMp) {
-      const rate = taxOf(S, buildingOwner(S, b)).rate; // the tax rate replaces the base 150 per manpower
-      const mp = mpMade != null ? mpMade : S.buildings.filter((x) => x.city === b.city && !x.halted && recipeOf(x) && recipeOf(x).mpOut).reduce((a, x) => a + mpOutOf(S, x), 0);
+      const pid = buildingOwner(S, b), rate = taxOf(S, pid).rate; // the tax rate replaces the base 150 per manpower
+      const onUse = govOf(S, pid).taxOnUse; // communism taxes manpower used in production, not manpower made
+      const mp = mpMade != null ? mpMade : onUse ? cityProductionMp(S, b.city) : S.buildings.filter((x) => x.city === b.city && !x.halted && recipeOf(x) && recipeOf(x).mpOut).reduce((a, x) => a + mpOutOf(S, x), 0);
       return Math.round(mp * rate);
     }
     return rc.creditsOut || 0;
@@ -1151,7 +1194,7 @@ const Engine = ((R) => {
       const d = B[b.key];
       if (d.storage && d.storage[g]) cap += d.storage[g];
       if (d.storageAll && !R.SPECIAL_STORAGE.includes(g)) cap += d.storageAll;
-      const out = buildingOutput(S, b, { season: false });
+      const out = buildingOutput(S, b, { season: false, gov: false });
       if (out[g]) cap += R.CITY.productionStorageTurns * out[g];
     }
     return cap;
@@ -1170,7 +1213,7 @@ const Engine = ((R) => {
   const isSettlement = (dp) => dp && dp.kind === 'settlement';
   const fieldDepots = (S) => (S.depots || []).filter((d) => !isSettlement(d));
   // A settlement stores exactly what a new city needs (plus the forest-clearing tools on a forest)
-  const isMonarchy = (S, pid) => S && S.players[pid] && (S.players[pid].gov || 'monarchy') === 'monarchy';
+  const isMonarchy = (S, pid) => govKey(S, pid) === 'monarchy';
   const settlementBase = (S, pid) => (isMonarchy(S, pid) ? R.SETTLEMENT_MONARCHY.storage : R.SETTLEMENT.storage);
   // Build cost of a building for a nation (monarchies place settlements for 25% less)
   const buildCost = (S, pid, key) => (key === 'settlement' && isMonarchy(S, pid) ? Object.assign({}, R.SETTLEMENT_MONARCHY.cost) : B[key].cost);
@@ -2011,9 +2054,9 @@ const Engine = ((R) => {
     if (atWar(S, pid, target)) return 'already at war';
     const pact = S.treaties.find((t) => t.type === 'peace' && pairs(t, pid, target));
     if (pact) return `your peace treaty is in force until turn ${pact.endsTurn}`;
-    if ((S.players[pid].gov || 'monarchy') === 'autocracy') return null;
+    if (!govOf(S, pid).notice) return null; // provisional governments, autocracies and communists declare instantly
     for (const q of partnersOf(S, pid)) if (q !== target && atWar(S, target, q)) return null;
-    const g = R.GOVERNMENTS[S.players[pid].gov || 'monarchy'];
+    const g = govOf(S, pid);
     return `a ${g.name.toLowerCase()} must send an ultimatum (${g.notice} turn${g.notice === 1 ? '' : 's'}' notice) unless ${S.players[target].name} is at war with one of your partners`;
   }
   function checkUltimatum(S, pid, target) {
@@ -2057,7 +2100,7 @@ const Engine = ((R) => {
     const { map, starts } = genMap(list.length, rng, { mapType: opts.mapType, tilesPerPlayer: opts.tilesPerPlayer });
     const start = startingResources(opts.start);
     const S = {
-      version: 6, id: opts.id || `game-${seed.toString(36)}-${Date.now().toString(36)}`, name: opts.name || 'Guns, Pacts, and Commerce', start,
+      version: 7, id: opts.id || `game-${seed.toString(36)}-${Date.now().toString(36)}`, name: opts.name || 'Guns, Pacts, and Commerce', start,
       seed, turn: 1, map, players: [], cities: [], units: [], buildings: [], routes: [], treaties: [], wars: [], proposals: [],
       market: { pool: {}, prices: {} }, reports: {}, nextId: 1, gameOver: null, history: [], depots: [], designs: [], ultimatums: [],
     };
@@ -2067,7 +2110,7 @@ const Engine = ((R) => {
         credits: start.credits, manpower: start.manpower, science: 0, researched: [], blueprints: [], designBlueprints: [], retiredDesigns: [],
         eliminated: false, priority: R.DEFAULT_PRIORITY.slice(), endVote: false,
         mob: 'peace', mobPending: null, mobDown: null, doctrine: { naval: null, army: null, warfare: null }, doctrineSince: {}, supplyPriority: R.SUPPLY_PRIORITY.slice(),
-        gov: 'monarchy', govSince: null, tax: 'normal', taxSince: null, upheavalUntil: null, rally: false,
+        gov: 'provisional', govSince: null, tax: 'normal', taxSince: null, upheavalUntil: null, rally: false,
       });
       const c = foundCityAt(S, i, starts[i], pl.cityName || `${pl.name || 'Player ' + (i + 1)} Capital`);
       for (const g of Object.keys(start.stock)) c.stock[g] = Math.min(start.stock[g], capacity(S, c, g));
@@ -2114,7 +2157,8 @@ const Engine = ((R) => {
       if (!p.doctrineSince) p.doctrineSince = {};
       if (!p.mob) p.mob = 'peace';
       if (!p.supplyPriority) p.supplyPriority = R.SUPPLY_PRIORITY.slice();
-      if (!p.gov) { p.gov = 'monarchy'; p.govSince = null; p.tax = 'normal'; p.taxSince = null; p.upheavalUntil = null; p.rally = false; }
+      if (!p.gov) { p.gov = 'provisional'; p.govSince = null; p.tax = 'normal'; p.taxSince = null; p.upheavalUntil = null; p.rally = false; }
+      if ((S.version || 0) < 7 && p.gov === 'monarchy' && p.govSince == null) { p.gov = 'provisional'; p.tax = 'normal'; p.taxSince = null; } // nobody chose yet
     }
     S.ultimatums = S.ultimatums || [];
     S.proposals = (S.proposals || []).filter((pr) => ['peace', 'treaty', 'blueprint', 'route'].includes(pr.kind));
@@ -2130,7 +2174,7 @@ const Engine = ((R) => {
       // version 5: tank traps belong to a nation (they used to record a city)
       for (const tile of S.map.tiles) if (tile.trap != null) { const c = cityById(S, tile.trap); tile.trap = c ? c.owner : null; }
     }
-    S.version = 6;
+    S.version = 7;
     return S;
   }
   function normalizeOrders(o) {
@@ -2341,18 +2385,23 @@ const Engine = ((R) => {
         const ready = govCooldownEnds(S, p.id);
         if (turn < ready) rep(p.id, 'government', `You cannot change government again before turn ${ready}.`);
         else {
-          const was = govOf(S, p.id).name;
-          p.gov = st.government; p.govSince = turn; p.upheavalUntil = turn + R.GOV_CHANGE.upheavalTurns - 1;
-          if (p.mob === 'full') { p.mob = 'partial'; p.mobPending = null; }
-          else if (p.mobPending && p.mobPending.to === 'full') p.mobPending = null;
+          const was = govOf(S, p.id).name, fromProvisional = govKey(S, p.id) === 'provisional';
+          p.gov = st.government; p.govSince = turn; p.taxSince = null; // a new government may set a new tax rate at once
+          if (govOf(S, p.id).fixedTax) p.tax = 'normal';
           for (const q of S.players) rep(q.id, 'government', `${p.name} changed its government from ${was} to ${govOf(S, p.id).name}.`);
-          rep(p.id, 'government', `Upheaval: your housing makes half its manpower until turn ${p.upheavalUntil} is over.`);
+          if (!fromProvisional) {
+            p.upheavalUntil = turn + R.GOV_CHANGE.upheavalTurns - 1;
+            if (p.mob === 'full') { p.mob = 'partial'; p.mobPending = null; }
+            else if (p.mobPending && p.mobPending.to === 'full') p.mobPending = null;
+            rep(p.id, 'government', `Upheaval: 0.5 comes off your housing's manpower multiplier until turn ${p.upheavalUntil} is over.`);
+          }
         }
       }
       // tax rate: democracies every 6 turns, monarchies 4, autocracies 2; war tax only at partial or full mobilization
       if (st.tax && R.TAX_LEVELS.includes(st.tax) && st.tax !== (p.tax || 'normal')) {
         const ready = taxCooldownEnds(S, p.id);
-        if (turn < ready) rep(p.id, 'government', `You cannot change your tax rate again before turn ${ready}.`);
+        if (govOf(S, p.id).fixedTax) rep(p.id, 'government', `A ${govOf(S, p.id).name} has a fixed tax rate.`);
+        else if (turn < ready) rep(p.id, 'government', `You cannot change your tax rate again before turn ${ready}.`);
         else if (st.tax === 'war' && p.mob === 'peace') rep(p.id, 'government', 'War tax needs partial or full mobilization.');
         else {
           p.tax = st.tax; p.taxSince = turn;
@@ -2767,8 +2816,9 @@ const Engine = ((R) => {
       if (!GOODS.includes(g) || amt <= 0 || !c || c.owner !== p.id) continue;
       amt = Math.min(amt, Math.floor((c.stock[g] || 0) + 1e-9));
       if (amt <= 0) { rep(p.id, 'market', `Nothing to sell: ${c.name} has no ${R.GOOD_NAMES[g].toLowerCase()}.`); continue; }
-      c.stock[g] -= amt; S.market.pool[g] = (S.market.pool[g] || 0) + amt; p.credits += amt * prices[g].pays;
-      rep(p.id, 'market', `Sold ${amt} ${R.GOOD_NAMES[g].toLowerCase()} from ${c.name} for ${amt * prices[g].pays} credits.`);
+      const pays = sellPriceFor(S, p.id, g);
+      c.stock[g] -= amt; S.market.pool[g] = (S.market.pool[g] || 0) + amt; p.credits += amt * pays;
+      rep(p.id, 'market', `Sold ${amt} ${R.GOOD_NAMES[g].toLowerCase()} from ${c.name} for ${amt * pays} credits.`);
     }
 
     /* ----- unit designs: create, retire, restore ----- */
@@ -2805,7 +2855,7 @@ const Engine = ((R) => {
       const order = (k) => { const i = p.priority.indexOf(k); return i < 0 ? 999 : i; };
       // tax offices go last, so they can count the manpower housing made this turn
       const late = (b) => (recipeOf(b).creditsPerMp && !recipeOf(b).labor ? 1 : 0);
-      const mpMade = {};
+      const mpMade = {}, mpUsed = {}, onUse = govOf(S, p.id).taxOnUse;
       const blds = S.buildings.filter((b) => buildingOwner(S, b) === p.id && B[b.key].recipes).sort((a, b) => late(a) - late(b) || order(a.key) - order(b.key) || a.id - b.id);
       const shortfalls = {};
       for (const b of blds) {
@@ -2813,8 +2863,8 @@ const Engine = ((R) => {
         if (b.halted) { b.status = 'Halted'; b.lastOut = {}; continue; }
         if ((d.base || b.key) === 'farm' && isWinter(turn)) { b.status = 'Idle: winter (farms rest until spring)'; b.lastOut = {}; continue; }
         if (rc.labor) {
-          const want = laborOf(b), used = Math.min(want, Math.floor(p.manpower)), cr = used * rc.creditsPerMp;
-          p.manpower = round1(p.manpower - used); p.credits += cr; b.ranTurn = turn;
+          const want = laborOf(b, S), used = Math.min(want, Math.floor(p.manpower)), cr = Math.round(used * perWorkerOf(S, b));
+          p.manpower = round1(p.manpower - used); p.credits += cr; b.ranTurn = turn; mpUsed[c.id] = (mpUsed[c.id] || 0) + used;
           b.lastOut = cr ? { credits: cr } : {};
           b.status = !want ? 'No workers assigned' : used < want ? `Short of manpower: ${used} of ${want} workers` : 'Running';
           if (used < want) rep(p.id, 'shortfall', `${c.name}: ${d.name} had only ${used} of ${want} workers (out of manpower).`);
@@ -2822,12 +2872,13 @@ const Engine = ((R) => {
         }
         const needMp = mpOf(S, b);
         let fueled = false;
-        if (d.fuelUse && b.fuelOn !== false && (c.stock.fuel || 0) >= d.fuelUse) { c.stock.fuel -= d.fuelUse; fueled = true; }
+        const fu = fuelUseOf(S, b), runCr = runCreditsOf(S, b);
+        if (fu && b.fuelOn !== false && (c.stock.fuel || 0) >= fu) { c.stock.fuel = round1(c.stock.fuel - fu); fueled = true; }
         const out = buildingOutput(S, b, { fueled });
         const why = [];
         if (needMp > p.manpower) why.push(`${needMp} manpower`);
-        if ((rc.credits || 0) > p.credits) why.push(`${rc.credits} credits`);
-        const inputs = inputsOf(b);
+        if (runCr > p.credits) why.push(`${runCr} credits`);
+        const inputs = inputsOf(b, S);
         for (const [g, v] of Object.entries(inputs)) if ((c.stock[g] || 0) < v - 1e-9) why.push(`${v} ${R.GOOD_NAMES[g].toLowerCase()}`);
         if (why.length) {
           b.status = `Idle: missing ${why.join(', ')}`; b.lastOut = {};
@@ -2835,13 +2886,14 @@ const Engine = ((R) => {
           shortfalls[key] = (shortfalls[key] || 0) + 1;
           continue;
         }
-        p.manpower = round1(p.manpower - needMp); p.credits -= rc.credits || 0;
+        p.manpower = round1(p.manpower - needMp); p.credits -= runCr;
+        if (isProductionRc(rc)) mpUsed[c.id] = (mpUsed[c.id] || 0) + needMp;
         for (const [g, v] of Object.entries(inputs)) c.stock[g] = round1((c.stock[g] || 0) - v);
         const made = {}, lost = {};
         for (const [g, v] of Object.entries(out)) { const a = addToCity(S, c, g, v); made[g] = a; if (a < v) lost[g] = v - a; worldMade[g] = (worldMade[g] || 0) + a; }
         if (rc.mpOut) { const mo = mpOutOf(S, b); p.manpower = round1(p.manpower + mo); made.manpower = mo; mpMade[c.id] = (mpMade[c.id] || 0) + mo; }
-        if (rc.sciOut) { p.science += rc.sciOut; made.science = rc.sciOut; }
-        const cr = rc.creditsPerMp && !rc.labor ? creditsOutOf(S, b, mpMade[c.id] || 0) : creditsOutOf(S, b);
+        if (rc.sciOut) { const so = sciOutOf(S, b); p.science = round1(p.science + so); made.science = so; }
+        const cr = rc.creditsPerMp && !rc.labor ? creditsOutOf(S, b, (onUse ? mpUsed : mpMade)[c.id] || 0) : creditsOutOf(S, b);
         if (cr) { p.credits += cr; made.credits = cr; }
         b.ranTurn = turn;
         b.lastOut = made;
@@ -3327,7 +3379,7 @@ const Engine = ((R) => {
       garrisonOf, posOf, carried, atWar, friendly, hasTreaty, isUnlocked, unitUnlocked, territoryRadius, supplyRadius, maxHp,
       capacity, freeSpace, recipeOf, recipeKey, buildingOutput, creditsOutOf, mpOf, mpOutOf, buildingOwner, reachable, findPath, canEnter, pickTarget, attackTargets,
       cityWeaponTargets, supplySources, sourceName, upkeepOf, inBase, checkBuild, checkTrain, checkFound, routeEstimate, describeProposal,
-      cargoUsed, cargoFree, portOk, dockable, slotFree, canCarry, carrySlots, demolishable, checkDemolish, checkDisband, inputsOf, monthOf, yearOf, seasonOf, isWinter, isSummer, govOf, taxOf, mpMult, taxCooldownEnds, govCooldownEnds, buildCost, foundMpOf, partnersOf, checkDeclare, checkUltimatum, describeUltimatum, rawMove, ustat, UU, designById, designOf, canUseDesign, seesDesign, checkDesign, researchedUnitSelf, repairCost, isSettlement, settlementNeeds, storeCap, giftError, depotAt, depotById, depotCap, depotFree, depotName, routeDest, checkClear, checkSabotage, sabotageTarget, sabotageTargetFor, bridgeSiteError, fording, inRiver, canAct, whyIdle, moveOf, payOf, laborOf, maxHpU, cargoCap, carryCap, stars, entrenched, entrenchLevel, blitzing, attackDamage, previewAttack, landCombat, mobOf, doctrineOf, supplyMoveLimit, normPeace, checkPeace, peaceTerms, isWater, isLand, nearWater, tileLabel, goodsText, terrain,
+      cargoUsed, cargoFree, portOk, dockable, slotFree, canCarry, carrySlots, demolishable, checkDemolish, checkDisband, inputsOf, monthOf, yearOf, seasonOf, isWinter, isSummer, govOf, govKey, taxOf, mpMult, govMods, fuelUseOf, runCreditsOf, sciOutOf, sellPriceFor, maxLaborOf, perWorkerOf, cityProductionMp, isProductionRc, taxCooldownEnds, govCooldownEnds, buildCost, foundMpOf, partnersOf, checkDeclare, checkUltimatum, describeUltimatum, rawMove, ustat, UU, designById, designOf, canUseDesign, seesDesign, checkDesign, researchedUnitSelf, repairCost, isSettlement, settlementNeeds, storeCap, giftError, depotAt, depotById, depotCap, depotFree, depotName, routeDest, checkClear, checkSabotage, sabotageTarget, sabotageTargetFor, bridgeSiteError, fording, inRiver, canAct, whyIdle, moveOf, payOf, laborOf, maxHpU, cargoCap, carryCap, stars, entrenched, entrenchLevel, blitzing, attackDamage, previewAttack, landCombat, mobOf, doctrineOf, supplyMoveLimit, normPeace, checkPeace, peaceTerms, isWater, isLand, nearWater, tileLabel, goodsText, terrain,
     },
   };
 })(typeof RULES !== 'undefined' ? RULES : require('./rules.js'));
@@ -4297,7 +4349,7 @@ TAB_RENDER.buildings = function () {
     const traps = S.map.tiles.filter((t) => t.owner === c.id && t.trap === UI.me).length;
     const effect = (b) => {
       const d = BLD[b.key];
-      if (d.recipes) { const rc = Q.recipeOf(b), out = Q.buildingOutput(S, b); return `${fmtGoods(Q.inputsOf(b)) || 'no inputs'} → ${fmtGoods(out) || [rc.mpOut ? `${Q.mpOutOf(S, b)} manpower` : '', rc.sciOut ? `${rc.sciOut} science` : '', Q.creditsOutOf(S, b) || rc.creditsPerResidence ? `${Q.creditsOutOf(S, b)} credits${rc.creditsPerResidence ? ` (${rc.creditsPerResidence} per working residence)` : ''}` : ''].filter(Boolean).join(', ')}`; }
+      if (d.recipes) { const rc = Q.recipeOf(b), out = Q.buildingOutput(S, b); return `${fmtGoods(Q.inputsOf(b, S)) || 'no inputs'} → ${fmtGoods(out) || [rc.mpOut ? `${Q.mpOutOf(S, b)} manpower` : '', rc.sciOut ? `${Q.sciOutOf(S, b)} science` : '', Q.creditsOutOf(S, b) || rc.creditsPerResidence ? `${Q.creditsOutOf(S, b)} credits${rc.creditsPerResidence ? ` (${rc.creditsPerResidence} per working residence)` : ''}` : ''].filter(Boolean).join(', ')}`; }
       if (d.storage) return `Stores ${fmtGoods(d.storage)}`;
       if (d.storageAll) return `Stores +${d.storageAll} of every good except food and fuel${d.supplyBonus ? '; +1 supply range' : ''}`;
       if (d.builds) return `Builds ${d.builds.map((k) => UNI[k].name.toLowerCase()).join(', ')}`;
@@ -4333,22 +4385,22 @@ TAB_RENDER.production = function () {
       const d = BLD[b.key], keys = Object.keys(d.recipes);
       const cur = products[b.id] || Q.recipeKey(b);
       const bp = Object.assign({}, b, { product: cur }); // preview the product chosen this turn
-      const rc = d.recipes[cur], out = Q.buildingOutput(S, bp), ins = Q.inputsOf(bp);
+      const rc = d.recipes[cur], out = Q.buildingOutput(S, bp), ins = Q.inputsOf(bp, S), runCr = Q.runCreditsOf(S, bp), sciO = Q.sciOutOf(S, bp), maxL = Q.maxLaborOf(S, bp);
       const off = isHalted(b);
-      const labor = rc.labor ? (labors[b.id] != null ? labors[b.id] : Q.laborOf(b)) : 0;
-      const credOut = rc.labor ? labor * rc.creditsPerMp : Q.creditsOutOf(S, b);
+      const labor = rc.labor ? (labors[b.id] != null ? labors[b.id] : Q.laborOf(b, S)) : 0;
+      const credOut = rc.labor ? Math.round(labor * Q.perWorkerOf(S, bp)) : Q.creditsOutOf(S, b);
       const mpUse = rc.labor ? labor : Q.mpOf(S, bp);
       const mpMade = rc.mpOut ? Q.mpOutOf(S, b) : 0;
       if (!off) {
         for (const [g, v] of Object.entries(ins)) totIn[g] = (totIn[g] || 0) + v;
         for (const [g, v] of Object.entries(out)) totOut[g] = (totOut[g] || 0) + v;
-        mp += mpUse; mpOut += mpMade; cr += rc.credits || 0; crOut += credOut; sci += rc.sciOut || 0;
+        mp += mpUse; mpOut += mpMade; cr += runCr; crOut += credOut; sci += sciO;
       }
       const sel = keys.length > 1 ? `<select data-chg="product" data-id="${b.id}" aria-label="Product">${keys.map((k) => `<option value="${k}" ${k === cur ? 'selected' : ''}>${GN(k) || k}</option>`).join('')}</select>` : '';
-      const outs = [fmtGoods(out), mpMade ? `${mpMade} manpower` : '', rc.sciOut ? `${rc.sciOut} science` : '', credOut || rc.creditsPerResidence || rc.labor ? `${credOut} credits${rc.creditsPerResidence ? ` (${rc.creditsPerResidence} × residences)` : rc.labor ? ` (${rc.creditsPerMp} per worker, up to ${rc.maxLabor})` : ''}` : ''].filter(Boolean).join(', ');
+      const outs = [fmtGoods(out), mpMade ? `${mpMade} manpower` : '', sciO ? `${sciO} science` : '', credOut || rc.creditsPerResidence || rc.labor ? `${credOut} credits${rc.creditsPerResidence ? ` (${rc.creditsPerResidence} × residences)` : rc.labor ? ` (${Math.round(Q.perWorkerOf(S, bp))} per worker, up to ${maxL})` : ''}` : ''].filter(Boolean).join(', ');
       const fuelPend = fuels[b.id] != null ? fuels[b.id] : b.fuelOn !== false;
       const toggle = `<label class="ck small"><input type="checkbox" data-chg="halt" data-id="${b.id}" ${off ? '' : 'checked'}> On</label>${d.fuelUse ? `<br><label class="ck small" title="1 fuel a turn: +100% instead of +50%"><input type="checkbox" data-chg="fuel" data-id="${b.id}" ${fuelPend ? 'checked' : ''}> Fuel</label>` : ''}`;
-      return `<tr class="${off ? 'muted' : ''}"><td>${toggle}</td><td>${esc(d.short || d.name)}${d.place === 'tile' ? ` <span class="small muted">${tl(b.t)}</span>` : ''}</td><td>${sel}</td><td class="small">${esc(fmtGoods(ins) || '—')}${rc.credits ? `${Object.keys(ins).length ? ', ' : ''}${rc.credits} credits` : ''}</td><td class="small">${esc(outs)}</td><td class="n">${rc.labor ? `<input type="number" min="0" max="${rc.maxLabor || ''}" step="1" class="w-sm" data-chg="labor" data-id="${b.id}" value="${labor}" aria-label="Workers" title="Manpower put to work each turn${rc.maxLabor ? ` (up to ${rc.maxLabor})` : ''}" style="width:64px">` : mpUse}</td><td class="small ${b.status && b.status.startsWith('Idle') ? 'warn' : 'muted'}">${esc(off ? (b.halted ? 'Halted' : 'Halts this turn') : b.halted ? 'Restarts this turn' : (b.status || 'New'))}</td></tr>`;
+      return `<tr class="${off ? 'muted' : ''}"><td>${toggle}</td><td>${esc(d.short || d.name)}${d.place === 'tile' ? ` <span class="small muted">${tl(b.t)}</span>` : ''}</td><td>${sel}</td><td class="small">${esc(fmtGoods(ins) || '—')}${runCr ? `${Object.keys(ins).length ? ', ' : ''}${runCr} credits` : ''}</td><td class="small">${esc(outs)}</td><td class="n">${rc.labor ? `<input type="number" min="0" max="${maxL === Infinity ? '' : maxL}" step="1" class="w-sm" data-chg="labor" data-id="${b.id}" value="${labor}" aria-label="Workers" title="Manpower put to work each turn${maxL !== Infinity ? ` (up to ${rc.maxLabor})` : ''}" style="width:64px">` : mpUse}</td><td class="small ${b.status && b.status.startsWith('Idle') ? 'warn' : 'muted'}">${esc(off ? (b.halted ? 'Halted' : 'Halts this turn') : b.halted ? 'Restarts this turn' : (b.status || 'New'))}</td></tr>`;
     }).join('');
     return `<div class="ledger"><table><thead><tr><th colspan="7">${esc(c.name)}</th></tr><tr><th>Running</th><th>Production line</th><th>Making</th><th>Uses per turn</th><th>Makes per turn</th><th class="n">Manpower</th><th>Last turn</th></tr></thead><tbody>
       ${rows || '<tr><td colspan="7" class="muted">No production buildings yet.</td></tr>'}
@@ -4398,7 +4450,7 @@ TAB_RENDER.market = function () {
   const blocked = false;
   const rows = RR.GOODS.map((g) => {
     const pr = S.market.prices[g] || { sell: RR.BASE_PRICE[g], pays: Math.round(RR.BASE_PRICE[g] * 0.8), pool: 0, world: 0, r: 0 };
-    return `<tr><td><i class="swatch" style="background:${RR.GOOD_COLORS[g]}"></i>${GN(g)}</td><td class="n">${RR.BASE_PRICE[g]}</td><td class="n"><strong>${pr.sell}</strong></td><td class="n">${pr.pays}</td><td class="n">${pr.pool}</td><td class="n">${pr.world}</td><td class="n">${Math.round(pr.r * 100)}%</td><td class="n small">${(S.market.last || {})[g] ? `${S.market.last[g].qty} at ${S.market.last[g].avg}${S.market.last[g].high > S.market.last[g].avg ? ` (top ${S.market.last[g].high})` : ''}` : '<span class="muted">—</span>'}</td>
+    return `<tr><td><i class="swatch" style="background:${RR.GOOD_COLORS[g]}"></i>${GN(g)}</td><td class="n">${RR.BASE_PRICE[g]}</td><td class="n"><strong>${pr.sell}</strong></td><td class="n">${S.market.prices[g] ? Q.sellPriceFor(S, UI.me, g) : pr.pays}</td><td class="n">${pr.pool}</td><td class="n">${pr.world}</td><td class="n">${Math.round(pr.r * 100)}%</td><td class="n small">${(S.market.last || {})[g] ? `${S.market.last[g].qty} at ${S.market.last[g].avg}${S.market.last[g].high > S.market.last[g].avg ? ` (top ${S.market.last[g].high})` : ''}` : '<span class="muted">—</span>'}</td>
       <td>${c ? `<span class="small muted">${amt(c.stock[g])}</span>` : ''}</td>
       <td><div class="row" style="margin:0;flex-wrap:nowrap"><input type="number" min="1" class="w-sm" id="mk-${g}" value="10" aria-label="${GN(g)} amount"><input type="number" min="${pr.sell}" max="${RR.BASE_PRICE[g] * RR.MARKET.maxBidX}" class="w-sm" id="mkb-${g}" placeholder="max price" title="Optional: the most you will pay per unit if other nations bid for the same supply" aria-label="${GN(g)} maximum price per unit"><button class="btn small" data-act="buy" data-good="${g}" ${!c || blocked || !pr.pool ? 'disabled' : ''}>Buy</button><button class="btn small" data-act="sell" data-good="${g}" ${!c || blocked ? 'disabled' : ''}>Sell</button></div></td></tr>`;
   }).join('');
@@ -4511,7 +4563,7 @@ function designPanel(S, p, d) {
 }
 
 /* ---------- Government ---------- */
-const GOV_KEYS = ['democracy', 'monarchy', 'autocracy'];
+const GOV_KEYS = RR.GOV_KEYS;
 TAB_RENDER.government = function () {
   const S = st(), p = meP(), d = draft(), st0 = d.settings || {};
   const curG = p.gov || 'monarchy', curT = p.tax || 'normal', g = RR.GOVERNMENTS[curG];
@@ -4523,28 +4575,35 @@ TAB_RENDER.government = function () {
     return `<label class="ck" style="display:block;margin:6px 0"><input type="radio" name="gov" data-chg="government" value="${k}" ${wantG === k ? 'checked' : ''} ${dis ? 'disabled' : ''}> <b>${G.name}</b>${k === curG ? ' <span class="tag ok">current</span>' : ''}<div class="small muted" style="margin-left:22px">${esc(G.text)}</div></label>`;
   }).join('');
   const taxRadio = RR.TAX_LEVELS.map((lv) => {
-    const t = g.tax[lv], dis = (lv !== curT && S.turn < taxReady) || (lv === 'war' && p.mob === 'peace');
+    const t = g.tax[lv], dis = g.fixedTax || (lv !== curT && S.turn < taxReady) || (lv === 'war' && p.mob === 'peace');
+    if (g.fixedTax && lv !== 'normal') return '';
     return `<label class="ck" style="display:block;margin:4px 0"><input type="radio" name="tax" data-chg="tax" value="${lv}" ${wantT === lv ? 'checked' : ''} ${dis ? 'disabled' : ''}> <b>${RR.TAX_NAMES[lv]}</b> <span class="small muted">${t.rate} credits per manpower, housing ${pct(t.mp)}${lv === 'war' ? '; needs partial or full mobilization' : ''}</span>${lv === curT ? ' <span class="tag ok">current</span>' : ''}</label>`;
   }).join('');
   const housing = S.buildings.filter((b) => Q.buildingOwner(S, b) === UI.me && Q.recipeOf(b) && Q.recipeOf(b).mpOut && !b.halted);
   const mpNow = Math.round(housing.reduce((a, b) => a + Q.mpOutOf(S, b), 0) * 10) / 10;
   const taxNow = S.buildings.filter((b) => b.key === 'taxOffice' && Q.buildingOwner(S, b) === UI.me).reduce((a, b) => a + Q.creditsOutOf(S, b), 0);
-  const cmp = `<table><thead><tr><th>Tax rate</th>${GOV_KEYS.map((k) => `<th colspan="2">${RR.GOVERNMENTS[k].name}</th>`).join('')}</tr><tr><th></th>${GOV_KEYS.map(() => '<th class="n">Credits</th><th class="n">Housing</th>').join('')}</tr></thead><tbody>${RR.TAX_LEVELS.map((lv) => `<tr><td>${RR.TAX_NAMES[lv]}</td>${GOV_KEYS.map((k) => { const t = RR.GOVERNMENTS[k].tax[lv]; return `<td class="n">${t.rate}</td><td class="n">×${t.mp}</td>`; }).join('')}</tr>`).join('')}</tbody></table>`;
+  const cmp = `<table><thead><tr><th>Tax rate</th>${GOV_KEYS.map((k) => `<th colspan="2">${RR.GOVERNMENTS[k].name}</th>`).join('')}</tr><tr><th></th>${GOV_KEYS.map(() => '<th class="n">Credits</th><th class="n">Housing</th>').join('')}</tr></thead><tbody>${RR.TAX_LEVELS.map((lv) => `<tr><td>${RR.TAX_NAMES[lv]}</td>${GOV_KEYS.map((k) => { const G = RR.GOVERNMENTS[k], t = G.tax[lv]; return G.fixedTax && lv !== 'normal' ? '<td class="n muted">–</td><td class="n muted">–</td>' : `<td class="n">${t.rate}</td><td class="n">×${t.mp}</td>`; }).join('')}</tr>`).join('')}</tbody></table>`;
   const feat = [
-    ['Change tax rate', (G) => `every ${G.taxEvery} turns`],
+    ['Change tax rate', (G) => (G.fixedTax ? 'fixed at normal' : `every ${G.taxEvery} turns`)],
+    ['Tax offices pay on', (G) => (G.taxOnUse ? 'manpower used in production' : 'manpower housing makes')],
+    ['Full mobilization', (G) => `housing −${Math.round((G.fullMpCut != null ? G.fullMpCut : RR.MOBILIZE.fullMpCut) * 100)}%`],
+    ['Market sales', (G) => `${Math.round((G.marketSell || RR.MARKET.buyRatio) * 100)}% of the price`],
+    ['Production', (G) => (G.production ? `buildings ×${G.production.out} output, ×${G.production.mp} manpower, ×${G.production.inputs} inputs; housing ×${G.housing.out} manpower, ×${G.housing.inputs} food` : 'normal')],
+    ['Research', (G) => (G.science ? 'universities and research facilities: 25% fewer credits, a third less manpower' : 'normal')],
     ['Going to war', (G) => (G.notice ? `ultimatum: ${G.notice} turn${G.notice === 1 ? '' : 's'}' notice` : 'declare war instantly')],
     ['Partial → full mobilization', (G) => `${G.toFullTurns} turns${G.rally ? ' (1 if war is declared on you)' : ''}`],
     ['Land unit pay', (G) => (G.landPay ? `${Math.round((1 - G.landPay) * 100)}% less` : 'normal')],
+    ['Changing to it', (G) => (G.fixedTax ? 'upheaval; leaving it causes none' : 'upheaval')],
     ['Settlements', (G) => (G.settlementCut ? `${Math.round(G.settlementCut * 100)}% cheaper` : 'normal')],
   ];
   const featT = `<table><thead><tr><th></th>${GOV_KEYS.map((k) => `<th>${RR.GOVERNMENTS[k].name}</th>`).join('')}</tr></thead><tbody>${feat.map(([lab, f]) => `<tr><td>${lab}</td>${GOV_KEYS.map((k) => `<td class="small">${esc(f(RR.GOVERNMENTS[k]))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
   return `<div class="page"><h2>Government</h2><p class="muted">Your government sets your tax rates, how you go to war and how fast you mobilize. Other nations can see your government and tax rate on the Diplomacy tab.</p>
     <div class="row" style="gap:24px"><span>Government <b>${g.name}</b></span><span>Tax rate <b>${RR.TAX_NAMES[curT]}</b></span><span>Housing makes <b class="num">${mpNow}</b> manpower a turn (×${Math.round(Q.mpMult(S, UI.me) * 100) / 100})</span><span>Tax offices <b class="num">${taxNow}</b> credits a turn</span></div>
-    ${p.upheavalUntil != null && S.turn <= p.upheavalUntil ? `<p class="warn">Upheaval: housing makes half its manpower until turn ${p.upheavalUntil} is over.</p>` : ''}
+    ${p.upheavalUntil != null && S.turn <= p.upheavalUntil ? `<p class="warn">Upheaval: 0.5 comes off your housing's manpower multiplier until turn ${p.upheavalUntil} is over.</p>` : ''}
     ${p.rally ? '<p class="ok">War was declared on you: your nation rallies. Full mobilization takes effect when this turn resolves.</p>' : ''}
     <div class="cols" style="grid-template-columns:1fr 1fr;gap:14px;margin-top:12px">
-      <div class="panel"><h3 style="margin-top:0">Tax rate</h3><p class="small muted">${S.turn < taxReady ? `You can change it again on turn ${taxReady}.` : 'You can change it this turn.'} A tax office pays the rate for each manpower its city's housing makes. Full mobilization takes a further 20% off housing.</p>${taxRadio}</div>
-      <div class="panel"><h3 style="margin-top:0">Form of government</h3><p class="small muted">${S.turn < govReady ? `You can change it again on turn ${govReady}.` : 'You can change it this turn.'} Changing halves your housing's manpower for ${RR.GOV_CHANGE.upheavalTurns} turns and drops full mobilization to partial. After a change you must wait ${RR.GOV_CHANGE.every} turns.</p>${govRadio}</div>
+      <div class="panel"><h3 style="margin-top:0">Tax rate</h3><p class="small muted">${S.turn < taxReady ? `You can change it again on turn ${taxReady}.` : 'You can change it this turn.'} ${g.taxOnUse ? 'A tax office pays the rate for each manpower its city uses in production and extraction buildings.' : "A tax office pays the rate for each manpower its city's housing makes."} Full mobilization takes a further ${Math.round((g.fullMpCut != null ? g.fullMpCut : RR.MOBILIZE.fullMpCut) * 100)}% off housing.</p>${taxRadio}</div>
+      <div class="panel"><h3 style="margin-top:0">Form of government</h3><p class="small muted">${S.turn < govReady ? `You can change it again on turn ${govReady}.` : 'You can change it this turn.'} Changing causes ${RR.GOV_CHANGE.upheavalTurns} turns of upheaval (0.5 off your housing's manpower multiplier, never below 0) and drops full mobilization to partial. Leaving the Provisional Government causes no upheaval. After a change you must wait ${RR.GOV_CHANGE.every} turns. You may set a new tax rate on the same turn.</p>${govRadio}</div>
     </div>
     <h3>Tax rates by government</h3><div class="ledger">${cmp}</div>
     <h3>How the governments differ</h3><div class="ledger">${featT}</div>
@@ -4900,7 +4959,7 @@ const CHG = {
   mobilize(el) { const s = settings(); const p = meP(); if (el.value === p.mob && !p.mobPending) delete s.mobilize; else s.mobilize = el.value; saveDraft(); render(); },
   doctrine(el) { const s = settings(); s.doctrine = s.doctrine || {}; const p = meP(); if (p.doctrine && p.doctrine[el.dataset.group] === el.value) delete s.doctrine[el.dataset.group]; else s.doctrine[el.dataset.group] = el.value; if (!Object.keys(s.doctrine).length) delete s.doctrine; saveDraft(); render(); },
   'pc-unit'(el) { const pd = UI.peace; if (!pd) return; const part = pd[el.dataset.side]; part.units = part.units || []; const id = Number(el.value); part.units = el.checked ? [...new Set([...part.units, id])] : part.units.filter((x) => x !== id); render(); },
-  labor(el) { const s = settings(); s.labor = s.labor || {}; const b = st().buildings.find((x) => x.id === Number(el.dataset.id)); const rcl = b ? Q.recipeOf(b) : null; const v = Math.min((rcl && rcl.maxLabor) || Infinity, Math.max(0, Math.floor(Number(el.value) || 0))); if (b && Q.laborOf(b) === v) delete s.labor[el.dataset.id]; else s.labor[el.dataset.id] = v; saveDraft(); render(); },
+  labor(el) { const s = settings(); s.labor = s.labor || {}; const b = st().buildings.find((x) => x.id === Number(el.dataset.id)); const rcl = b ? Q.recipeOf(b) : null; const v = Math.min(b ? Q.maxLaborOf(st(), b) : Infinity, Math.max(0, Math.floor(Number(el.value) || 0))); if (b && Q.laborOf(b, st()) === v) delete s.labor[el.dataset.id]; else s.labor[el.dataset.id] = v; saveDraft(); render(); },
   halt(el) { const s = settings(); s.halt = s.halt || {}; const b = st().buildings.find((x) => x.id === Number(el.dataset.id)); const want = !el.checked; if (b && !!b.halted === want) delete s.halt[el.dataset.id]; else s.halt[el.dataset.id] = want; saveDraft(); render(); },
   product(el) { const s = settings(); s.products = s.products || {}; s.products[el.dataset.id] = el.value; saveDraft(); render(); },
   research(el) { mutate((d) => { d.research = d.research.filter((k) => k !== el.value); if (el.checked) d.research.push(el.value); }); },
