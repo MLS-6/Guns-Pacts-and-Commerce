@@ -575,8 +575,10 @@ const RULES = (() => {
     },
     monarchy: {
       name: 'Monarchy', taxEvery: 4, notice: 1, toFullTurns: 3, settlementCut: 0.25,
+      extractionMp: 0.5, // extraction buildings (not silver or gold mines) need half the manpower
+      costs: { townHall: { lumber: 23, metal: 8, tools: 6, mp: 3 } }, // town halls about a quarter cheaper
       tax: { low: { rate: 100, mp: 1.1 }, normal: { rate: 150, mp: 1.0 }, high: { rate: 200, mp: 0.95 }, war: { rate: 250, mp: 0.9 } },
-      text: 'Holds up best under high and war taxes. War needs 1 turn\'s notice (an ultimatum). Settlements cost 25% less.',
+      text: 'Holds up best under high and war taxes. War needs 1 turn\'s notice (an ultimatum). Settlements and town halls cost about 25% less, and extraction buildings (not silver or gold mines) need half the manpower.',
     },
     autocracy: {
       name: 'Autocracy', taxEvery: 2, notice: 0, toFullTurns: 2, landPay: 0.75,
@@ -1213,6 +1215,8 @@ const Engine = ((R) => {
     if (g.production && isProductionRc(rc)) { m.out = g.production.out; m.mp = g.production.mp; m.inputs = g.production.inputs; m.credits = g.production.inputs; m.sci = g.production.out; m.labor = g.production.mp; }
     if (g.housing && rc.mpOut) { m.inputs = g.housing.inputs; }
     if (g.science && rc.sciOut) { m.credits *= g.science.credits; m.mp *= g.science.mp; }
+    // monarchy: extraction buildings on territory tiles need half the manpower (silver and gold mines hire workers instead)
+    if (g.extractionMp && B[b.key].place === 'tile' && !rc.labor) m.mp *= g.extractionMp;
     return m;
   }
   // Output = base x (1 + sum of percentage bonuses) + flat bonuses (farm water +3, railroad +2)
@@ -1329,7 +1333,11 @@ const Engine = ((R) => {
   const isMonarchy = (S, pid) => govKey(S, pid) === 'monarchy';
   const settlementBase = (S, pid) => (isMonarchy(S, pid) ? R.SETTLEMENT_MONARCHY.storage : R.SETTLEMENT.storage);
   // Build cost of a building for a nation (monarchies place settlements for 25% less)
-  const buildCost = (S, pid, key) => (key === 'settlement' && isMonarchy(S, pid) ? Object.assign({}, R.SETTLEMENT_MONARCHY.cost) : B[key].cost);
+  const buildCost = (S, pid, key) => {
+    if (key === 'settlement' && isMonarchy(S, pid)) return Object.assign({}, R.SETTLEMENT_MONARCHY.cost);
+    const g = govOf(S, pid);
+    return g && g.costs && g.costs[key] ? g.costs[key] : B[key].cost;
+  };
   const foundMpOf = (S, pid) => (isMonarchy(S, pid) ? R.SETTLEMENT_MONARCHY.foundMp : R.CITY.foundMp);
   function settlementNeeds(S, dp) {
     const need = Object.assign({}, settlementBase(S, dp.owner));
@@ -5091,6 +5099,8 @@ TAB_RENDER.government = function () {
     ['Land unit pay', (G) => (G.landPay ? `${Math.round((1 - G.landPay) * 100)}% less` : 'normal')],
     ['Changing to it', (G) => (G.fixedTax ? 'upheaval; leaving it causes none' : 'upheaval')],
     ['Settlements', (G) => (G.settlementCut ? `${Math.round(G.settlementCut * 100)}% cheaper` : 'normal')],
+    ['Town halls', (G) => (G.costs && G.costs.townHall ? `${Object.entries(G.costs.townHall).map(([g, v]) => `${v} ${g === 'mp' ? 'manpower' : g}`).join(', ')}` : 'normal')],
+    ['Extraction manpower', (G) => (G.extractionMp ? `×${G.extractionMp} (not silver or gold mines)` : 'normal')],
   ];
   const featT = `<table><thead><tr><th></th>${GOV_KEYS.map((k) => `<th>${RR.GOVERNMENTS[k].name}</th>`).join('')}</tr></thead><tbody>${feat.map(([lab, f]) => `<tr><td>${lab}</td>${GOV_KEYS.map((k) => `<td class="small">${esc(f(RR.GOVERNMENTS[k]))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
   return `<div class="page"><h2>Government</h2><p class="muted">Your government sets your tax rates, how you go to war and how fast you mobilize. Other nations can see your government and tax rate on the Diplomacy tab.</p>
