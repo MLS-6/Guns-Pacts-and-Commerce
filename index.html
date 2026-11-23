@@ -171,6 +171,12 @@ label.ck { display: inline-flex; gap: 6px; align-items: center; cursor: pointer;
   .res { width: 100%; }
 }
 
+/* government tax comparison: each government's name centred over its two columns, with a divider between governments */
+table.govtax th.grp { text-align: center; border-left: 1.5px solid var(--rule); }
+table.govtax .gs { border-left: 1.5px solid var(--rule); }
+table.govtax thead tr:first-child th { position: static; }
+table.govtax thead th[rowspan] { vertical-align: bottom; }
+
 /* ---------- building queues, recurring orders, summary ---------- */
 .buildlist .opt .acts { display: flex; gap: 4px; }
 .queue .qitem { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; }
@@ -5086,7 +5092,7 @@ TAB_RENDER.government = function () {
   const housing = S.buildings.filter((b) => Q.buildingOwner(S, b) === UI.me && Q.recipeOf(b) && Q.recipeOf(b).mpOut && !b.halted);
   const mpNow = Math.round(housing.reduce((a, b) => a + Q.mpOutOf(S, b), 0) * 10) / 10;
   const taxNow = S.buildings.filter((b) => b.key === 'taxOffice' && Q.buildingOwner(S, b) === UI.me).reduce((a, b) => a + Q.creditsOutOf(S, b), 0);
-  const cmp = `<table><thead><tr><th>Tax rate</th>${GOV_KEYS.map((k) => `<th colspan="2">${RR.GOVERNMENTS[k].name}</th>`).join('')}</tr><tr><th></th>${GOV_KEYS.map(() => '<th class="n">Credits</th><th class="n">Housing</th>').join('')}</tr></thead><tbody>${RR.TAX_LEVELS.map((lv) => `<tr><td>${RR.TAX_NAMES[lv]}</td>${GOV_KEYS.map((k) => { const G = RR.GOVERNMENTS[k], t = G.tax[lv]; return G.fixedTax && lv !== 'normal' ? '<td class="n muted">–</td><td class="n muted">–</td>' : `<td class="n">${t.rate}</td><td class="n">×${t.mp}</td>`; }).join('')}</tr>`).join('')}</tbody></table>`;
+  const cmp = `<table class="govtax"><thead><tr><th rowspan="2">Tax rate</th>${GOV_KEYS.map((k) => `<th colspan="2" class="grp">${RR.GOVERNMENTS[k].name}</th>`).join('')}</tr><tr>${GOV_KEYS.map(() => '<th class="n gs">Credits</th><th class="n">Housing</th>').join('')}</tr></thead><tbody>${RR.TAX_LEVELS.map((lv) => `<tr><td>${RR.TAX_NAMES[lv]}</td>${GOV_KEYS.map((k) => { const G = RR.GOVERNMENTS[k], t = G.tax[lv]; return G.fixedTax && lv !== 'normal' ? '<td class="n muted gs">–</td><td class="n muted">–</td>' : `<td class="n gs">${t.rate}</td><td class="n">×${t.mp}</td>`; }).join('')}</tr>`).join('')}</tbody></table>`;
   const feat = [
     ['Change tax rate', (G) => (G.fixedTax ? 'fixed at normal' : `every ${G.taxEvery} turns`)],
     ['Tax offices pay on', (G) => (G.taxOnUse ? 'manpower used in production' : 'manpower housing makes')],
