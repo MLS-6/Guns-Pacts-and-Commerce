@@ -225,20 +225,66 @@ const RULES = (() => {
      Going down takes effect when the turn resolves. Ships are unaffected and always cost their full pay. */
   const MOBILIZE = {
     levels: ['peace', 'partial', 'full'],
-    toFullTurns: 3,             // partial -> full, counting the turn it is chosen
+    toFullTurns: 3,             // partial -> full, counting the turn it is chosen (autocracies: 2)
     partialDamage: -0.5,        // modifier for land combat units at partial mobilization
     partialSpeed: 0.5,          // land combat units move at half speed (rounded down, at least 1)
-    fullHousingCut: 1 / 3,      // housing makes a third less manpower at full mobilization
+    fullMpCut: 0.2,             // full mobilization: housing makes 20 percentage points less manpower (added to the tax effect)
   };
-  // Credits per combat unit per turn, by doctrine and mobilization (paid at the end of each turn)
+  // Credits per combat unit per turn (paid at the end of each turn). Land units by army doctrine and mobilization;
+  // ships a flat rate by type. Autocracies pay 25% less for land combat units.
   const PAY = {
-    standard: { peace: 10, partial: 20, full: 50 },
-    quantity: { peace: 5, partial: 10, full: 30 },
-    quality: { peace: 20, partial: 30, full: 70 },
-    ship: 100,
+    standard: { peace: 50, partial: 100, full: 250 },
+    quantity: { peace: 25, partial: 50, full: 150 },
+    quality: { peace: 100, partial: 150, full: 350 },
+    ship: { frigate: 350, warship: 650 },
+    shipDefault: 650,
   };
   const FREE_BERTHS = { barracks: 1, port: 1 }; // per barracks: 1 land unit on the city tile; per city with a harbor/port: 1 ship
-  const MANPOWER_DRAW = 0.1;    // manpower per combat unit per turn, wherever it is
+  const MANPOWER_DRAW = { land: 0.2, ship: 0.5 }; // manpower per combat unit per turn, wherever it is
+
+  /* ---------------- Government ----------------
+     Every nation has a government (all start as monarchies) and a tax rate. The tax rate sets the credits a tax
+     office makes per manpower its city's housing produces, and how much manpower that housing produces. */
+  const TAX_LEVELS = ['low', 'normal', 'high', 'war'];
+  const TAX_NAMES = { low: 'Low', normal: 'Normal', high: 'High', war: 'War tax' };
+  const GOVERNMENTS = {
+    provisional: {
+      name: 'Provisional Government', taxEvery: 0, fixedTax: true, notice: 0, toFullTurns: 3,
+      tax: { low: { rate: 150, mp: 1.0 }, normal: { rate: 150, mp: 1.0 }, high: { rate: 150, mp: 1.0 }, war: { rate: 150, mp: 1.0 } },
+      text: 'Every nation starts here. A fixed normal tax (150 credits per manpower, housing ×1.0), war declared instantly, no other effects. Leaving it causes no upheaval.',
+    },
+    democracy: {
+      name: 'Democracy', taxEvery: 6, notice: 4, toFullTurns: 3, rally: true, marketSell: 0.9, science: { credits: 0.75, mp: 2 / 3 },
+      tax: { low: { rate: 100, mp: 1.2 }, normal: { rate: 150, mp: 1.1 }, high: { rate: 200, mp: 0.9 }, war: { rate: 250, mp: 0.85 } },
+      text: 'Most manpower in peacetime, cheaper research (universities and research facilities cost 25% fewer credits and a third less manpower) and 90% of the price for market sales. War needs 4 turns\' notice (an ultimatum) unless the enemy is at war with a partner. If war is declared on it, it reaches full mobilization in 1 turn.',
+    },
+    monarchy: {
+      name: 'Monarchy', taxEvery: 4, notice: 1, toFullTurns: 3, settlementCut: 0.25,
+      extractionMp: 0.5, // extraction buildings (not silver or gold mines) need half the manpower
+      costs: { townHall: { lumber: 23, metal: 8, tools: 6, mp: 3 } }, // town halls about a quarter cheaper
+      tax: { low: { rate: 100, mp: 1.1 }, normal: { rate: 150, mp: 1.0 }, high: { rate: 200, mp: 0.95 }, war: { rate: 250, mp: 0.9 } },
+      text: 'Holds up best under high and war taxes. War needs 1 turn\'s notice (an ultimatum). Settlements and town halls cost about 25% less, and extraction buildings (not silver or gold mines) need half the manpower.',
+    },
+    autocracy: {
+      name: 'Autocracy', taxEvery: 2, notice: 0, toFullTurns: 2, landPay: 0.75,
+      tax: { low: { rate: 130, mp: 1.0 }, normal: { rate: 200, mp: 0.9 }, high: { rate: 250, mp: 0.8 }, war: { rate: 350, mp: 0.75 } },
+      text: 'Most credits, least manpower. Declares war instantly, mobilizes in 2 turns, and pays land units 25% less.',
+    },
+    communism: {
+      name: 'Communism', taxEvery: 3, notice: 0, toFullTurns: 3, landPay: 0.65, marketSell: 0.6, fullMpCut: 0.1, taxOnUse: true,
+      production: { out: 2, mp: 3, inputs: 2.5 }, housing: { out: 1.5, inputs: 2.5 },
+      tax: { low: { rate: 65, mp: 1.1 }, normal: { rate: 110, mp: 1.0 }, high: { rate: 150, mp: 0.9 }, war: { rate: 185, mp: 0.85 } },
+      text: 'A planned economy: every production and extraction building makes 2× its output but needs 3× the manpower and 2.5× the inputs; housing makes 1.5× the manpower and eats 2.5× the food. Tax offices pay for manpower used in production, not manpower made. Market sales pay only 60%. Land units cost 35% less, full mobilization costs only 10% of manpower, and war is declared instantly.',
+    },
+  };
+  // Standing orders: building queues (per city) and recurring market orders (per nation)
+  const QUEUE = { perCity: 10 };
+  const RECURRING = { max: 10 };
+  const GOV_KEYS = ['provisional', 'democracy', 'monarchy', 'autocracy', 'communism'];
+  const GOV_CHANGE = { every: 12, upheavalTurns: 3, upheavalMp: 0.5 }; // for 3 turns after a change, 0.5 comes off the housing multiplier (never below 0)
+  // Monarchy settlements: 25% off, rounded to whole goods (forest clearing still costs the normal amount)
+  const SETTLEMENT_MONARCHY = { cost: { lumber: 4, tools: 1 }, storage: { lumber: 38, food: 38, tools: 15 }, foundMp: 15 };
+
   // Combat modifiers are summed, then: damage = base x (1 + sum), never below base x 0.25
   const MODS = { floor: -0.75, unpaid: -0.5, unsupplied: -0.25, helplessCounter: -0.5 };
   const XP = { veteran: 2, elite: 5, bonus: [0, 0.25, 0.5], names: ['Recruit', 'Veteran', 'Elite'] };
@@ -304,7 +350,7 @@ const RULES = (() => {
 
   return {
     GOODS, GOOD_NAMES, GOOD_COLORS, BASE_PRICE, MARKET, SPECIAL_STORAGE, TILES, BUILDINGS, UNITS, DAMAGE, WEAPON_AMMO, WEAPON_RANGE,
-    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, QUALITY_DAMAGE, WINTER_ATTRITION, SUMMER_FARM, CAPTURE_CARGO, DESIGN, ENTRENCH, UNIT_STORE, SETTLEMENT, CITY_RUN_LUMBER, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
+    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, TAX_LEVELS, TAX_NAMES, GOVERNMENTS, GOV_KEYS, GOV_CHANGE, QUEUE, RECURRING, SETTLEMENT_MONARCHY, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, QUALITY_DAMAGE, WINTER_ATTRITION, SUMMER_FARM, CAPTURE_CARGO, DESIGN, ENTRENCH, UNIT_STORE, SETTLEMENT, CITY_RUN_LUMBER, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = RULES;
