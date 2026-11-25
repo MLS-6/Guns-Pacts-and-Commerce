@@ -5288,9 +5288,9 @@ function financePanel(S, p, d) {
       <div class="panel"><h4 style="margin-top:0">Domestic loans</h4>
         <p class="small muted">Bonds sold to your own people. You pay interest every turn (the annual rate ÷ 12) and the face value on the 12th turn, before anything else in the turn. Your rate is ${lp.base}% for a ${esc(RR.GOVERNMENTS[p.gov || 'provisional'].name.toLowerCase())}, +${LN.perLoan} for each loan you already hold, ${Q.taxAdjOf(S, UI.me) >= 0 ? '+' : '−'}${Math.abs(Q.taxAdjOf(S, UI.me))} for your tax rate${unrest ? `, +${LN.defaultFlat + (p.unrestRate || 0)} during unrest` : ''}. Only the tax part changes after you borrow. Failing a payment defaults the loan and causes unrest.</p>
         ${dom ? `<div class="ledger"><table class="cards"><thead><tr><th class="n">Face value</th><th class="n">Rate now</th><th class="n">Interest a turn</th><th class="n">Payments left</th><th class="n">Face value due</th></tr></thead><tbody>${dom}</tbody></table></div>` : '<p class="small muted">No domestic loans.</p>'}
-        <div class="row" style="margin-top:8px"><input type="number" min="1" step="100" id="ln-amt" placeholder="credits" style="width:110px" aria-label="Loan amount"><button class="btn small primary" data-act="loan-take" ${lim.max <= 0 ? 'disabled' : ''}>Take a loan at ${Q.newLoanRate(S, UI.me)}%</button></div>
-        <p class="small muted">Up to <b>${Math.max(0, lim.max - queuedBorrow)}</b> credits now: ${lp.months} months of income per loan, ${lp.capMonths} months in all (${lim.room} left).${queuedBorrow ? ` ${queuedBorrow} already ordered this turn.` : ''}</p>
-        ${fin.filter((o) => o.op === 'borrow').map((o) => `<p class="small"><span class="tag brass">Borrowing ${o.amount} this turn</span> <button class="x" data-act="loan-cancel" data-idx="${fin.indexOf(o)}" aria-label="Cancel">✕</button></p>`).join('')}
+        <div class="row" style="margin-top:8px"><input type="number" min="1" step="100" id="ln-amt" placeholder="credits" value="${Math.max(0, Math.min(lim.perLoan, lim.room - queuedBorrow)) || ''}" style="width:110px" aria-label="Loan amount"><button class="btn small primary" data-act="loan-take" ${lim.perLoan <= 0 || lim.room - queuedBorrow <= 0 ? 'disabled' : ''}>Take a loan at ${Q.newLoanRate(S, UI.me) + fin.filter((o) => o.op === 'borrow').length * RR.LOANS.perLoan}%</button></div>
+        <p class="small muted">Each loan can be up to <b>${lim.perLoan}</b> credits (${lp.months} months of income). You can take as many as you like in a turn, up to <b>${Math.max(0, lim.room - queuedBorrow)}</b> more in all (${lp.capMonths} months of income, less what you owe). Each loan costs 1 point more than the one before.${queuedBorrow ? ` ${queuedBorrow} already ordered this turn.` : ''}</p>
+        ${fin.filter((o) => o.op === 'borrow').map((o, k) => `<p class="small"><span class="tag brass">Borrowing ${o.amount} this turn at ${Q.newLoanRate(S, UI.me) + k * RR.LOANS.perLoan}%</span> <button class="x" data-act="loan-cancel" data-idx="${fin.indexOf(o)}" aria-label="Cancel">✕</button></p>`).join('')}
         ${p.lastDomesticDefault ? `<p class="small warn">Last domestic default: ${p.lastDomesticDefault.amount} credits on turn ${p.lastDomesticDefault.turn}.</p>` : ''}</div>
       <div class="panel"><h4 style="margin-top:0">Lend to or borrow from a nation</h4>
         <p class="small muted">Equal payments every turn, mostly interest at first. Sent like a treaty; the other nation accepts next turn and the credits move then. Nothing in the game forces repayment: a missed payment pushes the schedule back a turn, two in a row is a default, and the borrower may default at any time. Every nation learns of a default, but not the lender or the amount.</p>
@@ -5547,9 +5547,12 @@ const ACT = {
   'rm-op'(el) { mutate((d) => d.routeOps.splice(Number(el.dataset.idx), 1)); },
   'clear-all'() { if (confirm('Clear every order for this turn?')) { UI._d = Engine.normalizeOrders({}); saveDraft(); render(); } },
   'loan-take'() {
-    const v = Math.floor(Number(($('#ln-amt') || {}).value) || 0), err = Q.checkBorrow(st(), UI.me, v + draft().finance.filter((o) => o.op === 'borrow').reduce((a, o) => a + Number(o.amount), 0));
+    // each loan is limited to the government's loan size; together they may use the whole debt limit in one turn
+    const v = Math.floor(Number(($('#ln-amt') || {}).value) || 0), lim = Q.borrowLimit(st(), UI.me);
+    const queued = draft().finance.filter((o) => o.op === 'borrow').reduce((a, o) => a + Number(o.amount), 0);
     if (!v) { toast('Enter an amount'); return; }
-    if (err) { toast(err); return; }
+    if (v > lim.perLoan) { toast(`A single loan can be at most ${lim.perLoan} credits; take several loans for more`); return; }
+    if (queued + v > lim.room) { toast(`That would pass your debt limit: ${Math.max(0, lim.room - queued)} credits left this turn`); return; }
     mutate((d) => d.finance.push({ op: 'borrow', amount: v })); toast(`Domestic loan of ${v} ordered for this turn`);
   },
   'loan-cancel'(el) { mutate((d) => d.finance.splice(Number(el.dataset.idx), 1)); },
