@@ -409,7 +409,7 @@ const RULES = (() => {
     cloth: 2000, metal: 1000, clothing: 4000, tools: 1400, smallArms: 1400, machinery: 4000,
   };
   // trickle: share of each turn's world production of goods that appears in the market pool (no one loses anything)
-  const MARKET = { scale: 4, buyRatio: 0.8, trickle: 0.05, maxBidX: 10 };
+  const MARKET = { scale: 4, buyRatio: 0.8, trickle: 0.05, maxBidX: 10, trickleChoices: [0, 0.05, 0.1, 0.15, 0.2, 0.25] }; // trickle: the default; each game fixes its own rate at creation
 
   // Goods that warehouses and supply depots do NOT store
   const SPECIAL_STORAGE = ['food', 'fuel'];
@@ -682,12 +682,16 @@ const RULES = (() => {
   const ALLIANCE = { answerTurns: 2, noticeTurns: 3 };
   // History graphs keep 24 turns; the newspaper keeps 12 issues
   const HISTORY = { turns: 24, newsTurns: 12 };
+  // Every city pays its nation 100 credits (counted as tax income) and 1 manpower a turn, the manpower scaled like
+  // housing by the government and tax rate (a democracy on low tax: 1.2)
+  const CITY_INCOME = { credits: 100, mp: 1 };
   // The newspaper: war names, the ad auction, filler stories and the one leak ("scoop") per issue
   const PRESS = {
     warNameMax: 40, adSlots: 3, adMin: 200, adAnon: 150, adMaxChars: 200,
     quietBelow: 4,                // fewer stories than this (market report aside): print a tip and a classified
     recordGain: 0.1, recordGap: 8, recordFrom: 6, recordsPerIssue: 2, // world production records
     priceSwing: 0.25, swingsPerIssue: 2, feverCount: 3,
+    salvageNews: 50, salvageShare: 0.1, salvageMin: 10, // salvage of a good makes the paper at 50, or 10% of the world's output of it (at least 10)
   };
   // turn 1 is March: spring is March to May, winter December to February
   const MONTH_NAMES = ['March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February'];
@@ -810,7 +814,7 @@ const RULES = (() => {
 
   return {
     GOODS, GOOD_NAMES, GOOD_COLORS, BASE_PRICE, MARKET, SPECIAL_STORAGE, TILES, BUILDINGS, UNITS, DAMAGE, WEAPON_AMMO, WEAPON_RANGE,
-    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, TAX_LEVELS, TAX_NAMES, GOVERNMENTS, GOV_KEYS, GOV_CHANGE, QUEUE, RECURRING, LOANS, ALLIANCE, HISTORY, PRESS, MONTH_NAMES, PRESS_TIPS, CLASSIFIEDS, SETTLEMENT_MONARCHY, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, QUALITY_DAMAGE, WINTER_ATTRITION, SUMMER_FARM, CAPTURE_CARGO, DESIGN, ENTRENCH, UNIT_STORE, SETTLEMENT, CITY_RUN_LUMBER, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
+    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, TAX_LEVELS, TAX_NAMES, GOVERNMENTS, GOV_KEYS, GOV_CHANGE, QUEUE, RECURRING, LOANS, ALLIANCE, HISTORY, CITY_INCOME, PRESS, MONTH_NAMES, PRESS_TIPS, CLASSIFIEDS, SETTLEMENT_MONARCHY, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, QUALITY_DAMAGE, WINTER_ATTRITION, SUMMER_FARM, CAPTURE_CARGO, DESIGN, ENTRENCH, UNIT_STORE, SETTLEMENT, CITY_RUN_LUMBER, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = RULES;
@@ -1453,6 +1457,12 @@ const Engine = ((R) => {
   const sellPriceFor = (S, pid, g) => { const pr = (S.market.prices || {})[g]; if (!pr) return 0; const k = govOf(S, pid).marketSell || R.MARKET.buyRatio; return Math.max(1, Math.round(pr.sell * k)); };
   const govCooldownEnds = (S, pid) => { const p = S.players[pid]; return p.govSince == null ? 0 : p.govSince + R.GOV_CHANGE.every; };
   // Manpower a housing building makes, after the tax rate, mobilization and any government upheaval
+  // what each city pays its nation every turn: credits (tax income) and manpower made like housing
+  const marketTrickle = (S) => (S.marketTrickle != null ? S.marketTrickle : R.MARKET.trickle);
+  function cityIncomeOf(S, pid) {
+    const g = govOf(S, pid);
+    return { credits: R.CITY_INCOME.credits, mp: Math.round(R.CITY_INCOME.mp * (g.housing ? g.housing.out : 1) * mpMult(S, pid) * 100 + 1e-9) / 100 };
+  }
   function mpOutOf(S, b) {
     const rc = recipeOf(b);
     if (!rc || !rc.mpOut) return 0;
@@ -2396,9 +2406,10 @@ const Engine = ((R) => {
     const { map, starts } = genMap(list.length, rng, { mapType: opts.mapType, tilesPerPlayer: opts.tilesPerPlayer });
     const start = startingResources(opts.start);
     const S = {
-      version: 12, id: opts.id || `game-${seed.toString(36)}-${Date.now().toString(36)}`, name: opts.name || 'Guns, Pacts, and Commerce', start,
+      version: 13, id: opts.id || `game-${seed.toString(36)}-${Date.now().toString(36)}`, name: opts.name || 'Guns, Pacts, and Commerce', start,
       seed, turn: 1, map, players: [], cities: [], units: [], buildings: [], routes: [], treaties: [], wars: [], proposals: [],
       market: { pool: {}, prices: {} }, reports: {}, nextId: 1, gameOver: null, history: [], depots: [], designs: [], ultimatums: [], loans: [], calls: [], grievances: [], news: [], firstResearched: {}, warNames: [], records: {}, pressIdx: { tip: 0, cls: 0 }, lastScoop: null,
+      marketTrickle: R.MARKET.trickleChoices.includes(Number(opts.marketTrickle)) ? Number(opts.marketTrickle) : R.MARKET.trickle,
     };
     list.forEach((pl, i) => {
       S.players.push({
@@ -2706,7 +2717,9 @@ const Engine = ((R) => {
       stories: Object.entries(iss.sections || {}).flatMap(([sec, l]) => l.map((body) => ({ sec, pri: SEC_PRI[sec] || 10, head: null, body }))).sort((a, b) => b.pri - a.pri),
     });
     for (const dz of S.designs || []) if (dz.built == null && S.units.some((u) => u.design === dz.id)) dz.built = dz.turn || 0;
-    S.version = 12;
+    // version 13: the market's share of world production is fixed per game (games before this keep 5%)
+    if (S.marketTrickle == null) S.marketTrickle = R.MARKET.trickle;
+    S.version = 13;
     return S;
   }
   function normalizeOrders(o) {
@@ -2730,6 +2743,10 @@ const Engine = ((R) => {
     const story = (sec, pri, head, body, extra) => { stories.push(Object.assign({ sec, pri, head, body }, extra || {})); };
     // per nation: made (goods), mp, tax, sci, earned (credits), paid (debt payments), got (payments received), and
     // what the press might leak: units built and lost, units without food or ammunition, new designs, research, idle buildings
+    // salvage: goods that would otherwise be lost (overflowing storage, captured or destroyed cargo, overrun depots,
+    // dumped cargo) go to the global market at the end of the turn, unpaid
+    const salvage = {};
+    const toSalvage = (goods) => { for (const [g, v] of Object.entries(goods || {})) if (GOODS.includes(g) && v > 0) salvage[g] = (salvage[g] || 0) + v; };
     const T = {};
     const tr = (pid) => (T[pid] = T[pid] || { made: {}, mp: 0, tax: 0, sci: 0, earned: 0, paid: 0, got: 0, built: {}, lost: 0, hungry: 0, noAmmo: 0, designs: [], researched: [], idle: 0 });
     S.calls = S.calls || []; S.grievances = S.grievances || []; S.firstResearched = S.firstResearched || {};
@@ -2749,6 +2766,7 @@ const Engine = ((R) => {
       S.units = S.units.filter((x) => x !== u);
       for (const r of S.routes) r.transports = r.transports.filter((id) => id !== u.id);
       tr(u.owner).lost++;
+      toSalvage(u.cargo); toSalvage(u.store);
       rep(u.owner, 'combat', `${unitName(u)} was destroyed (${why}).`);
       if (byPid != null && byPid !== u.owner) rep(byPid, 'combat', `${pname(u.owner)}'s ${unitName(u)} was destroyed${U[u.type].cargo && Object.keys(u.cargo || {}).length ? ' with its cargo' : ''}.`);
     }
@@ -2760,7 +2778,7 @@ const Engine = ((R) => {
       for (const r of S.routes) r.transports = r.transports.filter((id) => id !== u.id);
       u.route = null; u.leg = null;
       const kept = {};
-      for (const [g, v] of Object.entries(u.cargo || {})) { const k = round1((v || 0) * R.CAPTURE_CARGO); if (k > 0) kept[g] = k; }
+      for (const [g, v] of Object.entries(u.cargo || {})) { const k = round1((v || 0) * R.CAPTURE_CARGO); if (k > 0) kept[g] = k; if (v - k > 0) toSalvage({ [g]: v - k }); }
       u.cargo = kept; u.owner = by; u.hp = 1; u.moved = 0; u.supplied = true; u.paid = true;
       delete u.dig;
       both(by, old, 'combat', `${pname(by)} captured ${pname(old)}'s ${unitName(u)} at ${tileLabel(S, u.t)}${Object.keys(kept).length ? `, with ${goodsText(kept)} aboard` : ''}.`);
@@ -2771,6 +2789,7 @@ const Engine = ((R) => {
       for (const [g, v] of Object.entries(goods)) {
         let left = v;
         for (const c of homes) { if (left <= 0) break; const a = addToCity(S, c, g, left); if (a) { got[g] = (got[g] || 0) + a; left -= a; } }
+        if (left > 0) toSalvage({ [g]: left });
       }
       return got;
     }
@@ -2789,7 +2808,7 @@ const Engine = ((R) => {
       winner.credits += loser.credits; winner.manpower += loser.manpower; winner.science += loser.science;
       const took = `${loser.credits} credits, ${loser.manpower} manpower and ${loser.science} science`;
       loser.credits = 0; loser.manpower = 0; loser.science = 0; loser.eliminated = true; loser.endVote = false;
-      for (const u of unitsOf(S, loser.id)) S.units = S.units.filter((x) => x !== u);
+      for (const u of unitsOf(S, loser.id)) { toSalvage(u.cargo); toSalvage(u.store); S.units = S.units.filter((x) => x !== u); }
       for (const r of S.routes.filter((x) => x.owner === loser.id || x.partner === loser.id)) removeRoute(r.id, `${loser.name} was eliminated`);
       S.treaties = S.treaties.filter((t) => t.a !== loser.id && t.b !== loser.id);
       S.wars = S.wars.filter((w) => w.a !== loser.id && w.b !== loser.id);
@@ -3469,7 +3488,7 @@ const Engine = ((R) => {
       if (!dp || !atWar(S, dp.owner, m.u.owner)) continue;
       const settle = isSettlement(dp);
       if (settle && U[m.u.type].role !== 'combat') continue;
-      const take = {}; for (const [g, v] of Object.entries(dp.stock)) { const h = Math.floor(v * (settle ? 1 : R.LOOT)); if (h > 0) take[g] = h; }
+      const take = {}; for (const [g, v] of Object.entries(dp.stock)) { const h = Math.floor(v * (settle ? 1 : R.LOOT)); if (h > 0) take[g] = h; if (v - h > 0) toSalvage({ [g]: v - h }); }
       const got = deliverHome(m.u.owner, take, dp.t);
       S.depots = S.depots.filter((x) => x !== dp);
       for (const r of S.routes.slice()) if (r.to.type === 'depot' && r.to.id === dp.id) removeRoute(r.id, `its ${settle ? 'settlement' : 'field depot'} was destroyed`);
@@ -3604,78 +3623,6 @@ const Engine = ((R) => {
       else tr(p.id).researched.push(d.name);
     }
 
-    /* ----- 6. production (before construction, so this turn's output can be built with) ----- */
-    const worldMade = {};
-    for (const p of active) {
-      const order = (k) => { const i = p.priority.indexOf(k); return i < 0 ? 999 : i; };
-      // tax offices go last, so they can count the manpower housing made this turn
-      const late = (b) => (recipeOf(b).creditsPerMp && !recipeOf(b).labor ? 1 : 0);
-      const mpMade = {}, mpUsed = {}, onUse = govOf(S, p.id).taxOnUse;
-      const blds = S.buildings.filter((b) => buildingOwner(S, b) === p.id && B[b.key].recipes).sort((a, b) => late(a) - late(b) || order(a.key) - order(b.key) || a.id - b.id);
-      const shortfalls = {};
-      for (const b of blds) {
-        const c = cityById(S, b.city), rc = recipeOf(b), d = B[b.key];
-        if (b.halted) { b.status = 'Halted'; b.lastOut = {}; continue; }
-        if ((d.base || b.key) === 'farm' && isWinter(turn)) { b.status = 'Idle: winter (farms rest until spring)'; b.lastOut = {}; continue; }
-        if (rc.labor) {
-          const want = laborOf(b, S), used = Math.min(want, Math.floor(p.manpower)), cr = Math.round(used * perWorkerOf(S, b));
-          p.manpower = round1(p.manpower - used); p.credits += cr; b.ranTurn = turn; mpUsed[c.id] = (mpUsed[c.id] || 0) + used;
-          b.lastOut = cr ? { credits: cr } : {};
-          b.status = !want ? 'No workers assigned' : used < want ? `Short of manpower: ${used} of ${want} workers` : 'Running';
-          if (used < want) rep(p.id, 'shortfall', `${c.name}: ${d.name} had only ${used} of ${want} workers (out of manpower).`);
-          continue;
-        }
-        const needMp = mpOf(S, b);
-        let fueled = false;
-        const fu = fuelUseOf(S, b), runCr = runCreditsOf(S, b);
-        if (fu && b.fuelOn !== false && (c.stock.fuel || 0) >= fu) { c.stock.fuel = round1(c.stock.fuel - fu); fueled = true; }
-        const out = buildingOutput(S, b, { fueled });
-        const why = [];
-        const r2 = (v) => Math.round(v * 100) / 100;
-        if (needMp > p.manpower) why.push(`${r2(needMp)} manpower`);
-        if (runCr > p.credits) why.push(`${r2(runCr)} credits`);
-        const inputs = inputsOf(b, S);
-        for (const [g, v] of Object.entries(inputs)) if ((c.stock[g] || 0) < v - 1e-9) why.push(`${r2(v)} ${R.GOOD_NAMES[g].toLowerCase()}`);
-        if (why.length) {
-          b.status = `Idle: missing ${why.join(', ')}`; b.lastOut = {};
-          const key = `${c.name}|${d.short || d.name}|${why.join(', ')}`;
-          shortfalls[key] = (shortfalls[key] || 0) + 1;
-          continue;
-        }
-        p.manpower = round1(p.manpower - needMp); p.credits -= runCr;
-        if (isProductionRc(rc)) mpUsed[c.id] = (mpUsed[c.id] || 0) + needMp;
-        for (const [g, v] of Object.entries(inputs)) c.stock[g] = round1((c.stock[g] || 0) - v);
-        const made = {}, lost = {};
-        const tp = tr(p.id);
-        for (const [g, v] of Object.entries(out)) { const a = addToCity(S, c, g, v); made[g] = a; if (a < v) lost[g] = v - a; worldMade[g] = (worldMade[g] || 0) + a; tp.made[g] = (tp.made[g] || 0) + v; }
-        if (rc.mpOut) { const mo = mpOutOf(S, b); p.manpower = round1(p.manpower + mo); made.manpower = mo; mpMade[c.id] = (mpMade[c.id] || 0) + mo; tp.mp += mo; }
-        if (rc.sciOut) { const so = sciOutOf(S, b); p.science = round1(p.science + so); made.science = so; tp.sci += so; }
-        const cr = rc.creditsPerMp && !rc.labor ? creditsOutOf(S, b, (onUse ? mpUsed : mpMade)[c.id] || 0) : creditsOutOf(S, b);
-        if (cr) { p.credits += cr; made.credits = cr; tp.earned += cr; if (b.key === 'taxOffice') { taxThisTurn[p.id] = (taxThisTurn[p.id] || 0) + cr; tp.tax += cr; } }
-        b.ranTurn = turn;
-        b.lastOut = made;
-        b.status = Object.keys(lost).length ? `Running, but storage full: lost ${goodsText(lost)}` : d.fuelUse ? (fueled ? 'Running with fuel' : 'Running without fuel (+50%)') : 'Running';
-        if (Object.keys(lost).length) rep(p.id, 'shortfall', `${c.name}: ${d.short || d.name} output lost to full storage (${goodsText(lost)}). Build storage or move goods out.`);
-      }
-      for (const [key, n] of Object.entries(shortfalls)) {
-        const [cn, bn, why] = key.split('|');
-        rep(p.id, 'shortfall', `${cn}: ${n > 1 ? `${n}× ` : ''}${bn} idle, missing ${why}.`);
-        tr(p.id).idle += n;
-      }
-    }
-
-    // The global market gains a share of the world's production of goods; nobody loses anything.
-    {
-      const carry = S.market.carry || (S.market.carry = {}), gained = {};
-      for (const g of R.GOODS) {
-        const v = (worldMade[g] || 0) * (R.MARKET.trickle || 0) + (carry[g] || 0);
-        const whole = Math.floor(v + 1e-9);
-        carry[g] = Math.round((v - whole) * 1000) / 1000;
-        if (whole > 0) { S.market.pool[g] = (S.market.pool[g] || 0) + whole; gained[g] = whole; }
-      }
-      S.market.lastTrickle = gained;
-    }
-
     // put a finished city or territory building on the map
     function addBuilding(c, o) {
       const d = B[o.key];
@@ -3686,13 +3633,14 @@ const Engine = ((R) => {
       if (d.hp) c.hp = Math.min(maxHp(S, c), c.hp + d.hp);
       return b;
     }
-    /* ----- 7. buildings: demolition, new cities, construction ----- */
+    /* ----- 6. buildings: demolition, new cities, construction (before production, so a new building runs this turn
+       and construction uses what the nation had when it gave its orders, plus this turn's market purchases) ----- */
     // dumping cargo and disbanding units
     for (const p of active) for (const o of O[p.id].dump) {
       const u = unitById(S, o.unit), g = o.good;
       if (!u || u.owner !== p.id || !U[u.type].cargo || !GOODS.includes(g)) continue;
       const q = Math.min(o.amount == null ? Infinity : Math.max(0, Number(o.amount) || 0), u.cargo[g] || 0);
-      if (q > 0) { u.cargo[g] = round1(u.cargo[g] - q); rep(p.id, 'logistics', `${unitName(u)} dumped ${q} ${R.GOOD_NAMES[g].toLowerCase()}.`); }
+      if (q > 0) { u.cargo[g] = round1(u.cargo[g] - q); toSalvage({ [g]: q }); rep(p.id, 'logistics', `${unitName(u)} dumped ${q} ${R.GOOD_NAMES[g].toLowerCase()}.`); }
     }
     for (const p of active) for (const o of O[p.id].disband) {
       const u = unitById(S, o.unit);
@@ -3705,6 +3653,7 @@ const Engine = ((R) => {
       S.units = S.units.filter((x) => x !== u);
       for (const r of S.routes) r.transports = r.transports.filter((id) => id !== u.id);
       const res = storeNear(S, p.id, at, goods, u);
+      toSalvage(res.lost);
       rep(p.id, 'war', `Disbanded ${unitName(u)}. ${Object.keys(res.stored).length ? `Recovered ${goodsText(res.stored)} into nearby storage` : 'Nothing could be recovered'}${Object.keys(res.lost).length ? `; ${goodsText(res.lost)} had nowhere to go and was lost` : ''}.`);
     }
     for (const p of active) for (const o of O[p.id].demolish) {
@@ -3784,6 +3733,87 @@ const Engine = ((R) => {
         S.map.tiles[o.t].trap = p.id;
       } else addBuilding(c, o);
       rep(p.id, 'construction', `Built ${d.name}${d.place === 'city' ? ` in ${c.name}` : ` at ${tileLabel(S, o.t)}`}${bu ? ` with goods from ${unitName(bu)}` : ''}.`);
+    }
+
+    /* ----- 7. production (new buildings included) ----- */
+    const worldMade = {};
+    // city income first, so its manpower can staff this turn's buildings
+    for (const p of active) {
+      const n = citiesOf(S, p.id).length;
+      if (!n) continue;
+      const ci = cityIncomeOf(S, p.id), cr = ci.credits * n, mp = r2(ci.mp * n), tp = tr(p.id);
+      p.credits += cr; p.manpower = round1(p.manpower + mp);
+      taxThisTurn[p.id] = (taxThisTurn[p.id] || 0) + cr; tp.tax += cr; tp.earned += cr; tp.mp += mp;
+      rep(p.id, 'government', `City income: ${cr} credits and ${mp} manpower (${n} cit${n === 1 ? 'y' : 'ies'}).`);
+    }
+    for (const p of active) {
+      const order = (k) => { const i = p.priority.indexOf(k); return i < 0 ? 999 : i; };
+      // tax offices go last, so they can count the manpower housing made this turn
+      const late = (b) => (recipeOf(b).creditsPerMp && !recipeOf(b).labor ? 1 : 0);
+      const mpMade = {}, mpUsed = {}, onUse = govOf(S, p.id).taxOnUse;
+      const blds = S.buildings.filter((b) => buildingOwner(S, b) === p.id && B[b.key].recipes).sort((a, b) => late(a) - late(b) || order(a.key) - order(b.key) || a.id - b.id);
+      const shortfalls = {};
+      for (const b of blds) {
+        const c = cityById(S, b.city), rc = recipeOf(b), d = B[b.key];
+        if (b.halted) { b.status = 'Halted'; b.lastOut = {}; continue; }
+        if ((d.base || b.key) === 'farm' && isWinter(turn)) { b.status = 'Idle: winter (farms rest until spring)'; b.lastOut = {}; continue; }
+        if (rc.labor) {
+          const want = laborOf(b, S), used = Math.min(want, Math.floor(p.manpower)), cr = Math.round(used * perWorkerOf(S, b));
+          p.manpower = round1(p.manpower - used); p.credits += cr; b.ranTurn = turn; mpUsed[c.id] = (mpUsed[c.id] || 0) + used;
+          b.lastOut = cr ? { credits: cr } : {};
+          b.status = !want ? 'No workers assigned' : used < want ? `Short of manpower: ${used} of ${want} workers` : 'Running';
+          if (used < want) rep(p.id, 'shortfall', `${c.name}: ${d.name} had only ${used} of ${want} workers (out of manpower).`);
+          continue;
+        }
+        const needMp = mpOf(S, b);
+        let fueled = false;
+        const fu = fuelUseOf(S, b), runCr = runCreditsOf(S, b);
+        if (fu && b.fuelOn !== false && (c.stock.fuel || 0) >= fu) { c.stock.fuel = round1(c.stock.fuel - fu); fueled = true; }
+        const out = buildingOutput(S, b, { fueled });
+        const why = [];
+        const r2 = (v) => Math.round(v * 100) / 100;
+        if (needMp > p.manpower) why.push(`${r2(needMp)} manpower`);
+        if (runCr > p.credits) why.push(`${r2(runCr)} credits`);
+        const inputs = inputsOf(b, S);
+        for (const [g, v] of Object.entries(inputs)) if ((c.stock[g] || 0) < v - 1e-9) why.push(`${r2(v)} ${R.GOOD_NAMES[g].toLowerCase()}`);
+        if (why.length) {
+          b.status = `Idle: missing ${why.join(', ')}`; b.lastOut = {};
+          const key = `${c.name}|${d.short || d.name}|${why.join(', ')}`;
+          shortfalls[key] = (shortfalls[key] || 0) + 1;
+          continue;
+        }
+        p.manpower = round1(p.manpower - needMp); p.credits -= runCr;
+        if (isProductionRc(rc)) mpUsed[c.id] = (mpUsed[c.id] || 0) + needMp;
+        for (const [g, v] of Object.entries(inputs)) c.stock[g] = round1((c.stock[g] || 0) - v);
+        const made = {}, lost = {};
+        const tp = tr(p.id);
+        for (const [g, v] of Object.entries(out)) { const a = addToCity(S, c, g, v); made[g] = a; if (a < v) lost[g] = v - a; worldMade[g] = (worldMade[g] || 0) + a; tp.made[g] = (tp.made[g] || 0) + v; }
+        if (rc.mpOut) { const mo = mpOutOf(S, b); p.manpower = round1(p.manpower + mo); made.manpower = mo; mpMade[c.id] = (mpMade[c.id] || 0) + mo; tp.mp += mo; }
+        if (rc.sciOut) { const so = sciOutOf(S, b); p.science = round1(p.science + so); made.science = so; tp.sci += so; }
+        const cr = rc.creditsPerMp && !rc.labor ? creditsOutOf(S, b, (onUse ? mpUsed : mpMade)[c.id] || 0) : creditsOutOf(S, b);
+        if (cr) { p.credits += cr; made.credits = cr; tp.earned += cr; if (b.key === 'taxOffice') { taxThisTurn[p.id] = (taxThisTurn[p.id] || 0) + cr; tp.tax += cr; } }
+        b.ranTurn = turn;
+        b.lastOut = made;
+        b.status = Object.keys(lost).length ? `Running, but storage full: lost ${goodsText(lost)}` : d.fuelUse ? (fueled ? 'Running with fuel' : 'Running without fuel (+50%)') : 'Running';
+        if (Object.keys(lost).length) { toSalvage(lost); rep(p.id, 'shortfall', `${c.name}: ${d.short || d.name} output lost to full storage (${goodsText(lost)}); it went to the world market unpaid. Build storage or move goods out.`); }
+      }
+      for (const [key, n] of Object.entries(shortfalls)) {
+        const [cn, bn, why] = key.split('|');
+        rep(p.id, 'shortfall', `${cn}: ${n > 1 ? `${n}× ` : ''}${bn} idle, missing ${why}.`);
+        tr(p.id).idle += n;
+      }
+    }
+
+    // The global market gains a share of the world's production of goods; nobody loses anything.
+    {
+      const carry = S.market.carry || (S.market.carry = {}), gained = {};
+      for (const g of R.GOODS) {
+        const v = (worldMade[g] || 0) * marketTrickle(S) + (carry[g] || 0);
+        const whole = Math.floor(v + 1e-9);
+        carry[g] = Math.round((v - whole) * 1000) / 1000;
+        if (whole > 0) { S.market.pool[g] = (S.market.pool[g] || 0) + whole; gained[g] = whole; }
+      }
+      S.market.lastTrickle = gained;
     }
 
     /* ----- 8. units ----- */
@@ -4178,6 +4208,15 @@ const Engine = ((R) => {
     function printNewspaper() {
       const PR = R.PRESS, GN = (g) => R.GOOD_NAMES[g], WORD = (n) => ['NO', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN', 'ELEVEN', 'TWELVE'][n] || String(n);
       const iss = { turn, date: dateText(turn), stories: [], market: [], scoop: null, ads: [], tip: null, classified: null, rankings: rankings(S) };
+      // salvage reaches the market now (buyable next turn); only large amounts make the news
+      const carry = S.market.carry || (S.market.carry = {}), big = [];
+      for (const [g, v0] of Object.entries(salvage)) {
+        const v = v0 + (carry[g] || 0), whole = Math.floor(v + 1e-9);
+        carry[g] = Math.round((v - whole) * 1000) / 1000;
+        if (whole > 0) S.market.pool[g] = (S.market.pool[g] || 0) + whole;
+        if (whole >= Math.min(PR.salvageNews, Math.max(PR.salvageMin, (worldMade[g] || 0) * PR.salvageShare))) big.push([g, whole]);
+      }
+      if (big.length) story('market', 26, pick(['SCRAP MERCHANTS DO A ROARING TRADE', 'SALVAGE FLOODS THE MARKET', 'WHAT WAS LOST IS FOUND']), `Scrap and salvage brought ${big.sort((a, b) => b[1] - a[1]).map(([g, v]) => `${v} ${GN(g).toLowerCase()}`).join(', ')} to the world market this month.`);
       // the market report: what sold this month, and at what price
       for (const g of GOODS) { const m = S.market.last && S.market.last[g]; if (m && m.turn === turn) iss.market.push({ good: g, qty: m.qty, avg: m.avg, high: m.high, soldOut: soldOut.includes(g) }); }
       for (const g of soldOut) story('market', 30, pick([`${UP(GN(g))} SOLD OUT`, `RUN ON ${UP(GN(g))}: WORLD MARKET EMPTY`]), `The world market ran out of ${GN(g).toLowerCase()} this month, and some buyers went home empty-handed.`);
@@ -4322,7 +4361,7 @@ const Engine = ((R) => {
     R, newGame, resolveTurn, normalizeOrders, migrate, computePrices, worldTotals, makeRng,
     hex: { idx, colRow, dirs, nbrs, dist, within },
     q: {
-      dateText, designPress, autoWarName, warNameOf, cleanWarName, alliesOf, allied, debtOwed, owedTo, netWealth, avgHist, financialWeight, tilesHeld, rankings,
+      cityIncomeOf, marketTrickle, dateText, designPress, autoWarName, warNameOf, cleanWarName, alliesOf, allied, debtOwed, owedTo, netWealth, avgHist, financialWeight, tilesHeld, rankings,
       incomeAvg, unrestOn, unrestLeft, loanParams, taxAdjOf, domesticDebt, debtRatio, penaltyNow, newLoanRate, loanRateNow, loanInterest, loanDueNow, borrowLimit, checkBorrow, loanPayment, intlInterest, intlDueNow, loansOf, debtService, checkLoanTerms,
       queueable, cleanQueue, cleanKeep, cleanRecurring, cityOrderOf, keepOf, queueShortfall, estimatePay,
       cityById, unitById, cityAt, unitsAt, cityBuildings, countB, tileBuilding, tileOwner, tileOwnerCity, citiesOf, unitsOf, unitName,
@@ -5621,7 +5660,7 @@ TAB_RENDER.market = function () {
       <td><div class="row" style="margin:0;flex-wrap:nowrap"><input type="number" min="1" class="w-sm" id="mk-${g}" value="10" aria-label="${GN(g)} amount"><input type="number" min="${pr.sell}" max="${RR.BASE_PRICE[g] * RR.MARKET.maxBidX}" class="w-sm" id="mkb-${g}" placeholder="max price" title="Optional: the most you will pay per unit if other nations bid for the same supply" aria-label="${GN(g)} maximum price per unit"><button class="btn small" data-act="buy" data-good="${g}" ${!c || blocked || !pr.pool ? 'disabled' : ''}>Buy</button><button class="btn small" data-act="sell" data-good="${g}" ${!c || blocked ? 'disabled' : ''}>Sell</button></div></td></tr>`;
   }).join('');
   const lines = [...d.buys.map((o, i) => ['buys', i, o.maxPrice ? `Buy ${o.amount} ${gl(o.good)} for ${cityName(o.city)}, bidding up to ${o.maxPrice} each (at most ${o.amount * o.maxPrice} credits)` : `Buy ${o.amount} ${gl(o.good)} for ${cityName(o.city)} at the market price (about ${o.amount * (S.market.prices[o.good] || {}).sell} credits)`]), ...d.sells.map((o, i) => ['sells', i, `Sell ${o.amount} ${gl(o.good)} from ${cityName(o.city)} (about ${o.amount * (S.market.prices[o.good] || {}).pays} credits)`])];
-  return `<div class="page"><h2>Global market</h2><p class="muted">The market holds what players sell to it, plus ${Math.round(RR.MARKET.trickle * 100)}% of everything the world produces each turn (taken from no one). Its price for a good falls as more of the world's supply sits in the market: price = base ÷ (1 + 4 × share). It pays sellers 80% of its selling price. No transport is needed; goods arrive in the city you choose. Buys fill before sells, and prices hold for the whole turn.</p>
+  return `<div class="page"><h2>Global market</h2><p class="muted">The market holds what players sell to it, plus ${Math.round(Q.marketTrickle(S) * 100)}% of everything the world produces each turn (taken from no one; this game's rate, fixed when it was created). Its price for a good falls as more of the world's supply sits in the market: price = base ÷ (1 + 4 × share). It pays sellers 80% of its selling price. No transport is needed; goods arrive in the city you choose. Buys fill before sells, and prices hold for the whole turn.</p>
     <p class="small muted"><b>Bidding.</b> When several nations order more of a good than the market holds, it is auctioned. You may set a maximum price per unit (up to ${RR.MARKET.maxBidX}× base); without one you bid the market price. Higher bids fill first, and each buyer pays 1 credit more than the best bid that was left short, never more than its own bid. If there is enough for everyone, everyone pays the market price. Bids are secret; last turn's results are shown in "Last turn".</p>
     <div class="row"><label>Deliver to and sell from <select data-chg="mk-city">${cities.map((x) => `<option value="${x.id}" ${x.id === UI.marketCity ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label><span class="small muted">Credits: <b class="num">${p.credits}</b></span></div>
     <div class="ledger"><table class="cards"><thead><tr><th>Good</th><th class="n">Base</th><th class="n">Market sells at</th><th class="n">Market pays</th><th class="n">In market</th><th class="n">World total</th><th class="n">Share</th><th class="n">Last turn</th><th>In city</th><th>Order</th></tr></thead><tbody>${rows}</tbody></table></div>
@@ -6320,7 +6359,7 @@ document.addEventListener('keydown', (e) => {
 /* =====================================================================
    SETUP
    ===================================================================== */
-const SETUP = { n: 4, names: [], colors: [], mapType: RR.MAP.type, tpp: RR.MAP.tilesPerPlayer, start: null };
+const SETUP = { n: 4, names: [], colors: [], mapType: RR.MAP.type, tpp: RR.MAP.tilesPerPlayer, start: null, trickle: RR.MARKET.trickle };
 const startDefaults = () => ({ stock: Object.assign({}, RR.START.stock), credits: RR.START.credits, manpower: RR.START.manpower });
 function renderSetup() {
   const st0 = SETUP.start || startDefaults();
@@ -6333,7 +6372,9 @@ function renderSetup() {
     <label>Players <select id="sp-n" data-act="noop">${Array.from({ length: RR.PLAYERS.max - RR.PLAYERS.min + 1 }, (_, i) => RR.PLAYERS.min + i).map((n) => `<option ${n === SETUP.n ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
     <label>Map seed <input type="text" id="sp-seed" value="${esc(SETUP.seed || '')}" placeholder="random" style="width:110px"></label></div>
     <div class="row"><label>Map type <select id="sp-type">${Object.entries(RR.MAP.types).map(([k, v]) => `<option value="${k}" ${k === SETUP.mapType ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select></label>
-    <label>Tiles per player <select id="sp-tpp">${RR.MAP.sizes.map((n) => `<option ${n === SETUP.tpp ? 'selected' : ''}>${n}</option>`).join('')}</select></label></div>
+    <label>Tiles per player <select id="sp-tpp">${RR.MAP.sizes.map((n) => `<option ${n === SETUP.tpp ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
+    <label>Market supply <select id="sp-trickle">${RR.MARKET.trickleChoices.map((v) => `<option value="${v}" ${v === SETUP.trickle ? 'selected' : ''}>${Math.round(v * 100)}% of world production${v === RR.MARKET.trickle ? ' (standard)' : ''}</option>`).join('')}</select></label></div>
+    <p class="small muted">Each month the global market gains this share of everything the world produces, so goods are for sale even when nobody sells. It cannot be changed once the game starts. At 0% the market holds only what nations sell (and salvage): nothing can be bought until someone sells, and rare goods are only for sale if their owners choose. Higher rates make the market cheaper and fuller, which helps buyers and nations without rare resources but lowers what sellers earn.</p>
     <div class="players">${rows}</div>
     <p class="small muted">The map is about ${SETUP.n * SETUP.tpp} hexes (${SETUP.tpp} per player). Every nation starts with one city and the resources below.</p>
     <fieldset class="startres"><legend>Starting resources for every nation</legend><div class="row">
@@ -6352,7 +6393,7 @@ function captureSetup() {
   for (let i = 0; i < SETUP.n; i++) { const n = $(`#sp-name-${i}`), c = $(`#sp-col-${i}`), cap = $(`#sp-city-${i}`); if (n) SETUP.names[i] = n.value; if (c) SETUP.colors[i] = c.value; if (cap) SETUP.names[`c${i}`] = cap.value; }
   if (isCampaign()) for (let i = 0; i < SETUP.n; i++) { const pe = $(`#sp-pin-${i}`); if (pe) SETUP.pins[i] = pe.value.trim(); }
   if ($('#sp-game')) SETUP.game = $('#sp-game').value; if ($('#sp-seed')) SETUP.seed = $('#sp-seed').value;
-  if ($('#sp-type')) SETUP.mapType = $('#sp-type').value; if ($('#sp-tpp')) SETUP.tpp = Number($('#sp-tpp').value);
+  if ($('#sp-type')) SETUP.mapType = $('#sp-type').value; if ($('#sp-tpp')) SETUP.tpp = Number($('#sp-tpp').value); if ($('#sp-trickle')) SETUP.trickle = Number($('#sp-trickle').value);
   if ($('#sp-st-credits')) {
     const d = startDefaults(), num = (id, def, max) => { const v = Math.floor(Number($(id).value)); return Number.isFinite(v) && $(id).value !== '' ? Math.max(0, Math.min(max, v)) : def; };
     SETUP.start = { stock: {}, credits: num('#sp-st-credits', d.credits, 1e9), manpower: num('#sp-st-manpower', d.manpower, 1e6) };
@@ -6375,7 +6416,7 @@ const SETUP_ACT = {
   async create() {
     captureSetup();
     const players = Array.from({ length: SETUP.n }, (_, i) => ({ name: (SETUP.names[i] || `Player ${i + 1}`).trim().slice(0, 30), color: SETUP.colors[i] || RR.PLAYER_COLORS[i], cityName: (SETUP.names[`c${i}`] || '').trim().slice(0, 40) || undefined }));
-    const S = Engine.newGame({ players, seed: SETUP.seed || undefined, name: SETUP.game || CONFIG.title, mapType: SETUP.mapType, tilesPerPlayer: SETUP.tpp, start: SETUP.start || undefined });
+    const S = Engine.newGame({ players, seed: SETUP.seed || undefined, name: SETUP.game || CONFIG.title, mapType: SETUP.mapType, tilesPerPlayer: SETUP.tpp, start: SETUP.start || undefined, marketTrickle: SETUP.trickle });
     if (isCampaign()) {
       const pins = SETUP.pins.slice(0, SETUP.n);
       if (pins.some((p) => !/^\d{4,10}$/.test(p))) { toast('PINs must be 4 to 10 digits'); return; }
