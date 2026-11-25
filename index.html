@@ -290,6 +290,22 @@ table.govtax thead th[rowspan] { vertical-align: bottom; }
   .tabs button { transition: color 0.12s; }
 }
 
+/* History and newspaper */
+.chart { width: 100%; height: auto; display: block; }
+.chart .ax { font: 11px var(--f-body); fill: var(--muted); }
+.chart .grid { stroke: var(--rule-soft); stroke-width: 1; }
+.chart .base { stroke: var(--rule); stroke-width: 1; }
+.hist-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(460px, 1fr)); gap: 14px; margin-top: 14px; }
+.hist-keys { margin-bottom: 8px; display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.hist-keys label { display: flex; align-items: center; gap: 4px; }
+.news-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; align-items: start; }
+.news-cols h3 { font-family: var(--f-head); text-transform: uppercase; letter-spacing: .06em; border-bottom: 2px solid var(--ink); padding-bottom: 2px; }
+.news .ranks { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px 14px; }
+.news .ranks h4 { margin: 6px 0 2px; }
+.news .ranks ol { margin: 0; padding-left: 20px; }
+.news .ranks li.good { font-weight: 600; }
+@media (max-width: 700px) { .hist-grid, .news-cols { grid-template-columns: 1fr; } .chart .ax { font-size: 13px; } }
+
 </style>
 <script>
 /* ===================== SETTINGS: edit these to host your game =====================
@@ -570,19 +586,19 @@ const RULES = (() => {
   const TAX_NAMES = { low: 'Low', normal: 'Normal', high: 'High', war: 'War tax' };
   const GOVERNMENTS = {
     provisional: {
-      loan: { base: 10, months: 3, capMonths: 36 }, // domestic loans: annual base rate %, largest loan and total debt in months of income
+      loan: { base: 10, slope: 0.25, capMonths: 36 }, // domestic loans: annual base rate %, + slope per 10% of yearly income in debt, total debt cap in months of income
       name: 'Provisional Government', taxEvery: 0, fixedTax: true, notice: 0, toFullTurns: 3,
       tax: { low: { rate: 150, mp: 1.0 }, normal: { rate: 150, mp: 1.0 }, high: { rate: 150, mp: 1.0 }, war: { rate: 150, mp: 1.0 } },
       text: 'Every nation starts here. A fixed normal tax (150 credits per manpower, housing ×1.0), war declared instantly, no other effects. Leaving it causes no upheaval.',
     },
     democracy: {
-      loan: { base: 6, months: 6, capMonths: 36 }, // domestic loans: annual base rate %, largest loan and total debt in months of income
+      loan: { base: 6, slope: 0.15, capMonths: 36 }, // domestic loans: annual base rate %, + slope per 10% of yearly income in debt, total debt cap in months of income
       name: 'Democracy', taxEvery: 6, notice: 4, toFullTurns: 3, rally: true, marketSell: 0.9, science: { credits: 0.75, mp: 2 / 3 },
       tax: { low: { rate: 100, mp: 1.2 }, normal: { rate: 150, mp: 1.1 }, high: { rate: 200, mp: 0.9 }, war: { rate: 250, mp: 0.85 } },
       text: 'Most manpower in peacetime, cheaper research (universities and research facilities cost 25% fewer credits and a third less manpower) and 90% of the price for market sales. War needs 4 turns\' notice (an ultimatum) unless the enemy is at war with a partner. If war is declared on it, it reaches full mobilization in 1 turn.',
     },
     monarchy: {
-      loan: { base: 8, months: 4, capMonths: 36 }, // domestic loans: annual base rate %, largest loan and total debt in months of income
+      loan: { base: 8, slope: 0.2, capMonths: 36 }, // domestic loans: annual base rate %, + slope per 10% of yearly income in debt, total debt cap in months of income
       name: 'Monarchy', taxEvery: 4, notice: 1, toFullTurns: 3, settlementCut: 0.25,
       extractionMp: 0.5, // extraction buildings (not silver or gold mines) need half the manpower
       costs: { townHall: { lumber: 23, metal: 8, tools: 6, mp: 3 } }, // town halls about a quarter cheaper
@@ -590,13 +606,13 @@ const RULES = (() => {
       text: 'Holds up best under high and war taxes. War needs 1 turn\'s notice (an ultimatum). Settlements and town halls cost about 25% less, and extraction buildings (not silver or gold mines) need half the manpower.',
     },
     autocracy: {
-      loan: { base: 12, months: 3, capMonths: 36 }, // domestic loans: annual base rate %, largest loan and total debt in months of income
+      loan: { base: 12, slope: 0.25, capMonths: 36 }, // domestic loans: annual base rate %, + slope per 10% of yearly income in debt, total debt cap in months of income
       name: 'Autocracy', taxEvery: 2, notice: 0, toFullTurns: 2, landPay: 0.75,
       tax: { low: { rate: 130, mp: 1.0 }, normal: { rate: 200, mp: 0.9 }, high: { rate: 250, mp: 0.8 }, war: { rate: 350, mp: 0.75 } },
       text: 'Most credits, least manpower. Declares war instantly, mobilizes in 2 turns, and pays land units 25% less.',
     },
     communism: {
-      loan: { base: 15, months: 2, capMonths: 12 }, // domestic loans: annual base rate %, largest loan and total debt in months of income
+      loan: { base: 15, slope: 0.35, capMonths: 12 }, // domestic loans: annual base rate %, + slope per 10% of yearly income in debt, total debt cap in months of income
       name: 'Communism', taxEvery: 3, notice: 0, toFullTurns: 3, landPay: 0.65, marketSell: 0.6, fullMpCut: 0.1, taxOnUse: true,
       production: { out: 2, mp: 3, inputs: 2.5 }, housing: { out: 1.5, inputs: 2.5 },
       tax: { low: { rate: 65, mp: 1.1 }, normal: { rate: 110, mp: 1.0 }, high: { rate: 150, mp: 0.9 }, war: { rate: 185, mp: 0.85 } },
@@ -606,11 +622,16 @@ const RULES = (() => {
   // Loans. Domestic: 12-turn bonds (interest each turn, face value on the last turn), paid before anything else.
   // Income = average tax-office income over the last 12 turns. Rates are annual percentages.
   const LOANS = {
-    term: 12, incomeTurns: 12, perLoan: 1, taxAdj: { low: -1, normal: 0, high: 2, war: 4 },
-    defaultFlat: 10, penaltyCap: 30, maxRatePenalty: 30, step: 0.1, // 1 turn and +1 point per 10% of yearly income defaulted
+    term: 12, incomeTurns: 12, taxAdj: { low: -1, normal: 0, high: 2, war: 4 }, // tax adjustment, fixed when the loan is taken
+    // a loan's rate rises with debt: slope × (debt at the loan's midpoint ÷ yearly income × 10), measured continuously
+    defaultFlat: 10, penaltyCap: 30, maxRatePenalty: 30, step: 0.1, // default: +1 point per 10% of yearly income (exact), 1 turn per 10% (rounded up)
     unrestMp: 0.3, unrestGoods: 0.1,
     intl: { maxTerm: 60, maxRate: 100, missedToDefault: 2 },
   };
+  // Defensive alliances: 2 turns to answer a call to arms; 3 turns' notice to leave
+  const ALLIANCE = { answerTurns: 2, noticeTurns: 3 };
+  // History graphs keep 24 turns; the newspaper keeps 12 issues
+  const HISTORY = { turns: 24, newsTurns: 12 };
   // Standing orders: building queues (per city) and recurring market orders (per nation)
   const QUEUE = { perCity: 10 };
   const RECURRING = { max: 10 };
@@ -684,7 +705,7 @@ const RULES = (() => {
 
   return {
     GOODS, GOOD_NAMES, GOOD_COLORS, BASE_PRICE, MARKET, SPECIAL_STORAGE, TILES, BUILDINGS, UNITS, DAMAGE, WEAPON_AMMO, WEAPON_RANGE,
-    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, TAX_LEVELS, TAX_NAMES, GOVERNMENTS, GOV_KEYS, GOV_CHANGE, QUEUE, RECURRING, LOANS, SETTLEMENT_MONARCHY, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, QUALITY_DAMAGE, WINTER_ATTRITION, SUMMER_FARM, CAPTURE_CARGO, DESIGN, ENTRENCH, UNIT_STORE, SETTLEMENT, CITY_RUN_LUMBER, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
+    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, TAX_LEVELS, TAX_NAMES, GOVERNMENTS, GOV_KEYS, GOV_CHANGE, QUEUE, RECURRING, LOANS, ALLIANCE, HISTORY, SETTLEMENT_MONARCHY, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, QUALITY_DAMAGE, WINTER_ATTRITION, SUMMER_FARM, CAPTURE_CARGO, DESIGN, ENTRENCH, UNIT_STORE, SETTLEMENT, CITY_RUN_LUMBER, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = RULES;
@@ -2105,6 +2126,8 @@ const Engine = ((R) => {
       out[side].cities = [...new Set((x.cities || []).map(Number))];
       out[side].tiles = [...new Set((x.tiles || []).map(Number))];
       out[side].units = [...new Set((x.units || []).map(Number))];
+      const rp = x.reparations || {};
+      out[side].reparations = { amount: Math.max(0, Math.floor(Number(rp.amount) || 0)), turns: Math.max(1, Math.min(R.LOANS.intl.maxTerm, Math.floor(Number(rp.turns) || 12))) };
     }
     return out;
   }
@@ -2126,6 +2149,7 @@ const Engine = ((R) => {
         if (part.cities.includes(oc.id)) return `tile ${tileLabel(S, t)} already goes with its city`;
       }
       const recv = pid === a ? b : a;
+      if (part.reparations && part.reparations.amount && !atWar(S, a, b)) return 'reparations can only be part of a peace treaty that ends a war';
       if (part.units.length && atWar(S, a, b)) return 'units can only be given between nations at peace';
       for (const id of part.units) { const why = giftError(S, pid, recv, id); if (why) return why; }
     }
@@ -2151,6 +2175,7 @@ const Engine = ((R) => {
       for (const id of part.cities) { const c = cityById(S, id); bits.push(c ? c.name : `city #${id}`); }
       if (part.tiles.length) bits.push(`${part.tiles.length} tile${part.tiles.length === 1 ? '' : 's'}`);
       if (part.units.length) bits.push(part.units.map((id) => { const u = unitById(S, id); return u ? unitName(u) : `unit #${id}`; }).join(', '));
+      if (part.reparations && part.reparations.amount) bits.push(`${part.reparations.amount} credits in reparations over ${part.reparations.turns} turns`);
       if (bits.length) out.push(`${S.players[pid].name} gives ${bits.join(', ')}`);
     }
     return out.join('; ');
@@ -2176,7 +2201,7 @@ const Engine = ((R) => {
   function describeProposal(S, pr) {
     const p = pr.payload || {};
     if (pr.kind === 'peace') { const terms = peaceTerms(S, pr), term = normPeace(p).term; return `${term ? `a ${term}-turn peace treaty` : 'a treaty'}${terms ? ` (${terms})` : ''}`; }
-    if (pr.kind === 'treaty') return `a ${p.type} rights treaty`;
+    if (pr.kind === 'treaty') return p.type === 'alliance' ? 'a defensive alliance' : `a ${p.type} rights treaty`;
     if (pr.kind === 'blueprint' && p.design != null) { const dz = designById(S, p.design); return `the ${dz ? `${dz.name} design (${U[dz.base].name.toLowerCase()})` : 'unit design'} blueprint for ${p.price} credits`; }
     if (pr.kind === 'blueprint') return `the ${B[p.key] ? B[p.key].name : p.key} blueprint for ${p.price} credits`;
     if (pr.kind === 'route') return `a trade route (#${p.route})`;
@@ -2185,23 +2210,19 @@ const Engine = ((R) => {
   }
 
   // Agreement partners: an active peace treaty, a transit/port/rail treaty, or an accepted trade route
-  function partnersOf(S, pid) {
-    const out = new Set();
-    for (const t of S.treaties) if (t.a === pid || t.b === pid) out.add(t.a === pid ? t.b : t.a);
-    for (const r of S.routes) if (r.partner != null && r.accepted && (r.owner === pid || r.partner === pid)) out.add(r.owner === pid ? r.partner : r.owner);
-    out.delete(pid);
-    return out;
-  }
-  // Can pid declare war on target right now? Autocracies always may; anyone may against a nation at war with one of
-  // their partners; otherwise democracies and monarchies must send an ultimatum.
+  // Can pid declare war on target right now? Autocracies, communists and provisional governments always may; a democracy
+  // or monarchy may against a nation at war with one of its allies (a defensive alliance), or one that defaulted on
+  // reparations owed to it; otherwise it must send an ultimatum.
   function checkDeclare(S, pid, target) {
     if (atWar(S, pid, target)) return 'already at war';
+    // unpaid reparations: the nation owed may declare war at once, peace treaty or not
+    if ((S.grievances || []).some((g) => g.from === pid && g.against === target)) return null;
     const pact = S.treaties.find((t) => t.type === 'peace' && pairs(t, pid, target));
     if (pact) return `your peace treaty is in force until turn ${pact.endsTurn}`;
     if (!govOf(S, pid).notice) return null; // provisional governments, autocracies and communists declare instantly
-    for (const q of partnersOf(S, pid)) if (q !== target && atWar(S, target, q)) return null;
+    for (const q of alliesOf(S, pid)) if (q !== target && atWar(S, target, q)) return null;
     const g = govOf(S, pid);
-    return `a ${g.name.toLowerCase()} must send an ultimatum (${g.notice} turn${g.notice === 1 ? '' : 's'}' notice) unless ${S.players[target].name} is at war with one of your partners`;
+    return `a ${g.name.toLowerCase()} must send an ultimatum (${g.notice} turn${g.notice === 1 ? "'s" : "s'"} notice) unless ${S.players[target].name} is at war with one of your allies`;
   }
   function checkUltimatum(S, pid, target) {
     if (atWar(S, pid, target)) return 'already at war';
@@ -2244,9 +2265,9 @@ const Engine = ((R) => {
     const { map, starts } = genMap(list.length, rng, { mapType: opts.mapType, tilesPerPlayer: opts.tilesPerPlayer });
     const start = startingResources(opts.start);
     const S = {
-      version: 9, id: opts.id || `game-${seed.toString(36)}-${Date.now().toString(36)}`, name: opts.name || 'Guns, Pacts, and Commerce', start,
+      version: 11, id: opts.id || `game-${seed.toString(36)}-${Date.now().toString(36)}`, name: opts.name || 'Guns, Pacts, and Commerce', start,
       seed, turn: 1, map, players: [], cities: [], units: [], buildings: [], routes: [], treaties: [], wars: [], proposals: [],
-      market: { pool: {}, prices: {} }, reports: {}, nextId: 1, gameOver: null, history: [], depots: [], designs: [], ultimatums: [], loans: [],
+      market: { pool: {}, prices: {} }, reports: {}, nextId: 1, gameOver: null, history: [], depots: [], designs: [], ultimatums: [], loans: [], calls: [], grievances: [], news: [], firstResearched: {},
     };
     list.forEach((pl, i) => {
       S.players.push({
@@ -2257,6 +2278,7 @@ const Engine = ((R) => {
         gov: 'provisional', govSince: null, tax: 'normal', taxSince: null, upheavalUntil: null, rally: false,
         queue: {}, keep: {}, keepCredits: 0, keepManpower: 0, cityOrder: [], recurring: [],
         loans: [], taxHistory: [], unrestUntil: null, unrestRate: 0, lastDomesticDefault: null, lastForeignDefault: null,
+        hist: [], cum: { science: 0, value: 0 },
       });
       const c = foundCityAt(S, i, starts[i], pl.cityName || `${pl.name || 'Player ' + (i + 1)} Capital`);
       for (const g of Object.keys(start.stock)) c.stock[g] = Math.min(start.stock[g], capacity(S, c, g));
@@ -2371,26 +2393,29 @@ const Engine = ((R) => {
   const loanParams = (S, pid) => govOf(S, pid).loan || R.GOVERNMENTS.provisional.loan;
   const taxAdjOf = (S, pid) => LN.taxAdj[(S.players[pid] && S.players[pid].tax) || 'normal'] || 0;
   const domesticDebt = (S, pid) => ((S.players[pid] && S.players[pid].loans) || []).reduce((a, l) => a + l.face, 0);
-  // the fixed part of a new loan's rate: government base + 1 per loan outstanding + the default penalty while it lasts
-  function newLoanFixedRate(S, pid, turn) {
-    const p = S.players[pid];
-    let r = loanParams(S, pid).base + LN.perLoan * ((p && p.loans) || []).length;
-    if (unrestOn(S, pid, turn)) r += LN.defaultFlat + (p.unrestRate || 0);
-    return r;
+  const r2 = (v) => Math.round(v * 100) / 100;
+  // debt as a share of a year's income (0.5 = 50%); with no income, any debt counts as far over the limit
+  const debtRatio = (S, pid, debt) => { const annual = incomeAvg(S, pid) * 12; return annual > 0 ? debt / annual : (debt > 0 ? Infinity : 0); };
+  const penaltyNow = (S, pid, turn) => (unrestOn(S, pid, turn) ? LN.defaultFlat + (S.players[pid].unrestRate || 0) : 0);
+  // The rate for a new domestic loan of `amount`, fixed for its 12 turns: government base + tax adjustment now
+  // + slope × (debt at the loan's midpoint ÷ yearly income × 10) + the default penalty while it lasts.
+  // Pricing on the midpoint (debt before + half the loan) makes one big loan cost the same as many small ones.
+  function newLoanRate(S, pid, turn, amount, extraDebt) {
+    const lp = loanParams(S, pid), mid = domesticDebt(S, pid) + (extraDebt || 0) + (Math.max(0, Number(amount) || 0)) / 2;
+    const ratio = debtRatio(S, pid, mid);
+    return r2(Math.max(0, lp.base + taxAdjOf(S, pid) + lp.slope * (Number.isFinite(ratio) ? ratio : 0) * 10 + penaltyNow(S, pid, turn)));
   }
-  const newLoanRate = (S, pid, turn) => Math.max(0, newLoanFixedRate(S, pid, turn) + taxAdjOf(S, pid));
-  const loanRateNow = (S, pid, l) => Math.max(0, l.rate + taxAdjOf(S, pid)); // only the tax part follows the current tax rate
-  const loanInterest = (S, pid, l) => Math.ceil((l.face * loanRateNow(S, pid, l)) / 100 / 12 - 1e-9);
+  const loanRateNow = (S, pid, l) => l.rate; // fixed when the loan was taken
+  const loanInterest = (S, pid, l) => Math.ceil((l.face * l.rate) / 100 / 12 - 1e-9);
   const loanDueNow = (S, pid, l) => loanInterest(S, pid, l) + (l.paid >= LN.term - 1 ? l.face : 0);
   function borrowLimit(S, pid) {
-    const avg = incomeAvg(S, pid), lp = loanParams(S, pid);
-    const perLoan = Math.floor(lp.months * avg), room = Math.max(0, Math.floor(lp.capMonths * avg - domesticDebt(S, pid)));
-    return { avg, perLoan, room, max: Math.min(perLoan, room) };
+    const avg = incomeAvg(S, pid), lp = loanParams(S, pid), debt = domesticDebt(S, pid);
+    const cap = Math.floor(lp.capMonths * avg), room = Math.max(0, cap - debt);
+    return { avg, cap, debt, room, max: room, ratio: debtRatio(S, pid, debt) };
   }
   function checkBorrow(S, pid, amount) {
     const a = Math.floor(Number(amount) || 0), lim = borrowLimit(S, pid);
     if (a <= 0) return 'Enter an amount';
-    if (a > lim.perLoan) return `A single loan can be at most ${lim.perLoan} credits (${loanParams(S, pid).months} months of income)`;
     if (a > lim.room) return `That would take your domestic debt past its limit (${loanParams(S, pid).capMonths} months of income); you can borrow ${lim.room} more`;
     return null;
   }
@@ -2418,6 +2443,44 @@ const Engine = ((R) => {
     if (term < 1 || term > LN.intl.maxTerm) return `The term must be 1 to ${LN.intl.maxTerm} turns`;
     if (rate < 0 || rate > LN.intl.maxRate) return `The rate must be 0% to ${LN.intl.maxRate}% a year`;
     return null;
+  }
+
+
+  /* =====================================================================
+     ALLIANCES, HISTORY, RANKINGS
+     ===================================================================== */
+  const alliesOf = (S, pid) => new Set(S.treaties.filter((t) => t.type === 'alliance' && (t.a === pid || t.b === pid)).map((t) => (t.a === pid ? t.b : t.a)));
+  const allied = (S, a, b) => S.treaties.some((t) => t.type === 'alliance' && pairs(t, a, b));
+  // what a nation owes and is owed (domestic loans, loans between nations, reparations)
+  function debtOwed(S, pid) {
+    const p = S.players[pid];
+    return ((p && p.loans) || []).reduce((a, l) => a + l.face, 0) + (S.loans || []).filter((l) => l.borrower === pid).reduce((a, l) => a + l.balance, 0);
+  }
+  const owedTo = (S, pid) => (S.loans || []).filter((l) => l.lender === pid).reduce((a, l) => a + l.balance, 0);
+  const netWealth = (S, pid) => (S.players[pid] ? S.players[pid].credits : 0) + owedTo(S, pid) - debtOwed(S, pid);
+  // 12-turn averages from the history (turns not yet recorded count as 0)
+  function avgHist(S, pid, k) {
+    const h = ((S.players[pid] && S.players[pid].hist) || []).slice(-R.LOANS.incomeTurns);
+    return h.reduce((a, x) => a + (x[k] || 0), 0) / R.LOANS.incomeTurns;
+  }
+  const financialWeight = (S, pid) => avgHist(S, pid, 'netWealth') + 6 * avgHist(S, pid, 'netIncome');
+  const tilesHeld = (S, pid) => { const mine = new Set(citiesOf(S, pid).map((c) => c.id)); return S.map.tiles.reduce((n, t) => n + (t.owner != null && mine.has(t.owner) ? 1 : 0), 0); };
+  // ranks only (never the figures); ties go to the lower player number
+  function rankings(S) {
+    const act = S.players.filter((p) => !p.eliminated);
+    const hp = (pid, cls) => S.units.filter((u) => u.owner === pid && U[u.type].role === 'combat' && (cls === 'ship' ? U[u.type].cls === 'ship' : U[u.type].cls !== 'ship')).reduce((a, u) => a + Math.max(0, u.hp), 0);
+    const metric = {
+      financial: (p) => financialWeight(S, p.id),
+      army: (p) => hp(p.id, 'land'),
+      navy: (p) => hp(p.id, 'ship'),
+      technology: (p) => (p.cum && p.cum.science) || 0,
+      size: (p) => tilesHeld(S, p.id),
+      manufacturing: (p) => (p.cum && p.cum.value) || 0,
+    };
+    const out = {}, show = Math.ceil(act.length / 2);
+    // a nation with nothing in a category (no navy, no science yet) is not ranked in it
+    for (const [k, f] of Object.entries(metric)) out[k] = act.map((p) => [p.id, f(p)]).filter(([, v]) => k === 'financial' || v > 0).sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, show).map(([id]) => id);
+    return out;
   }
 
   /* =====================================================================
@@ -2471,6 +2534,8 @@ const Engine = ((R) => {
       if (!p.recurring) p.recurring = [];
       // version 9: loans. Games already under way start with their recent tax income filled in from today's tax offices.
       if (!p.loans) p.loans = [];
+      // version 10: a loan's rate is fixed when taken (it used to follow the tax rate), so fold today's tax adjustment in
+      if ((S.version || 0) < 10) for (const l of p.loans) l.rate = Math.max(0, l.rate + (R.LOANS.taxAdj[p.tax || 'normal'] || 0));
       if (p.unrestRate == null) p.unrestRate = 0;
       if (p.unrestUntil === undefined) p.unrestUntil = null;
       if (p.lastDomesticDefault === undefined) p.lastDomesticDefault = null;
@@ -2481,6 +2546,10 @@ const Engine = ((R) => {
       }
     }
     S.loans = S.loans || [];
+    // version 11: alliances, calls to arms, reparations, history and the newspaper
+    S.calls = S.calls || []; S.grievances = S.grievances || []; S.news = S.news || [];
+    if (!S.firstResearched) { S.firstResearched = {}; for (const p of S.players) for (const k of p.researched || []) if (!S.firstResearched[k]) S.firstResearched[k] = { by: p.id, turn: 0 }; }
+    for (const p of S.players) { if (!p.hist) p.hist = []; if (!p.cum) p.cum = { science: 0, value: 0 }; }
     S.ultimatums = S.ultimatums || [];
     S.proposals = (S.proposals || []).filter((pr) => ['peace', 'treaty', 'blueprint', 'route'].includes(pr.kind));
     if ((S.version || 1) < 4) {
@@ -2495,7 +2564,7 @@ const Engine = ((R) => {
       // version 5: tank traps belong to a nation (they used to record a city)
       for (const tile of S.map.tiles) if (tile.trap != null) { const c = cityById(S, tile.trap); tile.trap = c ? c.owner : null; }
     }
-    S.version = 9;
+    S.version = 11;
     return S;
   }
   function normalizeOrders(o) {
@@ -2511,6 +2580,12 @@ const Engine = ((R) => {
     const turn = S.turn;
     const rep = (pid, cat, msg) => { if (pid == null) return; (S.reports[pid] = S.reports[pid] || []).push({ turn, cat, msg }); };
     const both = (a, b, cat, msg) => { rep(a, cat, msg); if (b !== a) rep(b, cat, msg); };
+    // the world newspaper for this turn, and per-nation figures for the history graphs
+    const paper = { government: [], finance: [], technology: [], mobilization: [], market: [], war: [], alliances: [], peace: [] };
+    const news = (sec, msg) => { (paper[sec] = paper[sec] || []).push(msg); };
+    const T = {}; // per nation: made (goods), mp, tax, sci, earned (credits), paid (debt payments), got (payments received)
+    const tr = (pid) => (T[pid] = T[pid] || { made: {}, mp: 0, tax: 0, sci: 0, earned: 0, paid: 0, got: 0 });
+    S.calls = S.calls || []; S.grievances = S.grievances || []; S.firstResearched = S.firstResearched || {};
     const active = S.players.filter((p) => !p.eliminated);
     const O = {};
     for (const p of active) O[p.id] = normalizeOrders((ordersByPlayer || {})[p.id]);
@@ -2575,6 +2650,7 @@ const Engine = ((R) => {
       for (const tile of S.map.tiles) { if (tile.rail === loser.id) tile.rail = byPid; if (tile.bridgeBy === loser.id) tile.bridgeBy = byPid; if (tile.tunnel === loser.id) tile.tunnel = byPid; if (tile.trap === loser.id) tile.trap = byPid; }
       for (const dp of S.depots) if (dp.owner === loser.id) dp.owner = byPid;
       for (const q of S.players) rep(q.id, 'diplomacy', `${loser.name} lost its last city to ${winner.name} and is out of the game. ${winner.name} took its ${took}.`);
+      news('war', `${loser.name} lost its last city to ${winner.name} and is out of the game.`);
     }
     // move a unit off a tile it may no longer hold (e.g. a city that was ceded)
     function evacuate(u) {
@@ -2615,8 +2691,19 @@ const Engine = ((R) => {
       if (tile.bridgeBy === old) tile.bridgeBy = to;
     }
     function startWar(p, target, msg) {
+      const ended = S.treaties.some((t) => t.type === 'alliance' && pairs(t, p.id, target.id));
       S.wars.push({ id: S.nextId++, a: p.id, b: target.id, kind: 'war', since: turn });
-      S.treaties = S.treaties.filter((t) => !pairs(t, p.id, target.id));
+      S.treaties = S.treaties.filter((t) => !pairs(t, p.id, target.id)); // allies who go to war with each other end their alliance
+      S.grievances = S.grievances.filter((g) => !(g.from === p.id && g.against === target.id));
+      news('war', msg);
+      if (ended) news('alliances', `The alliance between ${p.name} and ${target.name} ended when they went to war.`);
+      // a call to arms goes to every ally of the nation attacked
+      for (const c of alliesOf(S, target.id)) {
+        const ally = S.players[c];
+        if (c === p.id || ally.eliminated || atWar(S, c, p.id)) continue;
+        S.calls.push({ id: S.nextId++, ally: c, defender: target.id, attacker: p.id, issued: turn, deadline: turn + R.ALLIANCE.answerTurns });
+        rep(c, 'diplomacy', `Call to arms: your ally ${target.name} was attacked by ${p.name}. Honor it to join the war at once, or refuse; you have until turn ${turn + R.ALLIANCE.answerTurns} to answer, and every nation will learn your choice.`);
+      }
       for (const r of S.routes.slice()) if ((r.owner === p.id && r.partner === target.id) || (r.owner === target.id && r.partner === p.id)) removeRoute(r.id, 'war was declared');
       S.ultimatums = S.ultimatums.filter((x) => !pairs({ a: x.from, b: x.to }, p.id, target.id));
       for (const q of S.players) if (!q.eliminated) rep(q.id, 'diplomacy', msg);
@@ -2648,7 +2735,16 @@ const Engine = ((R) => {
           for (const r of S.routes) r.transports = r.transports.filter((tid) => tid !== u.id);
         }
       }
+      // reparations: the total split into equal whole-credit payments, the remainder paid on the last turn
+      for (const [giver, recv, part] of [[a, b, pl.give], [b, a, pl.get]]) {
+        const rp = part.reparations;
+        if (!rp || !rp.amount || !wasWar) continue;
+        S.loans.push({ id: S.nextId++, kind: 'reparations', lender: recv.id, borrower: giver.id, principal: rp.amount, rate: 0, term: rp.turns, payment: Math.floor(rp.amount / rp.turns), balance: rp.amount, paid: 0, missed: 0, since: turn });
+        news('peace', `${giver.name} will pay ${recv.name} ${rp.amount} credits in reparations over ${rp.turns} turns.`);
+      }
       refreshTraits(S);
+      if (wasWar) news('peace', `${a.name} and ${b.name} made peace${pl.term > 0 ? ` (no war between them before turn ${turn + pl.term + 1})` : ''}.`);
+      S.calls = S.calls.filter((c) => !(pairs({ a: c.defender, b: c.attacker }, a.id, b.id)));
       if (!pr.ultimatum) both(a.id, b.id, 'diplomacy', `${a.name} and ${b.name} signed ${desc}${wasWar ? ', ending their war' : ''}.${pl.term > 0 ? ` Neither may declare war on the other before turn ${turn + pl.term + 1}.` : ''}`);
       return true;
     }
@@ -2710,6 +2806,7 @@ const Engine = ((R) => {
           p.gov = st.government; p.govSince = turn; p.taxSince = null; // a new government may set a new tax rate at once
           if (govOf(S, p.id).fixedTax) p.tax = 'normal';
           for (const q of S.players) rep(q.id, 'government', `${p.name} changed its government from ${was} to ${govOf(S, p.id).name}.`);
+          news('government', `${p.name} changed its government from ${was} to ${govOf(S, p.id).name}.`);
           if (!fromProvisional) {
             p.upheavalUntil = turn + R.GOV_CHANGE.upheavalTurns - 1;
             if (p.mob === 'full') { p.mob = 'partial'; p.mobPending = null; }
@@ -2767,20 +2864,21 @@ const Engine = ((R) => {
       } else if (pr.kind === 'treaty') {
         if (atWar(S, pr.from, p.id) || hasTreaty(S, pr.from, p.id, pl.type)) continue;
         S.treaties.push({ id: S.nextId++, a: pr.from, b: p.id, type: pl.type, since: turn, endsTurn: null });
-        both(pr.from, p.id, 'diplomacy', `${from.name} and ${p.name} agreed ${pl.type} rights.`);
+        if (pl.type === 'alliance') { for (const q of S.players) rep(q.id, 'diplomacy', `${from.name} and ${p.name} signed a defensive alliance.`); news('alliances', `${from.name} and ${p.name} signed a defensive alliance.`); }
+        else both(pr.from, p.id, 'diplomacy', `${from.name} and ${p.name} agreed ${pl.type} rights.`);
       } else if (pr.kind === 'blueprint' && pl.design != null) {
         const dz = designById(S, pl.design);
         if (!dz || dz.owner !== pr.from) { rep(p.id, 'diplomacy', 'Design sale failed: the design no longer exists.'); continue; }
         p.designBlueprints = p.designBlueprints || [];
         if (canUseDesign(S, p.id, dz)) { rep(p.id, 'diplomacy', `You already have the ${dz.name} design.`); continue; }
         if (p.credits < pl.price) { both(pr.from, p.id, 'diplomacy', `Sale of the ${dz.name} design failed: ${p.name} lacked ${pl.price} credits.`); continue; }
-        p.credits -= pl.price; from.credits += pl.price; p.designBlueprints.push(dz.id);
+        p.credits -= pl.price; from.credits += pl.price; p.designBlueprints.push(dz.id); tr(from.id).earned += pl.price;
         both(pr.from, p.id, 'diplomacy', `${p.name} bought the ${dz.name} design (${U[dz.base].name.toLowerCase()}) from ${from.name} for ${pl.price} credits.`);
       } else if (pr.kind === 'blueprint') {
         if (!from.researched.includes(pl.key)) { rep(p.id, 'diplomacy', 'Blueprint sale failed: the seller no longer qualifies.'); continue; }
         if (isUnlocked(S, p.id, pl.key)) { rep(p.id, 'diplomacy', `You already have ${B[pl.key].name}.`); continue; }
         if (p.credits < pl.price) { both(pr.from, p.id, 'diplomacy', `Blueprint sale of ${B[pl.key].name} failed: ${p.name} lacked ${pl.price} credits.`); continue; }
-        p.credits -= pl.price; from.credits += pl.price; p.blueprints.push(pl.key);
+        p.credits -= pl.price; from.credits += pl.price; p.blueprints.push(pl.key); tr(from.id).earned += pl.price;
         both(pr.from, p.id, 'diplomacy', `${p.name} bought the ${B[pl.key].name} blueprint from ${from.name} for ${pl.price} credits.`);
       } else if (pr.kind === 'route') {
         const r = S.routes.find((x) => x.id === pl.route);
@@ -2813,6 +2911,31 @@ const Engine = ((R) => {
           for (const q of S.players) if (!q.eliminated) rep(q.id, 'diplomacy', `${p.name} accepted ${pname(u.from)}'s ultimatum (${describeUltimatum(S, u)}). There is no war.`);
         }
       }
+    }
+    // calls to arms: honor joins the war at once; refuse (or no answer by the deadline) is announced to everyone
+    for (const p of active) for (const o of O[p.id].diplo) {
+      if (o.type !== 'callAnswer') continue;
+      const c = S.calls.find((x) => x.id === Number(o.id) && x.ally === p.id);
+      if (!c) continue;
+      S.calls = S.calls.filter((x) => x !== c);
+      const att = S.players[c.attacker], def = S.players[c.defender];
+      if (!o.honor) {
+        for (const q of S.players) rep(q.id, 'diplomacy', `${p.name} refused its ally ${def.name}'s call to arms against ${att.name}.`);
+        news('alliances', `${p.name} refused ${def.name}'s call to arms against ${att.name}.`);
+        continue;
+      }
+      if (att.eliminated || !atWar(S, c.defender, c.attacker) || atWar(S, p.id, c.attacker)) { rep(p.id, 'diplomacy', `The call to arms against ${att.name} no longer applies.`); continue; }
+      const pact = S.treaties.find((t) => t.type === 'peace' && pairs(t, p.id, c.attacker));
+      if (pact) { rep(p.id, 'diplomacy', `You cannot honor the call to arms: your peace treaty with ${att.name} is in force until turn ${pact.endsTurn}.`); continue; }
+      news('alliances', `${p.name} honored ${def.name}'s call to arms against ${att.name}.`);
+      startWar(p, att, `${p.name} honored its alliance with ${def.name} and declared war on ${att.name}.`);
+    }
+    for (const c of S.calls.slice()) {
+      if (c.deadline > turn) continue;
+      S.calls = S.calls.filter((x) => x !== c);
+      if (!atWar(S, c.defender, c.attacker) || S.players[c.ally].eliminated) continue;
+      for (const q of S.players) rep(q.id, 'diplomacy', `${pname(c.ally)} did not answer ${pname(c.defender)}'s call to arms against ${pname(c.attacker)}: it is counted as refused.`);
+      news('alliances', `${pname(c.ally)} refused ${pname(c.defender)}'s call to arms against ${pname(c.attacker)} (no answer).`);
     }
     for (const u of S.ultimatums.slice()) {
       if (u.deadline > turn) continue;
@@ -2848,15 +2971,23 @@ const Engine = ((R) => {
           const err = checkUltimatum(S, p.id, target.id);
           if (err) { rep(p.id, 'diplomacy', `Could not send an ultimatum to ${target.name}: ${err}.`); break; }
           const pl = normPeace(Object.assign({}, o.payload || {}, { term: 0 }));
+          pl.give.reparations.amount = 0; pl.get.reparations.amount = 0; // reparations only end a war
           const notice = Math.max(1, govOf(S, p.id).notice);
           const u = { id: S.nextId++, from: p.id, to: target.id, payload: pl, note: String(o.note || '').slice(0, 300), issued: turn, deadline: turn + notice };
           S.ultimatums.push(u);
           for (const q of S.players) if (!q.eliminated) rep(q.id, 'diplomacy', `${p.name} sent ${target.name} an ultimatum: ${describeUltimatum(S, u)}. Unless ${target.name} accepts, war begins on turn ${u.deadline}.`);
+          news('war', `${p.name} sent ${target.name} an ultimatum: war on turn ${u.deadline} unless it is accepted.`);
           break;
         }
         case 'cancelTreaty': {
           const t = S.treaties.find((x) => x.id === o.id && (x.a === p.id || x.b === p.id));
           if (!t || t.endsTurn != null || t.type === 'peace') break;
+          if (t.type === 'alliance') {
+            t.endsTurn = turn + R.ALLIANCE.noticeTurns;
+            for (const q of S.players) rep(q.id, 'diplomacy', `${p.name} gave notice to leave its alliance with ${pname(t.a === p.id ? t.b : t.a)}; it ends after turn ${t.endsTurn - 1}.`);
+            news('alliances', `${p.name} gave notice to leave its alliance with ${pname(t.a === p.id ? t.b : t.a)} (it ends after turn ${t.endsTurn - 1}).`);
+            break;
+          }
           t.endsTurn = turn + 1;
           both(t.a, t.b, 'diplomacy', `${p.name} cancelled ${t.type} rights; they end after next turn.`);
           break;
@@ -2876,7 +3007,7 @@ const Engine = ((R) => {
         const err = checkPeace(S, p.id, to.id, pl);
         if (err) { rep(p.id, 'diplomacy', `Peace treaty not sent to ${to.name}: ${err}.`); continue; }
       } else if (o.kind === 'treaty') {
-        if (!['transit', 'port', 'rail'].includes(pl.type) || atWar(S, p.id, to.id)) continue;
+        if (!['transit', 'port', 'rail', 'alliance'].includes(pl.type) || atWar(S, p.id, to.id)) continue;
       } else if (o.kind === 'blueprint' && pl.design != null) {
         const dz = designById(S, pl.design);
         if (!dz || dz.owner !== p.id) { rep(p.id, 'diplomacy', 'You can only sell designs you created yourself.'); continue; }
@@ -2899,19 +3030,28 @@ const Engine = ((R) => {
     const taxThisTurn = {};
     S.loans = (S.loans || []).filter((l) => !S.players[l.lender].eliminated && !S.players[l.borrower].eliminated);
     const domesticDefault = (p, amount) => {
-      const annual = incomeAvg(S, p.id) * 12;
-      const steps = Math.max(1, Math.min(LN.penaltyCap, annual > 0 ? Math.ceil(amount / (annual * LN.step) - 1e-9) : LN.penaltyCap));
+      const annual = incomeAvg(S, p.id) * 12, share = annual > 0 ? amount / (annual * LN.step) : Infinity; // in 10% steps
+      const steps = Math.max(1, Math.min(LN.penaltyCap, Number.isFinite(share) ? Math.ceil(share - 1e-9) : LN.penaltyCap)); // turns: whole steps, rounded up
       const left = unrestLeft(S, p.id, turn);
-      p.unrestRate = Math.min(LN.maxRatePenalty, Math.max(left ? p.unrestRate || 0 : 0, steps));
+      p.unrestRate = r2(Math.min(LN.maxRatePenalty, Math.max(left ? p.unrestRate || 0 : 0, Number.isFinite(share) ? share : LN.maxRatePenalty))); // rate: exact
       p.unrestUntil = turn + Math.min(LN.penaltyCap, left + steps) - 1;
       p.lastDomesticDefault = { turn, amount };
       for (const q of S.players) rep(q.id, 'finance', `${p.name} defaulted on ${amount} credits of domestic debt.`);
+      news('finance', `${p.name} defaulted on ${amount} credits of domestic debt.`);
       rep(p.id, 'finance', `Unrest: housing makes 0.3 less of its multiplier and goods output falls 10% until turn ${p.unrestUntil} is over; new domestic loans cost +${LN.defaultFlat + p.unrestRate} points until then.`);
     };
     const foreignDefault = (l, why) => {
       const b = S.players[l.borrower], len = S.players[l.lender];
       S.loans = S.loans.filter((x) => x !== l);
+      if (l.kind === 'reparations') {
+        // unpaid reparations: the nation owed may declare war at once, whatever their peace treaty says
+        S.grievances.push({ from: len.id, against: b.id, turn });
+        for (const q of S.players) rep(q.id, 'finance', `${b.name} defaulted on reparations owed to ${len.name}${why ? ` (${why})` : ''}. ${len.name} may declare war on ${b.name} at once.`);
+        news('finance', `${b.name} defaulted on reparations owed to ${len.name}; ${len.name} may declare war at once.`);
+        return;
+      }
       b.lastForeignDefault = turn;
+      news('finance', `${b.name} defaulted on a loan from another nation.`);
       for (const q of S.players) if (q.id !== l.lender && q.id !== l.borrower) rep(q.id, 'finance', `${b.name} defaulted on a loan from another nation.`);
       both(l.borrower, l.lender, 'finance', `${b.name} defaulted on its loan from ${len.name} (${l.balance} credits still owed)${why ? `: ${why}` : ''}.`);
     };
@@ -2919,24 +3059,25 @@ const Engine = ((R) => {
       if (o.op === 'borrow') {
         const err = checkBorrow(S, p.id, o.amount);
         if (err) { rep(p.id, 'finance', `Domestic loan not taken: ${err}.`); continue; }
-        const face = Math.floor(Number(o.amount)), rate = newLoanFixedRate(S, p.id, turn);
+        const face = Math.floor(Number(o.amount)), rate = newLoanRate(S, p.id, turn, face);
         p.loans.push({ id: S.nextId++, face, rate, taken: turn, paid: 0 });
         p.credits += face;
-        rep(p.id, 'finance', `Took a domestic loan of ${face} credits at ${Math.max(0, rate + taxAdjOf(S, p.id))}% a year: interest from next turn, the ${face} credits due on turn ${turn + LN.term}.`);
+        rep(p.id, 'finance', `Took a domestic loan of ${face} credits at ${rate}% a year: interest from next turn, the ${face} credits due on turn ${turn + LN.term}.`);
         continue;
       }
       const l = (S.loans || []).find((x) => x.id === Number(o.loan));
       if (!l) continue;
       if (o.op === 'payoff' && l.borrower === p.id) {
         if (p.credits < l.balance) { rep(p.id, 'finance', `Could not pay off the loan from ${pname(l.lender)} early: it needs ${l.balance} credits.`); continue; }
-        p.credits -= l.balance; S.players[l.lender].credits += l.balance;
+        p.credits -= l.balance; S.players[l.lender].credits += l.balance; tr(p.id).paid += l.balance; tr(l.lender).got += l.balance;
         S.loans = S.loans.filter((x) => x !== l);
         both(l.borrower, l.lender, 'finance', `${p.name} paid off its loan from ${pname(l.lender)} early (${l.balance} credits).`);
       } else if (o.op === 'default' && l.borrower === p.id) {
         foreignDefault(l, 'by choice');
       } else if (o.op === 'forgive' && l.lender === p.id) {
         S.loans = S.loans.filter((x) => x !== l);
-        both(l.borrower, l.lender, 'finance', `${p.name} forgave ${pname(l.borrower)}'s loan (${l.balance} credits).`);
+        both(l.borrower, l.lender, 'finance', `${p.name} forgave ${pname(l.borrower)}'s ${l.kind === 'reparations' ? 'reparations' : 'loan'} (${l.balance} credits).`);
+        if (l.kind === 'reparations') news('peace', `${p.name} forgave the reparations ${pname(l.borrower)} still owed it.`);
       }
     }
     for (const p of active) {
@@ -2944,7 +3085,7 @@ const Engine = ((R) => {
       for (const l of (p.loans || []).filter((x) => x.taken < turn)) {
         const due = loanDueNow(S, p.id, l), last = l.paid >= LN.term - 1;
         if (p.credits >= due) {
-          p.credits -= due; l.paid++;
+          p.credits -= due; l.paid++; tr(p.id).paid += due;
           if (last) rep(p.id, 'finance', `Repaid a domestic loan of ${l.face} credits (${due} this turn).`);
           else keep.push(l);
         } else domesticDefault(p, l.face + loanInterest(S, p.id, l));
@@ -2955,12 +3096,12 @@ const Engine = ((R) => {
       if (l.since >= turn) continue;
       const b = S.players[l.borrower], len = S.players[l.lender], due = intlDueNow(l), i = intlInterest(l);
       if (b.credits >= due) {
-        b.credits -= due; len.credits += due; l.balance = Math.max(0, l.balance - (due - i)); l.paid++; l.missed = 0;
-        if (l.balance <= 0) { S.loans = S.loans.filter((x) => x !== l); both(l.borrower, l.lender, 'finance', `${b.name} finished repaying its loan from ${len.name}.`); }
+        b.credits -= due; len.credits += due; l.balance = Math.max(0, l.balance - (due - i)); l.paid++; l.missed = 0; tr(b.id).paid += due; tr(len.id).got += due;
+        if (l.balance <= 0) { S.loans = S.loans.filter((x) => x !== l); both(l.borrower, l.lender, 'finance', l.kind === 'reparations' ? `${b.name} finished paying its reparations to ${len.name}.` : `${b.name} finished repaying its loan from ${len.name}.`); }
       } else {
         l.missed++;
         if (l.missed >= LN.intl.missedToDefault) foreignDefault(l, `${l.missed} payments missed in a row`);
-        else both(l.borrower, l.lender, 'finance', `${b.name} missed a payment of ${due} credits on its loan from ${len.name}; the loan runs a turn longer. Another miss next turn is a default.`);
+        else both(l.borrower, l.lender, 'finance', `${b.name} missed a payment of ${due} credits on its ${l.kind === 'reparations' ? 'reparations to' : 'loan from'} ${len.name}; it runs a turn longer. Another miss next turn is a default.`);
       }
     }
 
@@ -3149,6 +3290,7 @@ const Engine = ((R) => {
       for (const tile of S.map.tiles) if (tile.owner === c.id) { if (tile.rail === old) tile.rail = by; if (tile.bridgeBy === old) tile.bridgeBy = by; if (tile.tunnel === old) tile.tunnel = by; if (tile.trap === old) tile.trap = by; }
       for (const r of S.routes.slice()) if (r.from === c.id || (r.to.type === 'city' && r.to.id === c.id)) removeRoute(r.id, `${c.name} was captured`);
       for (const q of S.players) if (!q.eliminated) rep(q.id, 'combat', `${pname(by)} captured ${c.name} from ${pname(old)}, with every good stored there.`);
+      news('war', `${pname(by)} captured ${c.name} from ${pname(old)}.`);
       if (last) eliminate(loser, by);
     }
     // field depots: an enemy land unit stepping onto one destroys it and takes half the contents home.
@@ -3258,7 +3400,7 @@ const Engine = ((R) => {
       amt = Math.min(amt, Math.floor((c.stock[g] || 0) + 1e-9));
       if (amt <= 0) { rep(p.id, 'market', `Nothing to sell: ${c.name} has no ${R.GOOD_NAMES[g].toLowerCase()}.`); continue; }
       const pays = sellPriceFor(S, p.id, g);
-      c.stock[g] -= amt; S.market.pool[g] = (S.market.pool[g] || 0) + amt; p.credits += amt * pays;
+      c.stock[g] -= amt; S.market.pool[g] = (S.market.pool[g] || 0) + amt; p.credits += amt * pays; tr(p.id).earned += amt * pays;
       rep(p.id, 'market', `Sold ${amt} ${R.GOOD_NAMES[g].toLowerCase()} from ${c.name} for ${amt * pays} credits${o.rec ? ' (recurring)' : ''}.`);
     }
 
@@ -3288,6 +3430,7 @@ const Engine = ((R) => {
       if (p.science < d.sci) { rep(p.id, 'research', `Not enough science for ${d.name} (needs ${d.sci}, have ${p.science}).`); continue; }
       p.science -= d.sci; p.researched.push(key);
       rep(p.id, 'research', `Researched ${d.name} for ${d.sci} science.`);
+      if (!S.firstResearched[key]) { S.firstResearched[key] = { by: p.id, turn }; news('technology', `${p.name} is the first nation to research the ${d.name.toLowerCase()}.`); }
     }
 
     /* ----- 6. production (before construction, so this turn's output can be built with) ----- */
@@ -3332,11 +3475,12 @@ const Engine = ((R) => {
         if (isProductionRc(rc)) mpUsed[c.id] = (mpUsed[c.id] || 0) + needMp;
         for (const [g, v] of Object.entries(inputs)) c.stock[g] = round1((c.stock[g] || 0) - v);
         const made = {}, lost = {};
-        for (const [g, v] of Object.entries(out)) { const a = addToCity(S, c, g, v); made[g] = a; if (a < v) lost[g] = v - a; worldMade[g] = (worldMade[g] || 0) + a; }
-        if (rc.mpOut) { const mo = mpOutOf(S, b); p.manpower = round1(p.manpower + mo); made.manpower = mo; mpMade[c.id] = (mpMade[c.id] || 0) + mo; }
-        if (rc.sciOut) { const so = sciOutOf(S, b); p.science = round1(p.science + so); made.science = so; }
+        const tp = tr(p.id);
+        for (const [g, v] of Object.entries(out)) { const a = addToCity(S, c, g, v); made[g] = a; if (a < v) lost[g] = v - a; worldMade[g] = (worldMade[g] || 0) + a; tp.made[g] = (tp.made[g] || 0) + v; }
+        if (rc.mpOut) { const mo = mpOutOf(S, b); p.manpower = round1(p.manpower + mo); made.manpower = mo; mpMade[c.id] = (mpMade[c.id] || 0) + mo; tp.mp += mo; }
+        if (rc.sciOut) { const so = sciOutOf(S, b); p.science = round1(p.science + so); made.science = so; tp.sci += so; }
         const cr = rc.creditsPerMp && !rc.labor ? creditsOutOf(S, b, (onUse ? mpUsed : mpMade)[c.id] || 0) : creditsOutOf(S, b);
-        if (cr) { p.credits += cr; made.credits = cr; if (b.key === 'taxOffice') taxThisTurn[p.id] = (taxThisTurn[p.id] || 0) + cr; }
+        if (cr) { p.credits += cr; made.credits = cr; tp.earned += cr; if (b.key === 'taxOffice') { taxThisTurn[p.id] = (taxThisTurn[p.id] || 0) + cr; tp.tax += cr; } }
         b.ranTurn = turn;
         b.lastOut = made;
         b.status = Object.keys(lost).length ? `Running, but storage full: lost ${goodsText(lost)}` : d.fuelUse ? (fueled ? 'Running with fuel' : 'Running without fuel (+50%)') : 'Running';
@@ -3754,6 +3898,7 @@ const Engine = ((R) => {
       if (p.mobDown) { p.mob = p.mobDown; p.mobDown = null; }
       if (p.mobPending && turn >= p.mobPending.at) { p.mob = p.mobPending.to; p.mobPending = null; }
       if (p.mob !== before) for (const q of S.players) rep(q.id, 'war', `${p.name} is now at ${p.mob === 'full' ? 'full mobilization' : p.mob === 'partial' ? 'partial mobilization' : 'peacetime'}.`);
+      if (p.mob !== before) news('mobilization', `${p.name} is now at ${p.mob === 'full' ? 'full mobilization' : p.mob === 'partial' ? 'partial mobilization' : 'peacetime'}.`);
       if (p.mobPending && p.mobPending.since === turn) for (const q of S.players) if (q.id !== p.id) rep(q.id, 'war', `${p.name} has begun ${p.mobPending.to === 'full' ? 'full' : 'partial'} mobilization.`);
       if (p.tax === 'war' && p.mob === 'peace') { p.tax = 'high'; rep(p.id, 'government', 'Back at peacetime mobilization: your war tax dropped to the high rate.'); }
       if (p.rally && !S.wars.some((w) => w.a === p.id || w.b === p.id)) p.rally = false;
@@ -3842,9 +3987,23 @@ const Engine = ((R) => {
       if (c) for (const [g, v] of Object.entries(dp.stock)) { const a = addToCity(S, c, g, v); if (a) got[g] = a; }
       both(dp.owner, c ? c.owner : dp.owner, 'construction', `${pname(dp.owner)}'s settlement at ${tileLabel(S, dp.t)} is now inside ${c ? `${c.name}'s territory` : 'a city\'s territory'}; it was dissolved${Object.keys(got).length ? ` and ${c.name} took ${goodsText(got)}` : ''}.`);
     }
+    // history for the graphs (24 turns) and the rankings: what each nation made, collected and owed this turn
+    for (const p of active) {
+      const t = tr(p.id);
+      const rec = { turn, made: {}, mp: round1(t.mp), tax: Math.round(t.tax), sci: round1(t.sci), debt: debtOwed(S, p.id), credits: Math.round(p.credits),
+        netWealth: netWealth(S, p.id), netIncome: Math.round(t.earned + t.got - t.paid) };
+      for (const [g, v] of Object.entries(t.made)) rec.made[g] = round1(v);
+      p.hist = (p.hist || []).concat([rec]).slice(-Math.max(R.HISTORY.turns, R.LOANS.incomeTurns));
+      p.cum = p.cum || { science: 0, value: 0 };
+      p.cum.science = round1(p.cum.science + t.sci);
+      p.cum.value += Object.entries(t.made).reduce((a, [g, v]) => a + v * (R.BASE_PRICE[g] || 0), 0);
+    }
+    // market prices actually paid this turn
+    for (const g of GOODS) { const m = S.market.last && S.market.last[g]; if (m && m.turn === turn) news('market', `${R.GOOD_NAMES[g]}: ${m.qty} sold at ${m.avg} each${m.high > m.avg ? ` (up to ${m.high})` : ''}.`); }
     // tax-office income feeds each nation's borrowing limit (the last 12 turns)
     for (const p of active) { p.taxHistory = (p.taxHistory || []).concat([taxThisTurn[p.id] || 0]).slice(-LN.incomeTurns); }
     /* ----- end of turn ----- */
+    S.news = (S.news || []).concat([{ turn, sections: paper, rankings: rankings(S) }]).slice(-R.HISTORY.newsTurns);
     const alive = S.players.filter((p) => !p.eliminated);
     if (alive.length === 1) S.gameOver = { turn, winners: [alive[0].id], reason: `${alive[0].name} is the last nation standing.` };
     else if (alive.length > 1 && alive.every((p) => p.endVote) && !alive.some((a) => alive.some((b) => atWar(S, a.id, b.id)))) {
@@ -3862,13 +4021,14 @@ const Engine = ((R) => {
     R, newGame, resolveTurn, normalizeOrders, migrate, computePrices, worldTotals, makeRng,
     hex: { idx, colRow, dirs, nbrs, dist, within },
     q: {
-      incomeAvg, unrestOn, unrestLeft, loanParams, taxAdjOf, domesticDebt, newLoanFixedRate, newLoanRate, loanRateNow, loanInterest, loanDueNow, borrowLimit, checkBorrow, loanPayment, intlInterest, intlDueNow, loansOf, debtService, checkLoanTerms,
+      alliesOf, allied, debtOwed, owedTo, netWealth, avgHist, financialWeight, tilesHeld, rankings,
+      incomeAvg, unrestOn, unrestLeft, loanParams, taxAdjOf, domesticDebt, debtRatio, penaltyNow, newLoanRate, loanRateNow, loanInterest, loanDueNow, borrowLimit, checkBorrow, loanPayment, intlInterest, intlDueNow, loansOf, debtService, checkLoanTerms,
       queueable, cleanQueue, cleanKeep, cleanRecurring, cityOrderOf, keepOf, queueShortfall, estimatePay,
       cityById, unitById, cityAt, unitsAt, cityBuildings, countB, tileBuilding, tileOwner, tileOwnerCity, citiesOf, unitsOf, unitName,
       garrisonOf, posOf, carried, atWar, friendly, hasTreaty, isUnlocked, unitUnlocked, territoryRadius, supplyRadius, maxHp,
       capacity, freeSpace, recipeOf, recipeKey, buildingOutput, creditsOutOf, mpOf, mpOutOf, buildingOwner, reachable, findPath, canEnter, pickTarget, attackTargets,
       cityWeaponTargets, supplySources, sourceName, upkeepOf, inBase, checkBuild, checkTrain, checkFound, routeEstimate, describeProposal,
-      cargoUsed, cargoFree, portOk, dockable, slotFree, canCarry, carrySlots, demolishable, checkDemolish, checkDisband, inputsOf, monthOf, yearOf, seasonOf, isWinter, isSummer, govOf, govKey, taxOf, mpMult, govMods, fuelUseOf, runCreditsOf, sciOutOf, sellPriceFor, maxLaborOf, perWorkerOf, cityProductionMp, isProductionRc, taxCooldownEnds, govCooldownEnds, buildCost, foundMpOf, partnersOf, checkDeclare, checkUltimatum, describeUltimatum, rawMove, ustat, UU, designById, designOf, canUseDesign, seesDesign, checkDesign, researchedUnitSelf, repairCost, isSettlement, settlementNeeds, storeCap, giftError, depotAt, depotById, depotCap, depotFree, depotName, routeDest, checkClear, checkSabotage, sabotageTarget, sabotageTargetFor, bridgeSiteError, fording, inRiver, canAct, whyIdle, moveOf, payOf, laborOf, maxHpU, cargoCap, carryCap, stars, entrenched, entrenchLevel, blitzing, attackDamage, previewAttack, landCombat, mobOf, doctrineOf, supplyMoveLimit, normPeace, checkPeace, peaceTerms, isWater, isLand, nearWater, tileLabel, goodsText, terrain,
+      cargoUsed, cargoFree, portOk, dockable, slotFree, canCarry, carrySlots, demolishable, checkDemolish, checkDisband, inputsOf, monthOf, yearOf, seasonOf, isWinter, isSummer, govOf, govKey, taxOf, mpMult, govMods, fuelUseOf, runCreditsOf, sciOutOf, sellPriceFor, maxLaborOf, perWorkerOf, cityProductionMp, isProductionRc, taxCooldownEnds, govCooldownEnds, buildCost, foundMpOf, checkDeclare, checkUltimatum, describeUltimatum, rawMove, ustat, UU, designById, designOf, canUseDesign, seesDesign, checkDesign, researchedUnitSelf, repairCost, isSettlement, settlementNeeds, storeCap, giftError, depotAt, depotById, depotCap, depotFree, depotName, routeDest, checkClear, checkSabotage, sabotageTarget, sabotageTargetFor, bridgeSiteError, fording, inRiver, canAct, whyIdle, moveOf, payOf, laborOf, maxHpU, cargoCap, carryCap, stars, entrenched, entrenchLevel, blitzing, attackDamage, previewAttack, landCombat, mobOf, doctrineOf, supplyMoveLimit, normPeace, checkPeace, peaceTerms, isWater, isLand, nearWater, tileLabel, goodsText, terrain,
     },
   };
 })(typeof RULES !== 'undefined' ? RULES : require('./rules.js'));
@@ -4494,7 +4654,7 @@ function onTileClick(t) {
    ===================================================================== */
 const TABS = [
   ['today', 'Summary'], ['map', 'Map'], ['flow', 'Flow'], ['supply', 'Supply'], ['stock', 'Stockpiles'], ['buildings', 'Buildings'], ['production', 'Production'],
-  ['research', 'Research'], ['market', 'Market'], ['war', 'War'], ['government', 'Government'], ['diplomacy', 'Diplomacy'], ['reports', 'Reports'], ['orders', 'Orders'],
+  ['research', 'Research'], ['market', 'Market'], ['war', 'War'], ['government', 'Government'], ['diplomacy', 'Diplomacy'], ['news', 'Newspaper'], ['history', 'History'], ['reports', 'Reports'], ['orders', 'Orders'],
 ];
 function renderHeader() {
   const S = st(), p = meP(), d = draft();
@@ -4948,6 +5108,8 @@ TAB_RENDER.today = function () {
   const wars = S.wars.filter((w) => w.a === UI.me || w.b === UI.me).map((w) => pname(w.a === UI.me ? w.b : w.a));
   const ults = (S.ultimatums || []).filter((u) => u.to === UI.me);
   const props = (S.proposals || []).filter((x) => x.to === UI.me && x.turn === S.turn && !x.answered);
+  const calls = (S.calls || []).filter((c) => c.ally === UI.me);
+  const issue = (S.news || [])[(S.news || []).length - 1];
   const qs = Q.citiesOf(S, UI.me).map((c) => { const l = queueOf(c.id); if (!l.length) return ''; const pv = queuePreview(c); return `<li><span><b>${esc(c.name)}</b>: ${l.length} queued. Next: ${esc(BLD[l[0].key].name)}</span><span class="small ${pv[0].state === 'ready' ? 'good' : 'muted'}">${esc(pv[0].text)}</span></li>`; }).filter(Boolean).join('');
   const li = (r) => `<li><span>${esc(r.msg)}</span></li>`;
   return `<div class="page today"><h2>Turn ${S.turn}</h2>
@@ -4959,7 +5121,8 @@ TAB_RENDER.today = function () {
       <div class="panel stat"><span class="muted small">Orders</span><b class="num">${n}</b><span class="small ${submitted(UI.me) ? 'good' : 'warn'}">${submitted(UI.me) ? 'submitted' : 'not submitted'}</span></div>
     </div>
     ${canPlay() ? `<div class="row"><button class="btn primary" data-act="submit" ${S.gameOver || p.eliminated ? 'disabled' : ''}>${submitted(UI.me) ? 'Resubmit orders' : 'Submit orders'} (${n})</button><button class="btn" data-act="tab" data-tab="orders">Review orders</button></div>` : ''}
-    ${ults.length || props.length || wars.length ? `<div class="panel"><h3 style="margin-top:0">Diplomacy</h3><ul class="list">
+    ${calls.length || ults.length || props.length || wars.length ? `<div class="panel"><h3 style="margin-top:0">Diplomacy</h3><ul class="list">
+      ${calls.map((c) => `<li><span class="warn">Call to arms: ${esc(pname(c.attacker))} attacked your ally ${esc(pname(c.defender))}. Answer by turn ${c.deadline}</span><button class="btn small" data-act="tab" data-tab="diplomacy">Answer</button></li>`).join('')}
       ${ults.map((u) => `<li><span class="warn">Ultimatum from ${esc(pname(u.from))}: war on turn ${u.deadline} unless you accept</span><button class="btn small" data-act="tab" data-tab="diplomacy">Answer</button></li>`).join('')}
       ${props.length ? `<li><span>${props.length} proposal${props.length > 1 ? 's' : ''} waiting for your answer</span><button class="btn small" data-act="tab" data-tab="diplomacy">Answer</button></li>` : ''}
       ${wars.length ? `<li><span>At war with ${esc(wars.join(', '))}</span><button class="btn small" data-act="tab" data-tab="war">War tab</button></li>` : ''}</ul></div>` : ''}
@@ -4968,6 +5131,7 @@ TAB_RENDER.today = function () {
       ${Q.unrestOn(S, UI.me) ? `<li><span class="warn">Unrest until turn ${p.unrestUntil}: housing −0.3, goods −10%</span></li>` : ''}
       ${Q.loansOf(S, UI.me).filter((l) => l.borrower === UI.me && l.missed).map((l) => `<li><span class="warn">Missed a payment to ${esc(pname(l.lender))}: another miss is a default</span></li>`).join('')}</ul>
       <button class="btn small" data-act="tab" data-tab="government">Finance</button></div>` : ''}
+    ${issue ? `<div class="panel"><h3 style="margin-top:0">Newspaper <span class="small muted">turn ${issue.turn}</span></h3><p class="small">${(() => { const n = Object.values(issue.sections).reduce((a, l) => a + l.length, 0); const top = issue.sections.war[0] || issue.sections.peace[0] || issue.sections.alliances[0] || issue.sections.government[0] || issue.sections.finance[0] || issue.sections.technology[0]; return top ? `${esc(top)}${n > 1 ? ` <span class="muted">And ${n - 1} more stor${n === 2 ? 'y' : 'ies'}.</span>` : ''}` : 'A quiet turn.'; })()}</p><div class="row"><button class="btn small" data-act="tab" data-tab="news">Read the newspaper</button><button class="btn small" data-act="tab" data-tab="history">History</button></div></div>` : ''}
     <div class="panel"><h3 style="margin-top:0">Needs attention <span class="small muted">from last turn</span></h3><ul class="list">${alert.slice(0, 8).map(li).join('') || '<li class="muted">Nothing went wrong last turn.</li>'}</ul>
       ${alert.length > 8 ? `<p class="small muted">And ${alert.length - 8} more.</p>` : ''}<button class="btn small" data-act="tab" data-tab="reports">All reports</button></div>
     <div class="panel"><h3 style="margin-top:0">Building queues</h3>${built.length ? `<ul class="list">${built.slice(0, 6).map(li).join('')}</ul>` : ''}
@@ -5264,13 +5428,15 @@ function financePanel(S, p, d) {
   const LN = RR.LOANS, lim = Q.borrowLimit(S, UI.me), lp = Q.loanParams(S, UI.me);
   const fin = d.finance || [], pend = (op, id) => fin.some((o) => o.op === op && Number(o.loan) === id);
   const queuedBorrow = fin.filter((o) => o.op === 'borrow').reduce((a, o) => a + (Number(o.amount) || 0), 0);
+  const r2 = (v) => Math.round(v * 100) / 100;
+  const amtNow = Math.floor(Number(UI.lnAmt) || 0), rateNow = Q.newLoanRate(S, UI.me, S.turn, amtNow, queuedBorrow);
   const dom = (p.loans || []).map((l) => {
     const due = l.taken + LN.term, i = Q.loanInterest(S, UI.me, l);
     return `<tr><td class="n">${l.face}</td><td class="n">${Q.loanRateNow(S, UI.me, l)}%</td><td class="n">${i}</td><td class="n">${LN.term - l.paid}</td><td class="n">Turn ${due}</td></tr>`;
   }).join('');
   const mine = Q.loansOf(S, UI.me);
   const borrowed = mine.filter((l) => l.borrower === UI.me), lent = mine.filter((l) => l.lender === UI.me);
-  const intlRow = (l, side) => `<tr><td>${esc(pname(side === 'b' ? l.lender : l.borrower))}</td><td class="n">${l.balance}</td><td class="n">${l.rate}%</td><td class="n">${Q.intlDueNow(l)}</td><td class="n">${Math.max(1, l.term - l.paid)}</td><td class="n ${l.missed ? 'warn' : ''}">${l.missed}</td><td>${side === 'b'
+  const intlRow = (l, side) => `<tr><td>${esc(pname(side === 'b' ? l.lender : l.borrower))}${l.kind === 'reparations' ? ' <span class="tag war">reparations</span>' : ''}</td><td class="n">${l.balance}</td><td class="n">${l.kind === 'reparations' ? '—' : `${l.rate}%`}</td><td class="n">${Q.intlDueNow(l)}</td><td class="n">${Math.max(1, l.term - l.paid)}</td><td class="n ${l.missed ? 'warn' : ''}">${l.missed}</td><td>${side === 'b'
     ? (pend('payoff', l.id) || pend('default', l.id) ? `<span class="tag">${pend('payoff', l.id) ? 'Paying off' : 'Defaulting'} this turn</span>` : `<button class="btn small" data-act="loan-op" data-op="payoff" data-id="${l.id}" ${p.credits < l.balance ? 'disabled' : ''} title="Pay the remaining principal now">Pay off ${l.balance}</button> <button class="btn small danger" data-act="loan-op" data-op="default" data-id="${l.id}">Default</button>`)
     : (pend('forgive', l.id) ? '<span class="tag">Forgiving this turn</span>' : `<button class="btn small" data-act="loan-op" data-op="forgive" data-id="${l.id}">Forgive</button>`)}</td></tr>`;
   const intlHead = (who) => `<thead><tr><th>${who}</th><th class="n">Balance</th><th class="n">Rate</th><th class="n">Next payment</th><th class="n">Payments left</th><th class="n">Missed</th><th></th></tr></thead>`;
@@ -5283,17 +5449,18 @@ function financePanel(S, p, d) {
   const lfErr = Q.checkLoanTerms(lf);
   return `<h3>Finance</h3>
     <div class="row" style="gap:24px"><span>You owe <b class="num">${owed}</b></span><span>Owed to you <b class="num">${owedTo}</b></span><span>Debt payments next turn <b class="num">${Q.debtService(S, UI.me)}</b></span><span>Income (12-turn average of tax offices) <b class="num">${Math.round(lim.avg)}</b> a turn</span></div>
-    ${unrest ? `<p class="warn">Unrest after a default: housing −${LN.unrestMp} to its multiplier and goods output −${Math.round(LN.unrestGoods * 100)}% until turn ${p.unrestUntil} is over; new domestic loans cost +${LN.defaultFlat + (p.unrestRate || 0)} points until then (and keep that rate for their whole 12 turns).</p>` : ''}
+    ${unrest ? `<p class="warn">Unrest after a default: housing −${LN.unrestMp} to its multiplier and goods output −${Math.round(LN.unrestGoods * 100)}% until turn ${p.unrestUntil} is over; new domestic loans cost +${r2(LN.defaultFlat + (p.unrestRate || 0))} points until then (and keep that rate for their whole 12 turns).</p>` : ''}
     <div class="cols" style="grid-template-columns:1fr 1fr;gap:14px">
       <div class="panel"><h4 style="margin-top:0">Domestic loans</h4>
-        <p class="small muted">Bonds sold to your own people. You pay interest every turn (the annual rate ÷ 12) and the face value on the 12th turn, before anything else in the turn. Your rate is ${lp.base}% for a ${esc(RR.GOVERNMENTS[p.gov || 'provisional'].name.toLowerCase())}, +${LN.perLoan} for each loan you already hold, ${Q.taxAdjOf(S, UI.me) >= 0 ? '+' : '−'}${Math.abs(Q.taxAdjOf(S, UI.me))} for your tax rate${unrest ? `, +${LN.defaultFlat + (p.unrestRate || 0)} during unrest` : ''}. Only the tax part changes after you borrow. Failing a payment defaults the loan and causes unrest.</p>
-        ${dom ? `<div class="ledger"><table class="cards"><thead><tr><th class="n">Face value</th><th class="n">Rate now</th><th class="n">Interest a turn</th><th class="n">Payments left</th><th class="n">Face value due</th></tr></thead><tbody>${dom}</tbody></table></div>` : '<p class="small muted">No domestic loans.</p>'}
-        <div class="row" style="margin-top:8px"><input type="number" min="1" step="100" id="ln-amt" placeholder="credits" value="${Math.max(0, Math.min(lim.perLoan, lim.room - queuedBorrow)) || ''}" style="width:110px" aria-label="Loan amount"><button class="btn small primary" data-act="loan-take" ${lim.perLoan <= 0 || lim.room - queuedBorrow <= 0 ? 'disabled' : ''}>Take a loan at ${Q.newLoanRate(S, UI.me) + fin.filter((o) => o.op === 'borrow').length * RR.LOANS.perLoan}%</button></div>
-        <p class="small muted">Each loan can be up to <b>${lim.perLoan}</b> credits (${lp.months} months of income). You can take as many as you like in a turn, up to <b>${Math.max(0, lim.room - queuedBorrow)}</b> more in all (${lp.capMonths} months of income, less what you owe). Each loan costs 1 point more than the one before.${queuedBorrow ? ` ${queuedBorrow} already ordered this turn.` : ''}</p>
-        ${fin.filter((o) => o.op === 'borrow').map((o, k) => `<p class="small"><span class="tag brass">Borrowing ${o.amount} this turn at ${Q.newLoanRate(S, UI.me) + k * RR.LOANS.perLoan}%</span> <button class="x" data-act="loan-cancel" data-idx="${fin.indexOf(o)}" aria-label="Cancel">✕</button></p>`).join('')}
+        <p class="small muted">Bonds sold to your own people. You pay interest every turn (the annual rate ÷ 12) and the face value on the 12th turn, before anything else in the turn. A loan's rate is fixed when you take it: ${lp.base}% for a ${esc(RR.GOVERNMENTS[p.gov || 'provisional'].name.toLowerCase())}, ${Q.taxAdjOf(S, UI.me) >= 0 ? '+' : '−'}${Math.abs(Q.taxAdjOf(S, UI.me))} for your tax rate, +${lp.slope} for every 10% of a year's income you owe (measured halfway through the new loan)${unrest ? `, +${r2(LN.defaultFlat + (p.unrestRate || 0))} during unrest` : ''}. Failing a payment defaults the loan and causes unrest.</p>
+        <p class="small">Debt <b>${lim.debt}</b> of a limit of <b>${lim.cap}</b> (${lp.capMonths} months of income): <b>${Number.isFinite(lim.ratio) ? Math.round(lim.ratio * 100) : '—'}%</b> of a year's income.</p>
+        ${dom ? `<div class="ledger"><table class="cards"><thead><tr><th class="n">Face value</th><th class="n">Rate</th><th class="n">Interest a turn</th><th class="n">Payments left</th><th class="n">Face value due</th></tr></thead><tbody>${dom}</tbody></table></div>` : '<p class="small muted">No domestic loans.</p>'}
+        <div class="row" style="margin-top:8px"><input type="number" min="1" step="100" id="ln-amt" data-chg="ln-amt" placeholder="credits" value="${UI.lnAmt || ''}" style="width:110px" aria-label="Loan amount"><button class="btn small primary" data-act="loan-take" ${lim.room - queuedBorrow <= 0 ? 'disabled' : ''}>Take ${amtNow > 0 ? `${amtNow} at ${rateNow}%` : 'a loan'}</button></div>
+        <p class="small muted">You can borrow up to <b>${Math.max(0, lim.room - queuedBorrow)}</b> more this turn, in one loan or several; they cost the same either way. Right now each extra credit of debt costs about <b>${Q.newLoanRate(S, UI.me, S.turn, 0, queuedBorrow)}%</b>.${queuedBorrow ? ` ${queuedBorrow} already ordered this turn.` : ''}</p>
+        ${(() => { let pre = 0; return fin.filter((o) => o.op === 'borrow').map((o) => { const rt = Q.newLoanRate(S, UI.me, S.turn, o.amount, pre); pre += Number(o.amount); return `<p class="small"><span class="tag brass">Borrowing ${o.amount} this turn at ${rt}%</span> <button class="x" data-act="loan-cancel" data-idx="${fin.indexOf(o)}" aria-label="Cancel">✕</button></p>`; }).join(''); })()}
         ${p.lastDomesticDefault ? `<p class="small warn">Last domestic default: ${p.lastDomesticDefault.amount} credits on turn ${p.lastDomesticDefault.turn}.</p>` : ''}</div>
       <div class="panel"><h4 style="margin-top:0">Lend to or borrow from a nation</h4>
-        <p class="small muted">Equal payments every turn, mostly interest at first. Sent like a treaty; the other nation accepts next turn and the credits move then. Nothing in the game forces repayment: a missed payment pushes the schedule back a turn, two in a row is a default, and the borrower may default at any time. Every nation learns of a default, but not the lender or the amount.</p>
+        <p class="small muted">Equal payments every turn, mostly interest at first. Sent like a treaty; the other nation accepts next turn and the credits move then. Nothing in the game forces repayment: a missed payment pushes the schedule back a turn, two in a row is a default, and the borrower may default at any time. Every nation learns of a default, but not the lender or the amount. Reparations agreed in a peace treaty appear below too: no interest, and a default on them is announced naming both nations and lets the nation owed declare war at once.</p>
         <div class="row"><select data-chg="lf" data-f="lend" aria-label="Lend or borrow"><option value="1" ${lf.lend === '1' ? 'selected' : ''}>Lend to</option><option value="0" ${lf.lend === '0' ? 'selected' : ''}>Borrow from</option></select>
           <select data-chg="lf" data-f="to" aria-label="Nation">${others.map((x) => `<option value="${x.id}" ${Number(lf.to) === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>
         <div class="row"><label class="small">Amount <input type="number" min="1" step="100" data-chg="lf" data-f="amount" value="${esc(lf.amount)}" style="width:100px"></label>
@@ -5312,11 +5479,12 @@ TAB_RENDER.government = function () {
   const wantG = st0.government || curG, wantT = st0.tax || curT;
   const pct = (m) => `${m >= 1 ? '+' : '−'}${Math.round(Math.abs(m - 1) * 100)}%`;
   const LN = RR.LOANS, sign = (v) => (v > 0 ? `+${v}` : v < 0 ? `−${Math.abs(v)}` : '±0');
-  const loanExtra = (p.loans || []).length * LN.perLoan + (Q.unrestOn(S, UI.me) ? LN.defaultFlat + (p.unrestRate || 0) : 0);
-  const nextRate = (gk, tk) => Math.max(0, RR.GOVERNMENTS[gk].loan.base + loanExtra + LN.taxAdj[RR.GOVERNMENTS[gk].fixedTax ? 'normal' : tk]);
+  // what the next credit of domestic debt would cost under another government or tax rate (debt and income as they are now)
+  const ratioNow = Q.debtRatio(S, UI.me, Q.domesticDebt(S, UI.me)), pen = Q.penaltyNow(S, UI.me);
+  const nextRate = (gk, tk) => { const L = RR.GOVERNMENTS[gk].loan; return Math.round(Math.max(0, L.base + LN.taxAdj[RR.GOVERNMENTS[gk].fixedTax ? 'normal' : tk] + L.slope * (Number.isFinite(ratioNow) ? ratioNow : 0) * 10 + pen) * 100) / 100; };
   const govRadio = GOV_KEYS.map((k) => {
     const G = RR.GOVERNMENTS[k], dis = k !== curG && S.turn < govReady;
-    return `<label class="ck" style="display:block;margin:6px 0"><input type="radio" name="gov" data-chg="government" value="${k}" ${wantG === k ? 'checked' : ''} ${dis ? 'disabled' : ''}> <b>${G.name}</b>${k === curG ? ' <span class="tag ok">current</span>' : ''}<div class="small muted" style="margin-left:22px">${esc(G.text)}</div><div class="small" style="margin-left:22px">Domestic loans: ${G.loan.base}% a year base, up to ${G.loan.months} months of income per loan and ${G.loan.capMonths} in all. Your next loan would cost <b>${nextRate(k, wantT)}%</b>.</div></label>`;
+    return `<label class="ck" style="display:block;margin:6px 0"><input type="radio" name="gov" data-chg="government" value="${k}" ${wantG === k ? 'checked' : ''} ${dis ? 'disabled' : ''}> <b>${G.name}</b>${k === curG ? ' <span class="tag ok">current</span>' : ''}<div class="small muted" style="margin-left:22px">${esc(G.text)}</div><div class="small" style="margin-left:22px">Domestic loans: ${G.loan.base}% a year, +${G.loan.slope} for every 10% of a year's income in debt, up to ${G.loan.capMonths} months of income in all. Your next loan would cost about <b>${nextRate(k, wantT)}%</b>.</div></label>`;
   }).join('');
   const taxRadio = RR.TAX_LEVELS.map((lv) => {
     const t = g.tax[lv], dis = g.fixedTax || (lv !== curT && S.turn < taxReady) || (lv === 'war' && p.mob === 'peace');
@@ -5326,7 +5494,7 @@ TAB_RENDER.government = function () {
   const housing = S.buildings.filter((b) => Q.buildingOwner(S, b) === UI.me && Q.recipeOf(b) && Q.recipeOf(b).mpOut && !b.halted);
   const mpNow = Math.round(housing.reduce((a, b) => a + Q.mpOutOf(S, b), 0) * 10) / 10;
   const taxNow = S.buildings.filter((b) => b.key === 'taxOffice' && Q.buildingOwner(S, b) === UI.me).reduce((a, b) => a + Q.creditsOutOf(S, b), 0);
-  const cmp = `<table class="govtax"><thead><tr><th rowspan="2">Tax rate</th><th rowspan="2" class="n" title="Change to the interest rate on domestic loans, for every government">Domestic loans</th>${GOV_KEYS.map((k) => `<th colspan="2" class="grp">${RR.GOVERNMENTS[k].name}</th>`).join('')}</tr><tr>${GOV_KEYS.map(() => '<th class="n gs">Credits</th><th class="n">Housing</th>').join('')}</tr></thead><tbody>${RR.TAX_LEVELS.map((lv) => `<tr><td>${RR.TAX_NAMES[lv]}</td><td class="n">${sign(LN.taxAdj[lv])} pts</td>${GOV_KEYS.map((k) => { const G = RR.GOVERNMENTS[k], t = G.tax[lv]; return G.fixedTax && lv !== 'normal' ? '<td class="n muted gs">–</td><td class="n muted">–</td>' : `<td class="n gs">${t.rate}</td><td class="n">×${t.mp}</td>`; }).join('')}</tr>`).join('')}<tr class="sub"><td>Domestic loans</td><td class="n small">base rate, size</td>${GOV_KEYS.map((k) => { const L = RR.GOVERNMENTS[k].loan; return `<td colspan="2" class="gs small" style="text-align:center">${L.base}% a year; ${L.months} months of income per loan, ${L.capMonths} in all</td>`; }).join('')}</tr></tbody></table>`;
+  const cmp = `<table class="govtax"><thead><tr><th rowspan="2">Tax rate</th><th rowspan="2" class="n" title="Change to the interest rate on domestic loans, for every government">Domestic loans</th>${GOV_KEYS.map((k) => `<th colspan="2" class="grp">${RR.GOVERNMENTS[k].name}</th>`).join('')}</tr><tr>${GOV_KEYS.map(() => '<th class="n gs">Credits</th><th class="n">Housing</th>').join('')}</tr></thead><tbody>${RR.TAX_LEVELS.map((lv) => `<tr><td>${RR.TAX_NAMES[lv]}</td><td class="n">${sign(LN.taxAdj[lv])} pts</td>${GOV_KEYS.map((k) => { const G = RR.GOVERNMENTS[k], t = G.tax[lv]; return G.fixedTax && lv !== 'normal' ? '<td class="n muted gs">–</td><td class="n muted">–</td>' : `<td class="n gs">${t.rate}</td><td class="n">×${t.mp}</td>`; }).join('')}</tr>`).join('')}<tr class="sub"><td>Domestic loans</td><td class="n small">base, rise, limit</td>${GOV_KEYS.map((k) => { const L = RR.GOVERNMENTS[k].loan; return `<td colspan="2" class="gs small" style="text-align:center">${L.base}% a year, +${L.slope} per 10% of income in debt; up to ${L.capMonths} months of income</td>`; }).join('')}</tr></tbody></table>`;
   const feat = [
     ['Change tax rate', (G) => (G.fixedTax ? 'fixed at normal' : `every ${G.taxEvery} turns`)],
     ['Tax offices pay on', (G) => (G.taxOnUse ? 'manpower used in production' : 'manpower housing makes')],
@@ -5342,7 +5510,7 @@ TAB_RENDER.government = function () {
     ['Town halls', (G) => (G.costs && G.costs.townHall ? `${Object.entries(G.costs.townHall).map(([g, v]) => `${v} ${g === 'mp' ? 'manpower' : g}`).join(', ')}` : 'normal')],
     ['Extraction manpower', (G) => (G.extractionMp ? `×${G.extractionMp} (not silver or gold mines)` : 'normal')],
     ['Domestic loan base rate', (G) => `${G.loan.base}% a year`],
-    ['Largest domestic loan', (G) => `${G.loan.months} months of income`],
+    ['Domestic loan rate rise', (G) => `+${G.loan.slope} per 10% of a year's income in debt`],
     ['All domestic debt', (G) => `up to ${G.loan.capMonths} months of income`],
   ];
   const featT = `<table><thead><tr><th></th>${GOV_KEYS.map((k) => `<th>${RR.GOVERNMENTS[k].name}</th>`).join('')}</tr></thead><tbody>${feat.map(([lab, f]) => `<tr><td>${lab}</td>${GOV_KEYS.map((k) => `<td class="small">${esc(f(RR.GOVERNMENTS[k]))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
@@ -5374,6 +5542,7 @@ function peaceBuilder() {
     return `<div><h4>${pid === UI.me ? 'You give' : `${esc(P.name)} gives`}</h4>
       <div class="row"><label>Credits <input type="number" min="0" data-chg="pc-num" data-side="${key}" data-f="credits" value="${part.credits || ''}" placeholder="0"></label><span class="small muted">has ${P.credits}</span></div>
       <div class="row"><label>Science <input type="number" min="0" data-chg="pc-num" data-side="${key}" data-f="science" value="${part.science || ''}" placeholder="0"></label><span class="small muted">has ${P.science}</span></div>
+      ${!pd.ult && Q.atWar(S, UI.me, pd.to) ? (() => { const rp = part.reparations || {}; const amt = rp.amount || 0, tn = rp.turns || 12; return `<div class="row"><label>Reparations <input type="number" min="0" data-chg="pc-rep" data-side="${key}" data-f="amount" value="${amt || ''}" placeholder="0"></label><label>over <input type="number" min="1" max="${RR.LOANS.intl.maxTerm}" class="w-sm" data-chg="pc-rep" data-side="${key}" data-f="turns" value="${tn}"> turns</label></div>${amt ? `<p class="small muted">${Math.floor(amt / tn)} a turn${amt % tn ? `, ${Math.floor(amt / tn) + amt % tn} on the last` : ''}. Missed payments work like a loan between nations; a default lets the nation owed declare war at once.</p>` : ''}`; })() : ''}
       <div class="small">${cities.map((c) => `<label class="ck"><input type="checkbox" data-chg="pc-city" data-side="${key}" value="${c.id}" ${part.cities.includes(c.id) ? 'checked' : ''}> ${esc(c.name)}</label>`).join('<br>') || '<span class="muted">No cities</span>'}</div>
       <p class="small">${part.tiles.length} tile${part.tiles.length === 1 ? '' : 's'} chosen${part.tiles.length ? ` (${part.tiles.map(tl).join(', ')})` : ''}</p>
       ${(() => { const recv = pid === UI.me ? pd.to : UI.me; const us = Q.unitsOf(S, pid).filter((u) => !Q.giftError(S, pid, recv, u.id)); return `<div class="small"><b>Units</b> <span class="muted">(must stand in ${pid === UI.me ? 'their' : 'your'} territory; ships in waters of a city with a harbor or port)</span><br>${us.map((u) => `<label class="ck"><input type="checkbox" data-chg="pc-unit" data-side="${key}" value="${u.id}" ${(part.units || []).includes(u.id) ? 'checked' : ''}> ${esc(Q.unitName(u))}</label>`).join('<br>') || '<span class="muted">None eligible</span>'}</div>`; })()}</div>`;
@@ -5419,10 +5588,10 @@ TAB_RENDER.diplomacy = function () {
       if (queued((o) => o.type === 'ultimatum' && o.to === x.id)) acts.push('<span class="tag war">Ultimatum queued</span>');
       else if (!pendU) acts.push(`<button class="btn small danger" data-act="ult-open" data-to="${x.id}" title="${esc(decErr || '')}">Send ultimatum…</button>`);
     }
-    if (!war) for (const type of ['transit', 'port', 'rail']) if (!tr.some((t) => t.type === type) && !queued((o) => o.type === 'propose' && o.kind === 'treaty' && o.to === x.id && o.payload.type === type)) acts.push(`<button class="btn small" data-act="treaty" data-to="${x.id}" data-type="${type}">Offer ${type} rights</button>`);
+    if (!war) for (const type of ['alliance', 'transit', 'port', 'rail']) if (!tr.some((t) => t.type === type) && !queued((o) => o.type === 'propose' && o.kind === 'treaty' && o.to === x.id && o.payload.type === type)) acts.push(`<button class="btn small" data-act="treaty" data-to="${x.id}" data-type="${type}">${type === 'alliance' ? 'Offer defensive alliance' : `Offer ${type} rights`}</button>`);
     acts.push(`<span class="row" style="margin:0"><input type="number" min="1" class="w-sm" id="cr-${x.id}" placeholder="0" aria-label="Credits to send"><button class="btn small" data-act="credits" data-to="${x.id}">Send credits</button></span>`);
     return `<tr><td>${playerLabel(x.id)}</td><td>${rel(x)}</td><td class="small">${esc(RR.GOVERNMENTS[x.gov || 'monarchy'].name)}<div class="muted">${esc(RR.TAX_NAMES[x.tax || 'normal'])} tax</div><div class="muted">Domestic debt ${Q.domesticDebt(S, x.id)}</div>${x.lastDomesticDefault ? `<div class="warn">Defaulted on ${x.lastDomesticDefault.amount} domestic debt, turn ${x.lastDomesticDefault.turn}</div>` : ''}${x.lastForeignDefault != null ? `<div class="warn">Defaulted on a foreign loan, turn ${x.lastForeignDefault}</div>` : ''}${Q.unrestOn(S, x.id) ? '<div class="warn">In unrest</div>' : ''}</td>
-      <td class="small">${tr.map((t) => `${t.type} rights${t.endsTurn ? ` (ends turn ${t.endsTurn})` : ` <button class="linkbtn" data-act="cancel-treaty" data-id="${t.id}">cancel</button>`}`).join('<br>') || '<span class="muted">None</span>'}</td>
+      <td class="small">${tr.slice().sort((a, b) => (b.type === 'alliance') - (a.type === 'alliance')).map((t) => t.type === 'alliance' ? `<b>Defensive alliance</b>${t.endsTurn ? ` (ends turn ${t.endsTurn})` : queued((o) => o.type === 'cancelTreaty' && o.id === t.id) ? ' <span class="tag">leaving</span>' : ` <button class="linkbtn" data-act="cancel-treaty" data-id="${t.id}">leave (${RR.ALLIANCE.noticeTurns} turns' notice)</button>`}` : `${t.type} rights${t.endsTurn ? ` (ends turn ${t.endsTurn})` : ` <button class="linkbtn" data-act="cancel-treaty" data-id="${t.id}">cancel</button>`}`).join('<br>') || '<span class="muted">None</span>'}</td>
       <td class="small ${x.mob === 'full' || x.mobPending ? 'warn' : ''}">${esc(mobLabel(S, x))}</td>
       <td class="small">${citiesOf(x.id).length} cit${citiesOf(x.id).length === 1 ? 'y' : 'ies'}, ${Q.unitsOf(S, x.id).length} units</td><td><div class="row" style="margin:0">${acts.join(' ')}</div></td></tr>`;
   }).join('');
@@ -5438,20 +5607,31 @@ TAB_RENDER.diplomacy = function () {
     return `<li><span><b class="warn">Ultimatum</b> from ${playerLabel(u.from)}: ${esc(Q.describeUltimatum(S, u))}. War on turn ${u.deadline} unless you accept.</span><label class="ck"><input type="checkbox" data-chg="ult-accept" data-id="${u.id}" ${acc ? 'checked' : ''}> Accept the terms</label></li>`;
   }).join('');
   const ultOut = ults.filter((u) => u.from === UI.me).map((u) => `<li><span>Your ultimatum to ${playerLabel(u.to)}: ${esc(Q.describeUltimatum(S, u))}. War on turn ${u.deadline}.</span>${queued((o) => o.type === 'ultCancel' && o.id === u.id) ? '<span class="tag">withdrawing</span>' : `<button class="btn small" data-act="ult-cancel" data-id="${u.id}">Withdraw</button>`}</li>`).join('');
+  const callsIn = callsPanel();
   const alive = S.players.filter((x) => !x.eliminated);
-  return `<div class="page"><h2>Diplomacy</h2><p class="small">Your mobilization: <b>${esc(mobLabel(S, p))}</b> <button class="linkbtn" data-act="tab" data-tab="war">change on the War tab</button></p><p class="muted">Peace treaties, rights treaties and trade routes are enforced by the game. Alliances, promises and informal arrangements are just words. Proposals reach the other nation next turn.</p>
+  return `<div class="page"><h2>Diplomacy</h2><p class="small">Your mobilization: <b>${esc(mobLabel(S, p))}</b> <button class="linkbtn" data-act="tab" data-tab="war">change on the War tab</button></p><p class="muted">Peace treaties, defensive alliances, rights treaties and trade routes are enforced by the game; promises and informal arrangements are just words. A democracy or monarchy may declare war at once only on a nation at war with one of its allies. Proposals reach the other nation next turn.</p>
     ${peaceBuilder()}
-    <div class="ledger" style="margin-top:14px"><table class="cards"><thead><tr><th>Nation</th><th>Status</th><th>Government</th><th>Rights treaties</th><th>Mobilization</th><th>Size</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div class="ledger" style="margin-top:14px"><table class="cards"><thead><tr><th>Nation</th><th>Status</th><th>Government</th><th>Treaties</th><th>Mobilization</th><th>Size</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div>
     <div class="cols" style="margin-top:16px">
-      <div class="panel"><h3 style="margin-top:0">Answer this turn</h3><ul class="list">${ultIn}${incoming || (ultIn ? '' : '<li class="muted">Nothing to answer.</li>')}</ul><h4>Waiting on others</h4><ul class="list">${ultOut}${outgoing || (ultOut ? '' : '<li class="muted">None</li>')}</ul></div>
+      <div class="panel"><h3 style="margin-top:0">Answer this turn</h3><ul class="list">${callsIn}${ultIn}${incoming || (ultIn || callsIn ? '' : '<li class="muted">Nothing to answer.</li>')}</ul><h4>Waiting on others</h4><ul class="list">${ultOut}${outgoing || (ultOut ? '' : '<li class="muted">None</li>')}</ul></div>
       <div class="panel"><h3 style="margin-top:0">Wars and treaties</h3><ul class="list">${S.wars.map((w) => `<li>${playerLabel(w.a)} vs ${playerLabel(w.b)}<span class="small muted">since turn ${w.since}</span></li>`).join('') || '<li class="muted">No wars.</li>'}
         ${ults.map((u) => `<li>${playerLabel(u.from)} → ${playerLabel(u.to)}<span class="small muted">ultimatum, war on turn ${u.deadline} unless accepted</span></li>`).join('')}
-        ${S.treaties.filter((t) => t.type === 'peace').map((t) => `<li>${playerLabel(t.a)} and ${playerLabel(t.b)}<span class="small muted">peace, no war before turn ${t.endsTurn}</span></li>`).join('')}</ul>
+        ${S.treaties.filter((t) => t.type === 'peace').map((t) => `<li>${playerLabel(t.a)} and ${playerLabel(t.b)}<span class="small muted">peace, no war before turn ${t.endsTurn}</span></li>`).join('')}
+        ${S.treaties.filter((t) => t.type === 'alliance').map((t) => `<li>${playerLabel(t.a)} and ${playerLabel(t.b)}<span class="small muted">defensive alliance${t.endsTurn ? `, ends turn ${t.endsTurn}` : ''}</span></li>`).join('')}
+        ${(S.calls || []).map((c) => `<li>${playerLabel(c.ally)} called to defend ${playerLabel(c.defender)} against ${playerLabel(c.attacker)}<span class="small muted">answer by turn ${c.deadline}</span></li>`).join('')}</ul>
         <h4>End the game</h4><p class="small">The game ends when one nation is left, or when every remaining nation (${alive.map((x) => esc(x.name)).join(', ')}) votes to end it in the same turn while none are at war.</p>
         ${!p.eliminated ? `<label class="ck"><input type="checkbox" data-chg="endvote" ${queued((o) => o.type === 'endVote') ? 'checked' : ''}> Vote to end the game this turn</label>` : ''}</div>
     </div></div>`;
 };
 const citiesOf = (pid) => Q.citiesOf(st(), pid);
+function callsPanel() {
+  const S = st(), d = draft();
+  return (S.calls || []).filter((c) => c.ally === UI.me).map((c) => {
+    const ans = d.diplo.find((o) => o.type === 'callAnswer' && o.id === c.id);
+    return `<li><span><b class="warn">Call to arms</b>: ${playerLabel(c.attacker)} declared war on your ally ${playerLabel(c.defender)}. Answer by turn ${c.deadline}; no answer counts as refusing, and every nation is told either way.</span>
+      <span><label class="ck"><input type="radio" name="ca-${c.id}" data-chg="call-answer" data-id="${c.id}" value="1" ${ans && ans.honor ? 'checked' : ''}> Honor (join the war)</label> <label class="ck"><input type="radio" name="ca-${c.id}" data-chg="call-answer" data-id="${c.id}" value="0" ${ans && !ans.honor ? 'checked' : ''}> Refuse</label></span></li>`;
+  }).join('');
+}
 
 /* ---------- Reports ---------- */
 const REPORT_CATS = { all: 'Everything', war: 'War', conflict: 'Order conflicts', supply: 'Supply', shortfall: 'Production shortfalls', combat: 'Combat', movement: 'Movement', logistics: 'Logistics', market: 'Market', construction: 'Construction', recruitment: 'Recruitment', research: 'Research', diplomacy: 'Diplomacy', game: 'Game' };
@@ -5471,10 +5651,11 @@ function orderGroups() {
   const add = (phase, list, i, text) => { let g = G.find((x) => x.phase === phase); if (!g) { g = { phase, items: [] }; G.push(g); } g.items.push({ list, i, text }); };
   d.diplo.forEach((o, i) => {
     const t = o.type === 'declare' ? `Declare war on ${pname(o.to)}`
-      : o.type === 'propose' && o.kind === 'loan' ? `${o.payload.lend ? 'Offer' : 'Ask for'} a loan of ${o.payload.amount} credits at ${o.payload.rate}% over ${o.payload.term} turns ${o.payload.lend ? 'to' : 'from'} ${pname(o.to)}` : o.type === 'propose' ? `Propose ${o.kind === 'treaty' ? `${o.payload.type} rights` : o.kind === 'blueprint' ? `selling ${BLD[o.payload.key].name} for ${o.payload.price}` : Q.describeProposal(S, { kind: 'peace', from: UI.me, to: o.to, payload: o.payload })} to ${pname(o.to)}`
+      : o.type === 'propose' && o.kind === 'loan' ? `${o.payload.lend ? 'Offer' : 'Ask for'} a loan of ${o.payload.amount} credits at ${o.payload.rate}% over ${o.payload.term} turns ${o.payload.lend ? 'to' : 'from'} ${pname(o.to)}` : o.type === 'propose' ? `Propose ${o.kind === 'treaty' ? (o.payload.type === 'alliance' ? 'a defensive alliance' : `${o.payload.type} rights`) : o.kind === 'blueprint' ? `selling ${BLD[o.payload.key].name} for ${o.payload.price}` : Q.describeProposal(S, { kind: 'peace', from: UI.me, to: o.to, payload: o.payload })} to ${pname(o.to)}`
         : o.type === 'respond' ? `${o.accept ? 'Accept' : 'Reject'} ${Q.describeProposal(S, S.proposals.find((p) => p.id === o.id) || { kind: '?' })}`
           : o.type === 'credits' ? `Send ${o.amount} credits to ${pname(o.to)}`
-            : o.type === 'cancelTreaty' ? 'Cancel a treaty'
+            : o.type === 'callAnswer' ? (() => { const c = (S.calls || []).find((x) => x.id === o.id); return c ? `${o.honor ? 'Honor' : 'Refuse'} the call to arms against ${pname(c.attacker)}` : 'Answer a call to arms'; })()
+            : o.type === 'cancelTreaty' ? ((S.treaties.find((t) => t.id === o.id) || {}).type === 'alliance' ? 'Leave an alliance (3 turns\' notice)' : 'Cancel a treaty')
               : o.type === 'ultimatum' ? `Ultimatum to ${pname(o.to)}`
                 : o.type === 'ultAccept' ? 'Accept an ultimatum'
                   : o.type === 'ultCancel' ? 'Withdraw an ultimatum'
@@ -5551,8 +5732,8 @@ const ACT = {
     const v = Math.floor(Number(($('#ln-amt') || {}).value) || 0), lim = Q.borrowLimit(st(), UI.me);
     const queued = draft().finance.filter((o) => o.op === 'borrow').reduce((a, o) => a + Number(o.amount), 0);
     if (!v) { toast('Enter an amount'); return; }
-    if (v > lim.perLoan) { toast(`A single loan can be at most ${lim.perLoan} credits; take several loans for more`); return; }
     if (queued + v > lim.room) { toast(`That would pass your debt limit: ${Math.max(0, lim.room - queued)} credits left this turn`); return; }
+    UI.lnAmt = '';
     mutate((d) => d.finance.push({ op: 'borrow', amount: v })); toast(`Domestic loan of ${v} ordered for this turn`);
   },
   'loan-cancel'(el) { mutate((d) => d.finance.splice(Number(el.dataset.idx), 1)); },
@@ -5765,15 +5946,23 @@ const CHG = {
   'df-step'(el) { const k = el.dataset.k, [lo, hi] = RR.DESIGN.ranges[k]; UI.designForm.steps[k] = Math.max(lo, Math.min(hi, Math.round(Number(el.value) || 0))); render(); },
   'mk-city'(el) { UI.marketCity = Number(el.value); render(); },
   lf(el) { UI.loanForm[el.dataset.f] = el.value; render(); },
+  'ln-amt'(el) {
+    // update the button in place (a full redraw here would swallow a click on it)
+    UI.lnAmt = el.value;
+    const S = st(), v = Math.floor(Number(el.value) || 0), queued = draft().finance.filter((o) => o.op === 'borrow').reduce((a, o) => a + Number(o.amount), 0), b = $('button[data-act="loan-take"]');
+    if (b) b.textContent = v > 0 ? `Take ${v} at ${Q.newLoanRate(S, UI.me, S.turn, v, queued)}%` : 'Take a loan';
+  },
   'q-save'(el) { const cid = Number(el.dataset.city), i = Number(el.dataset.idx); editStanding('queue', (q) => { if (q[cid] && q[cid][i]) q[cid][i].saveFor = el.checked; }); },
   keep(el) { const cid = Number(el.dataset.city), g = el.dataset.good, v = Math.max(0, Math.floor(Number(el.value) || 0)); editStanding('keep', (k) => { k[cid] = k[cid] || {}; if (v > 0) k[cid][g] = v; else delete k[cid][g]; if (!Object.keys(k[cid]).length) delete k[cid]; }); },
   'keep-nat'(el) { editStanding(el.dataset.k, () => Math.max(0, Math.floor(Number(el.value) || 0))); },
   rf2(el) { const f = recForm(); f[el.dataset.f] = el.value; if (el.dataset.f === 'side') f.mode = 'fixed'; render(); },
+  'call-answer'(el) { const id = Number(el.dataset.id); mutate((d) => { d.diplo = d.diplo.filter((o) => !(o.type === 'callAnswer' && o.id === id)); d.diplo.push({ type: 'callAnswer', id, honor: el.value === '1' }); }); },
   respond(el) { const id = Number(el.dataset.id); mutate((d) => { d.diplo = d.diplo.filter((o) => !(o.type === 'respond' && o.id === id)); d.diplo.push({ type: 'respond', id, accept: el.value === '1' }); }); },
   endvote(el) { mutate((d) => { d.diplo = d.diplo.filter((o) => o.type !== 'endVote'); if (el.checked) d.diplo.push({ type: 'endVote' }); }); },
 
   repcat(el) { UI.reportCat = el.value; render(); },
   'pc-term'(el) { UI.peace.term = Number(el.value); render(); },
+  'pc-rep'(el) { const side = UI.peace[el.dataset.side]; side.reparations = side.reparations || { amount: 0, turns: 12 }; side.reparations[el.dataset.f] = el.dataset.f === 'turns' ? Math.max(1, Math.min(RR.LOANS.intl.maxTerm, Math.floor(Number(el.value) || 12))) : Math.max(0, Math.floor(Number(el.value) || 0)); render(); },
   'pc-num'(el) { UI.peace[el.dataset.side][el.dataset.f] = Math.max(0, Math.floor(Number(el.value) || 0)); render(); },
   'pc-city'(el) { const part = UI.peace[el.dataset.side], id = Number(el.value); part.cities = el.checked ? [...new Set([...part.cities, id])] : part.cities.filter((x) => x !== id); render(); },
 };
@@ -5788,6 +5977,7 @@ document.addEventListener('change', (e) => {
   const el = e.target.closest('[data-chg]');
   if (el && CHG[el.dataset.chg]) CHG[el.dataset.chg](el, e);
 });
+document.addEventListener('input', (e) => { const el = e.target.closest('[data-chg="ln-amt"]'); if (el) CHG['ln-amt'](el, e); });
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') { if (UI.mode) { UI.mode = null; render(); } else if (UI.menu) { UI.menu = false; render(); } else if (UI.sel) { UI.sel = null; render(); } }
 });
@@ -5929,6 +6119,77 @@ function startPolling() {
   }
 }
 if (typeof window !== 'undefined') window.addEventListener('DOMContentLoaded', boot);
+
+/* ---------- History (your own nation, last 24 turns) ---------- */
+function niceTicks(max) {
+  if (!(max > 0)) return [0, 1];
+  const raw = max / 4, mag = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / mag;
+  const step = (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * mag;
+  const out = []; for (let v = 0; v <= max + step * 0.001; v += step) out.push(v);
+  if (out[out.length - 1] < max) out.push(out[out.length - 1] + step);
+  return out;
+}
+const fmtTick = (v) => { const r = (x) => Math.round(x * 100) / 100; return Math.abs(v) >= 10000 ? `${r(v / 1000)}k` : `${r(v)}`; };
+function lineChart(turns, series, wide) {
+  const W = isPhone() ? 360 : wide ? 1200 : 640, H = isPhone() ? 200 : 220, L = isPhone() ? 40 : 52, Rm = 12, T = 12, B = 28;
+  const all = series.flatMap((s) => s.values).filter((v) => v != null);
+  const ticks = niceTicks(Math.max(0, ...all)), top = ticks[ticks.length - 1] || 1;
+  const n = turns.length, x = (i) => L + (n <= 1 ? (W - L - Rm) / 2 : (i * (W - L - Rm)) / (n - 1)), y = (v) => T + (H - T - B) * (1 - v / top);
+  const step = Math.max(1, Math.ceil(n / 8));
+  const xt = turns.map((t, i) => (i % step === 0 || i === n - 1 ? `<text x="${x(i)}" y="${H - 8}" text-anchor="middle" class="ax">${t}</text>` : '')).join('');
+  const yt = ticks.map((v) => `<line x1="${L}" x2="${W - Rm}" y1="${y(v)}" y2="${y(v)}" class="grid"/><text x="${L - 6}" y="${y(v) + 4}" text-anchor="end" class="ax">${fmtTick(v)}</text>`).join('');
+  const lines = series.map((s) => {
+    const pts = s.values.map((v, i) => (v == null ? null : `${x(i).toFixed(1)},${y(v).toFixed(1)}`)).filter(Boolean);
+    return pts.length > 1 ? `<polyline points="${pts.join(' ')}" fill="none" stroke="${s.color}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round"/>` : pts.length ? `<circle cx="${pts[0].split(',')[0]}" cy="${pts[0].split(',')[1]}" r="3" fill="${s.color}"/>` : '';
+  }).join('');
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" role="img" preserveAspectRatio="xMidYMid meet">${yt}<line x1="${L}" x2="${W - Rm}" y1="${y(0)}" y2="${y(0)}" class="base"/>${xt}${lines}</svg>`;
+}
+TAB_RENDER.history = function () {
+  const S = st(), p = meP();
+  const h = (p.hist || []).slice(-RR.HISTORY.turns);
+  if (!h.length) return '<div class="page"><h2>History</h2><p class="muted">Your history starts after the first turn resolves.</p></div>';
+  const turns = h.map((r) => r.turn);
+  const made = RR.GOODS.filter((g) => h.some((r) => (r.made || {})[g] > 0));
+  if (!UI.histGoods) UI.histGoods = made.slice().sort((a, b) => h.reduce((s, r) => s + ((r.made || {})[b] || 0) * RR.BASE_PRICE[b], 0) - h.reduce((s, r) => s + ((r.made || {})[a] || 0) * RR.BASE_PRICE[a], 0)).slice(0, 4);
+  const shown = UI.histGoods.filter((g) => made.includes(g));
+  const one = (title, key, color, note) => `<div class="panel"><h3 style="margin-top:0">${title}</h3>${note ? `<p class="small muted">${note}</p>` : ''}${lineChart(turns, [{ color, values: h.map((r) => r[key] || 0) }])}</div>`;
+  return `<div class="page history"><h2>History</h2><p class="muted">Your nation over the last ${h.length} turn${h.length === 1 ? '' : 's'} (up to ${RR.HISTORY.turns}). Only you can see these figures.</p>
+    <div class="panel"><h3 style="margin-top:0">Goods produced</h3>
+      <div class="hist-keys">${made.map((g) => `<label class="ck"><input type="checkbox" data-chg="hist-good" value="${g}" ${shown.includes(g) ? 'checked' : ''}> <i class="swatch" style="background:${RR.GOOD_COLORS[g]}"></i>${GN(g)}</label>`).join('') || '<span class="muted small">Nothing produced yet.</span>'}</div>
+      ${shown.length ? lineChart(turns, shown.map((g) => ({ color: RR.GOOD_COLORS[g], values: h.map((r) => (r.made || {})[g] || 0) })), true) : made.length ? '<p class="small muted">Tick goods to chart them.</p>' : ''}</div>
+    <div class="hist-grid">
+      ${one('Manpower produced', 'mp', 'var(--ok)')}
+      ${one('Taxes collected', 'tax', 'var(--brass)', 'Tax offices and other tax income each turn.')}
+      ${one('Science produced', 'sci', 'var(--sea)')}
+      ${one('Total debt', 'debt', 'var(--signal)', 'Domestic loans, loans from other nations and reparations owed, at the end of each turn.')}
+      ${one('Credits held', 'credits', 'var(--ink-2)', 'At the end of each turn.')}
+    </div></div>`;
+};
+CHG['hist-good'] = (el) => { const L = new Set(UI.histGoods || []); if (el.checked) L.add(el.value); else L.delete(el.value); UI.histGoods = [...L]; render(); };
+
+/* ---------- Newspaper (12 issues) ---------- */
+const NEWS_SECTIONS = [['war', 'War'], ['peace', 'Peace'], ['alliances', 'Alliances'], ['government', 'Governments'], ['finance', 'Finance'], ['mobilization', 'Mobilization'], ['technology', 'Science'], ['market', 'Market prices']];
+const RANK_NAMES = [['financial', 'Financial'], ['army', 'Army'], ['navy', 'Navy'], ['technology', 'Technology'], ['size', 'Size'], ['manufacturing', 'Manufacturing']];
+TAB_RENDER.news = function () {
+  const S = st(), list = S.news || [];
+  if (!list.length) return '<div class="page"><h2>Newspaper</h2><p class="muted">The first issue comes out when the first turn resolves.</p></div>';
+  let i = list.findIndex((x) => x.turn === UI.newsTurn); if (i < 0) i = list.length - 1;
+  const iss = list[i];
+  const secs = NEWS_SECTIONS.filter(([k]) => (iss.sections[k] || []).length);
+  const rk = iss.rankings || {};
+  return `<div class="page news"><div class="row" style="justify-content:space-between;align-items:baseline"><h2 style="margin:0">The World Gazette</h2>
+      <span class="row" style="margin:0"><button class="btn small" data-act="news-step" data-d="-1" ${i <= 0 ? 'disabled' : ''} aria-label="Older issue">‹</button>
+      <select data-chg="news-idx" aria-label="Issue">${list.map((x, j) => `<option value="${x.turn}" ${j === i ? 'selected' : ''}>Turn ${x.turn}</option>`).join('')}</select>
+      <button class="btn small" data-act="news-step" data-d="1" ${i >= list.length - 1 ? 'disabled' : ''} aria-label="Newer issue">›</button></span></div>
+    <p class="muted small">Turn ${iss.turn}, ${esc((Q.seasonOf(iss.turn) || '').replace(/^./, (c) => c.toUpperCase()))} of year ${Q.yearOf(iss.turn)}. The last ${RR.HISTORY.newsTurns} issues are kept.</p>
+    <div class="news-cols">
+      ${secs.map(([k, t]) => `<section class="panel"><h3 style="margin-top:0">${t}</h3><ul class="list">${iss.sections[k].map((m) => `<li><span>${esc(m)}</span></li>`).join('')}</ul></section>`).join('') || '<section class="panel"><p class="muted">A quiet turn: nothing to report.</p></section>'}
+      <section class="panel"><h3 style="margin-top:0">Rankings</h3><p class="small muted">The leading half of the nations in each, best first. Figures are never published.</p>
+        <div class="ranks">${RANK_NAMES.map(([k, t]) => `<div><h4>${t}</h4>${(rk[k] || []).length ? `<ol>${rk[k].map((pid) => `<li class="${pid === UI.me ? 'good' : ''}">${esc(pname(pid))}</li>`).join('')}</ol>` : '<p class="small muted">No nation yet.</p>'}</div>`).join('')}</div></section>
+    </div></div>`;
+};
+CHG['news-idx'] = (el) => { UI.newsTurn = Number(el.value); render(); };
+ACT['news-step'] = (el) => { const L = st().news || []; let cur = L.findIndex((x) => x.turn === UI.newsTurn); if (cur < 0) cur = L.length - 1; const j = Math.max(0, Math.min(L.length - 1, cur + Number(el.dataset.d))); UI.newsTurn = L[j].turn; render(); };
 
 </script>
 </body>
