@@ -6,7 +6,7 @@
 <title>Guns, Pacts, and Commerce</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&family=UnifrakturMaguntia&display=swap" rel="stylesheet">
 <style>
 :root {
   --ink: #1e2620; --ink-2: #3c4a40; --muted: #5d6a5f;
@@ -298,13 +298,63 @@ table.govtax thead th[rowspan] { vertical-align: bottom; }
 .hist-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(460px, 1fr)); gap: 14px; margin-top: 14px; }
 .hist-keys { margin-bottom: 8px; display: flex; flex-wrap: wrap; gap: 4px 16px; }
 .hist-keys label { display: flex; align-items: center; gap: 4px; }
-.news-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; align-items: start; }
-.news-cols h3 { font-family: var(--f-head); text-transform: uppercase; letter-spacing: .06em; border-bottom: 2px solid var(--ink); padding-bottom: 2px; }
-.news .ranks { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 6px 14px; }
-.news .ranks h4 { margin: 6px 0 2px; }
-.news .ranks ol { margin: 0; padding-left: 20px; }
-.news .ranks li.good { font-weight: 600; }
-@media (max-width: 700px) { .hist-grid, .news-cols { grid-template-columns: 1fr; } .chart .ax { font-size: 13px; } }
+@media (max-width: 700px) { .hist-grid { grid-template-columns: 1fr; } .chart .ax { font-size: 13px; } }
+
+/* The World Gazette */
+.news-nav { display: flex; gap: 8px; justify-content: center; align-items: center; margin: 0 0 12px; }
+.gazette { --np: #f3eddc; --np-ink: #1d1a14; --np-rule: #2b2720; --np-soft: #6b6352;
+  background: var(--np); color: var(--np-ink); max-width: 1100px; margin: 0 auto; padding: 18px 22px 26px;
+  box-shadow: 0 1px 0 #0001, 0 8px 24px #0002; font-family: 'Old Standard TT', Georgia, 'Times New Roman', serif; }
+.gazette .mast { text-align: center; border-bottom: 3px double var(--np-rule); padding-bottom: 6px; }
+.gazette .ears { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 12px; }
+.gazette .ear { font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 22px; letter-spacing: .02em; }
+.gazette .ear:first-child { text-align: left; } .gazette .ear:last-child { text-align: right; }
+.gazette .mast-title { font-family: 'UnifrakturMaguntia', 'Old English Text MT', serif; font-weight: 400; font-size: clamp(34px, 6vw, 64px); margin: 0; line-height: 1.05; }
+.gazette .dateline { display: flex; justify-content: space-between; border-top: 1px solid var(--np-rule); border-bottom: 1px solid var(--np-rule); margin-top: 6px; padding: 3px 2px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; }
+.gazette .lead { text-align: center; border-bottom: 2px solid var(--np-rule); padding: 8px 0 10px; }
+.gazette .banner { font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif; font-weight: 700; font-size: clamp(72px, 16vw, 168px); line-height: .9; letter-spacing: .02em; }
+.gazette .subbanner, .gazette .banner-head { font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif; font-weight: 700; text-transform: uppercase; line-height: 1; margin: 6px 0; }
+.gazette .subbanner { font-size: clamp(26px, 4.5vw, 48px); }
+.gazette .banner-head { font-size: clamp(34px, 6vw, 68px); }
+.gazette .lead-body { font-size: 18px; max-width: 760px; margin: 6px auto 0; }
+.gazette .majors { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); border-bottom: 1px solid var(--np-rule); }
+.gazette .majors .story { padding: 10px 14px; text-align: center; }
+.gazette .majors .story + .story { border-left: 1px solid var(--np-rule); }
+.gazette .flow { column-count: 3; column-gap: 26px; column-rule: 1px solid var(--np-rule); padding-top: 10px; }
+.gazette .story { break-inside: avoid; margin: 0 0 12px; }
+.gazette .story h3 { font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif; font-weight: 700; font-size: 22px; line-height: 1.05; text-transform: uppercase; margin: 0 0 4px; text-align: center; }
+.gazette .story.major h3 { font-size: 30px; }
+.gazette .story p { margin: 0; font-size: 15px; line-height: 1.4; text-align: justify; hyphens: auto; }
+.gazette .flow > .story:not(.box) + .story { border-top: 1px solid var(--np-rule); padding-top: 10px; }
+.gazette .box { border: 1px solid var(--np-rule); padding: 8px 10px; }
+.gazette .box.scoop { border: 3px double var(--np-rule); }
+.gazette .kicker { font-family: 'Barlow Condensed', 'Arial Narrow', sans-serif; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; text-align: center; border-bottom: 1px solid var(--np-rule); margin-bottom: 6px; padding-bottom: 2px; }
+.gazette .gz-notice { border-bottom: 1px dotted var(--np-soft); padding: 4px 0; font-style: italic; }
+.gazette .gz-notice:last-child { border-bottom: 0; }
+.gazette .gz-notice .sig { display: block; text-align: right; font-style: normal; font-variant: small-caps; }
+.gazette .powers .rk { display: flex; gap: 8px; justify-content: space-between; border-bottom: 1px dotted var(--np-soft); padding: 3px 0; font-size: 14px; }
+.gazette .powers .rk span { text-align: right; }
+.gazette .powers .me { font-weight: 700; text-decoration: underline; }
+.gazette .powers .small { font-size: 12px; color: var(--np-soft); text-align: center; margin-bottom: 4px; }
+.gazette .market table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.gazette .market th { font-weight: 700; border-bottom: 1px solid var(--np-rule); text-align: left; }
+.gazette .market td, .gazette .market th { padding: 2px 3px; }
+.gazette .market .n { text-align: right; }
+.gazette .classified p { font-size: 13px; text-align: left; }
+.adpanel { max-width: 1100px; margin: 14px auto 0; }
+.warname { width: 190px; margin-top: 4px; }
+@media (max-width: 900px) { .gazette .flow { column-count: 2; } }
+@media (max-width: 640px) {
+  .gazette { padding: 12px 12px 18px; }
+  .gazette .flow { column-count: 1; }
+  .gazette .ear { font-size: 13px; }
+  .gazette .dateline { font-size: 10px; }
+  .gazette .majors .story + .story { border-left: 0; border-top: 1px solid var(--np-rule); }
+}
+
+.legend .ltok { vertical-align: middle; margin-right: 3px; width: 22px !important; height: 22px !important; flex: none; }
+.gazette .majors .story p { text-align: center; max-width: 720px; margin: 0 auto; }
+.adpanel textarea { font: inherit; }
 
 </style>
 <script>
@@ -632,6 +682,61 @@ const RULES = (() => {
   const ALLIANCE = { answerTurns: 2, noticeTurns: 3 };
   // History graphs keep 24 turns; the newspaper keeps 12 issues
   const HISTORY = { turns: 24, newsTurns: 12 };
+  // The newspaper: war names, the ad auction, filler stories and the one leak ("scoop") per issue
+  const PRESS = {
+    warNameMax: 40, adSlots: 3, adMin: 200, adAnon: 150, adMaxChars: 200,
+    quietBelow: 4,                // fewer stories than this (market report aside): print a tip and a classified
+    recordGain: 0.1, recordGap: 8, recordFrom: 6, recordsPerIssue: 2, // world production records
+    priceSwing: 0.25, swingsPerIssue: 2, feverCount: 3,
+  };
+  // turn 1 is March: spring is March to May, winter December to February
+  const MONTH_NAMES = ['March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February'];
+  const PRESS_TIPS = [
+    ['Manpower is the true currency', 'Build residences before you need them. An idle factory usually means too few hands, not too few materials.'],
+    ['Keep a month of food in every city', 'A city with no food stops its people working. Set a food minimum on the Stockpiles tab and let a recurring purchase top it up.'],
+    ['Queue before you travel', 'Away for a few days? Fill each city\'s building queue and set minimum stocks, and your nation keeps building while you are gone.'],
+    ['Town halls pay for themselves', 'A town hall widens a city\'s territory. Build it early in any city with good land just out of reach.'],
+    ['Railroads change everything', 'Trains carry 120 at a time. Once you can build railroads, link your mines to your factories before anything else.'],
+    ['Mind the winter', 'Land units out of supply lose 2 HP a month in winter. Stock your field depots before December.'],
+    ['Read your reports', 'Every idle building and every starving unit is listed with the reason. Five minutes with the Reports tab saves a season of waste.'],
+    ['The market is not a warehouse', 'Buying at market is quick, but prices climb as the pool empties. A trade route with a neighbour is cheaper for steady needs.'],
+    ['Bid what it is worth to you', 'In the market auction you usually pay far less than your top bid: one credit more than the best losing bid.'],
+    ['Storage loses goods quietly', 'A full city throws away what it makes. Watch for "output lost to full storage" and build a warehouse.'],
+    ['Entrenched infantry is hard to shift', 'Infantry that holds its ground digs in deeper each month. Pick your defensive line and stay on it.'],
+    ['Supply decides battles', 'An army fights only as far as its supply reaches. Plan field depots and routes before the first shot.'],
+    ['Settlements need provisions', 'A caravan route to a new settlement packs provisions for the round trip. Fill the settlement and it becomes a city.'],
+    ['Peace treaties are enforced', 'A promise is only words, but a peace treaty with a term cannot be broken until it ends.'],
+    ['An ally is a deterrent', 'A defensive alliance means every attacker must reckon with your friends. A refused call to arms is printed for all to see.'],
+    ['Debt is cheapest when small', 'Domestic loans cost more the more you owe. Borrow early and modestly, and pay on time: a default brings unrest.'],
+    ['Watch the rankings', 'The Great Powers box shows who leads each field. A nation climbing the army rankings is worth watching.'],
+    ['Research what you will build', 'Science is scarce. Unlock the buildings your cities will use next, not the ones that sound grand.'],
+    ['Sell blueprints', 'A nation that researches first can sell the blueprint to its neighbours and earn its science back.'],
+    ['Specialise your cities', 'A mining city, a factory city and a port each do one thing well. Move goods between them by route.'],
+    ['Mobilize with care', 'Full mobilization costs five times peacetime pay and tells the world your plans.'],
+    ['Ships need ports', 'Ships repair at a port, and sailing ships at a harbor. A fleet far from home cannot mend.'],
+    ['Rivers are highways', 'Ships sail rivers and lakes too. A river city with a harbor is a natural hub.'],
+    ['Capture, do not destroy', 'A logistics unit beaten by one of its own kind is captured with most of its cargo. Raid with caravans and trucks.'],
+    ['Plan for the second city', 'Space new cities so their territories touch without overlapping. Overlap wastes land you cannot use twice.'],
+    ['A tax office in every city', 'Tax offices are your income and your borrowing limit. Few things repay their cost as surely.'],
+    ['Check a route\'s capacity', 'If a route says "capacity 120, requested 150", add a transport or shorten the route.'],
+    ['Design units for their job', 'A unit design that trades speed for HP holds a line; one that trades HP for damage hits harder.'],
+    ['Advertise', 'Three notices are printed each month. Bid on the Newspaper tab and tell the world what you want it to hear.'],
+    ['The market report is free intelligence', 'A sudden run on ammunition or steel usually means someone is arming.'],
+  ];
+  const CLASSIFIEDS = [
+    'WANTED: Lumber, in quantity. A sensible nation keeps a month\'s worth in every city. Inquire at your Stockpiles tab.',
+    'FOR HIRE: Caravans, sturdy and willing. Will carry provisions to any settlement. Apply at your nearest stables.',
+    'LOST: One factory\'s output, to full storage. Finder please build a warehouse.',
+    'NOTICE TO GENERALS: Troops fight poorly on empty stomachs. Field depots sold everywhere.',
+    'TRAVELLERS: Railroads now connect the finest cities. Lay track today; thank yourself tomorrow.',
+    'SITUATION WANTED: Experienced infantry seeks quiet hill to dig into. Will not move.',
+    'ATTENTION BUILDERS: Queues accepted, ten to a city. Save for the big one.',
+    'BANKERS\' NOTICE: Pay your bonds on time. Unrest is bad for business.',
+    'FOR SALE: Blueprints of the finest buildings. Inquire with the nation that researched them first.',
+    'WINTER COATS for armies in the field. Order before December.',
+    'MATRIMONIAL: Small democracy seeks strong neighbour for defensive alliance. Must answer calls.',
+    'MARKET TIP: Bid what the goods are worth to you. You will usually pay much less.',
+  ];
   // Standing orders: building queues (per city) and recurring market orders (per nation)
   const QUEUE = { perCity: 10 };
   const RECURRING = { max: 10 };
@@ -705,7 +810,7 @@ const RULES = (() => {
 
   return {
     GOODS, GOOD_NAMES, GOOD_COLORS, BASE_PRICE, MARKET, SPECIAL_STORAGE, TILES, BUILDINGS, UNITS, DAMAGE, WEAPON_AMMO, WEAPON_RANGE,
-    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, TAX_LEVELS, TAX_NAMES, GOVERNMENTS, GOV_KEYS, GOV_CHANGE, QUEUE, RECURRING, LOANS, ALLIANCE, HISTORY, SETTLEMENT_MONARCHY, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, QUALITY_DAMAGE, WINTER_ATTRITION, SUMMER_FARM, CAPTURE_CARGO, DESIGN, ENTRENCH, UNIT_STORE, SETTLEMENT, CITY_RUN_LUMBER, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
+    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, TAX_LEVELS, TAX_NAMES, GOVERNMENTS, GOV_KEYS, GOV_CHANGE, QUEUE, RECURRING, LOANS, ALLIANCE, HISTORY, PRESS, MONTH_NAMES, PRESS_TIPS, CLASSIFIEDS, SETTLEMENT_MONARCHY, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, QUALITY_DAMAGE, WINTER_ATTRITION, SUMMER_FARM, CAPTURE_CARGO, DESIGN, ENTRENCH, UNIT_STORE, SETTLEMENT, CITY_RUN_LUMBER, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = RULES;
@@ -1198,6 +1303,32 @@ const Engine = ((R) => {
   const seasonOf = (turn) => { const m = monthOf(turn); return m >= 10 ? 'winter' : m >= 7 ? 'autumn' : m >= 4 ? 'summer' : 'spring'; };
   const isWinter = (turn) => seasonOf(turn) === 'winter';
   const isSummer = (turn) => seasonOf(turn) === 'summer';
+  // the newspaper and war names use dates, not turn numbers: turn 1 is March of Year 1
+  const dateText = (turn) => `${R.MONTH_NAMES[monthOf(turn) - 1]}, Year ${yearOf(turn)}`;
+  const cleanWarName = (x) => String(x || '').replace(/\s+/g, ' ').trim().slice(0, R.PRESS.warNameMax);
+  function autoWarName(S, turn, a, b) {
+    const used = new Set((S.warNames || []).map((x) => x.toLowerCase()));
+    const y = yearOf(turn), season = seasonOf(turn).replace(/^./, (c) => c.toUpperCase()), month = R.MONTH_NAMES[monthOf(turn) - 1];
+    const pair = `The ${a.name}–${b.name} War`;
+    for (const n of [`The ${season} War of Year ${y}`, `The ${month} War of Year ${y}`, pair]) if (!used.has(n.toLowerCase())) return n;
+    for (let i = 2; ; i++) { const n = `${pair} (${i})`; if (!used.has(n.toLowerCase())) return n; }
+  }
+  // how the press describes a new unit design, from the way it differs from its base model
+  function designPress(dz, p) {
+    const st = dz.steps || {}, hp = st.hp || 0, dmg = st.dmg || 0, sp = st.speed || 0, cg = st.cargo || 0;
+    const UP = (x) => String(x).toUpperCase(), base = U[dz.base].name.toLowerCase(), BASE = UP(base), X = UP(p.name);
+    let head, desc;
+    if (dmg > 0 && hp < 0) { head = `${X}'S NEW ${BASE} A GLASS CANNON, SAY EXPERTS`; desc = 'is a glass cannon: it packs a punch but cannot take one'; }
+    else if (hp > 0 && hp >= dmg) { head = `${X} UNVEILS ${BASE} BUILT TO TAKE A HIT`; desc = 'is built to take a hit'; }
+    else if (dmg > 0) { head = `${X} UNVEILS ${BASE} THAT PACKS A PUNCH`; desc = 'packs a punch'; }
+    else if (sp > 0) { head = `${X} UNVEILS FAST NEW ${BASE}`; desc = 'is faster than any before it'; }
+    else if (cg > 0) { head = `${X} UNVEILS BIGGER ${BASE}`; desc = 'carries more than any before it'; }
+    else { head = `${X} UNVEILS NEW ${BASE}`; desc = 'is unlike any seen before'; }
+    if (sp > 0 && !/faster/.test(desc)) desc += ', and it is fast';
+    else if (sp < 0) desc += ', though it is slow';
+    return { head, body: `Military observers report that ${p.name}'s new ${base} design, the ${dz.name}, ${desc}.` };
+  }
+  const warNameOf = (S, a, b) => { const w = (S.wars || []).find((x) => (x.a === a && x.b === b) || (x.a === b && x.b === a)); return w ? w.name || null : null; };
   const countB = (S, cid, key) => S.buildings.reduce((n, b) => n + (b.city === cid && b.key === key ? 1 : 0), 0);
   const tileBuilding = (S, t) => S.buildings.find((b) => b.t === t && B[b.key].place === 'tile');
   const tileOwnerCity = (S, t) => { const o = S.map.tiles[t].owner; return o == null ? null : cityById(S, o); };
@@ -2265,9 +2396,9 @@ const Engine = ((R) => {
     const { map, starts } = genMap(list.length, rng, { mapType: opts.mapType, tilesPerPlayer: opts.tilesPerPlayer });
     const start = startingResources(opts.start);
     const S = {
-      version: 11, id: opts.id || `game-${seed.toString(36)}-${Date.now().toString(36)}`, name: opts.name || 'Guns, Pacts, and Commerce', start,
+      version: 12, id: opts.id || `game-${seed.toString(36)}-${Date.now().toString(36)}`, name: opts.name || 'Guns, Pacts, and Commerce', start,
       seed, turn: 1, map, players: [], cities: [], units: [], buildings: [], routes: [], treaties: [], wars: [], proposals: [],
-      market: { pool: {}, prices: {} }, reports: {}, nextId: 1, gameOver: null, history: [], depots: [], designs: [], ultimatums: [], loans: [], calls: [], grievances: [], news: [], firstResearched: {},
+      market: { pool: {}, prices: {} }, reports: {}, nextId: 1, gameOver: null, history: [], depots: [], designs: [], ultimatums: [], loans: [], calls: [], grievances: [], news: [], firstResearched: {}, warNames: [], records: {}, pressIdx: { tip: 0, cls: 0 }, lastScoop: null,
     };
     list.forEach((pl, i) => {
       S.players.push({
@@ -2564,11 +2695,22 @@ const Engine = ((R) => {
       // version 5: tank traps belong to a nation (they used to record a city)
       for (const tile of S.map.tiles) if (tile.trap != null) { const c = cityById(S, tile.trap); tile.trap = c ? c.owner : null; }
     }
-    S.version = 11;
+    // version 12: named wars, the newspaper as stories, the ad auction and the leak
+    S.warNames = S.warNames || [];
+    for (const w of S.wars) if (!w.name) { w.name = autoWarName(S, w.since || S.turn, S.players[w.a], S.players[w.b]); S.warNames.push(w.name); }
+    for (const c of S.calls) if (!c.war) c.war = warNameOf(S, c.defender, c.attacker);
+    S.records = S.records || {}; S.pressIdx = S.pressIdx || { tip: 0, cls: 0 }; if (S.lastScoop === undefined) S.lastScoop = null;
+    const SEC_PRI = { war: 90, peace: 80, alliances: 65, government: 60, finance: 55, mobilization: 50, technology: 45, market: 10 };
+    S.news = (S.news || []).map((iss) => iss.stories ? iss : {
+      turn: iss.turn, date: dateText(iss.turn), market: [], scoop: null, ads: [], tip: null, classified: null, rankings: iss.rankings || {},
+      stories: Object.entries(iss.sections || {}).flatMap(([sec, l]) => l.map((body) => ({ sec, pri: SEC_PRI[sec] || 10, head: null, body }))).sort((a, b) => b.pri - a.pri),
+    });
+    for (const dz of S.designs || []) if (dz.built == null && S.units.some((u) => u.design === dz.id)) dz.built = dz.turn || 0;
+    S.version = 12;
     return S;
   }
   function normalizeOrders(o) {
-    const out = { settings: (o && o.settings) || null };
+    const out = { settings: (o && o.settings) || null, ad: (o && o.ad && typeof o.ad === 'object') ? o.ad : null };
     for (const k of ORDER_LISTS) out[k] = o && Array.isArray(o[k]) ? o[k] : [];
     return out;
   }
@@ -2580,11 +2722,16 @@ const Engine = ((R) => {
     const turn = S.turn;
     const rep = (pid, cat, msg) => { if (pid == null) return; (S.reports[pid] = S.reports[pid] || []).push({ turn, cat, msg }); };
     const both = (a, b, cat, msg) => { rep(a, cat, msg); if (b !== a) rep(b, cat, msg); };
-    // the world newspaper for this turn, and per-nation figures for the history graphs
-    const paper = { government: [], finance: [], technology: [], mobilization: [], market: [], war: [], alliances: [], peace: [] };
-    const news = (sec, msg) => { (paper[sec] = paper[sec] || []).push(msg); };
-    const T = {}; // per nation: made (goods), mp, tax, sci, earned (credits), paid (debt payments), got (payments received)
-    const tr = (pid) => (T[pid] = T[pid] || { made: {}, mp: 0, tax: 0, sci: 0, earned: 0, paid: 0, got: 0 });
+    // the world newspaper for this turn: stories with a priority (the highest leads the front page) and a headline
+    const press = makeRng(hashSeed(`${S.seed}:press:${turn}`));
+    const pick = (arr) => arr[Math.floor(press() * arr.length)];
+    const UP = (x) => String(x).toUpperCase();
+    const stories = [];
+    const story = (sec, pri, head, body, extra) => { stories.push(Object.assign({ sec, pri, head, body }, extra || {})); };
+    // per nation: made (goods), mp, tax, sci, earned (credits), paid (debt payments), got (payments received), and
+    // what the press might leak: units built and lost, units without food or ammunition, new designs, research, idle buildings
+    const T = {};
+    const tr = (pid) => (T[pid] = T[pid] || { made: {}, mp: 0, tax: 0, sci: 0, earned: 0, paid: 0, got: 0, built: {}, lost: 0, hungry: 0, noAmmo: 0, designs: [], researched: [], idle: 0 });
     S.calls = S.calls || []; S.grievances = S.grievances || []; S.firstResearched = S.firstResearched || {};
     const active = S.players.filter((p) => !p.eliminated);
     const O = {};
@@ -2601,6 +2748,7 @@ const Engine = ((R) => {
       for (const x of carried(S, u)) destroyUnit(x, `lost aboard ${unitName(u)}`, byPid);
       S.units = S.units.filter((x) => x !== u);
       for (const r of S.routes) r.transports = r.transports.filter((id) => id !== u.id);
+      tr(u.owner).lost++;
       rep(u.owner, 'combat', `${unitName(u)} was destroyed (${why}).`);
       if (byPid != null && byPid !== u.owner) rep(byPid, 'combat', `${pname(u.owner)}'s ${unitName(u)} was destroyed${U[u.type].cargo && Object.keys(u.cargo || {}).length ? ' with its cargo' : ''}.`);
     }
@@ -2650,7 +2798,7 @@ const Engine = ((R) => {
       for (const tile of S.map.tiles) { if (tile.rail === loser.id) tile.rail = byPid; if (tile.bridgeBy === loser.id) tile.bridgeBy = byPid; if (tile.tunnel === loser.id) tile.tunnel = byPid; if (tile.trap === loser.id) tile.trap = byPid; }
       for (const dp of S.depots) if (dp.owner === loser.id) dp.owner = byPid;
       for (const q of S.players) rep(q.id, 'diplomacy', `${loser.name} lost its last city to ${winner.name} and is out of the game. ${winner.name} took its ${took}.`);
-      news('war', `${loser.name} lost its last city to ${winner.name} and is out of the game.`);
+      story('war', 95, pick([`${UP(loser.name)} IS NO MORE`, `${UP(loser.name)} FALLS`, `THE END OF ${UP(loser.name)}`]), `${loser.name} lost its last city to ${winner.name} and is out of the game.`, { war: true });
     }
     // move a unit off a tile it may no longer hold (e.g. a city that was ceded)
     function evacuate(u) {
@@ -2690,18 +2838,29 @@ const Engine = ((R) => {
       if (tile.trap === old) tile.trap = to;
       if (tile.bridgeBy === old) tile.bridgeBy = to;
     }
-    function startWar(p, target, msg) {
+    // how: { kind: 'declare' | 'ultimatum' | 'ally', name (chosen by the declarer), def (the ally's name), body, grievance }
+    function startWar(p, target, msg, how) {
+      how = how || {};
       const ended = S.treaties.some((t) => t.type === 'alliance' && pairs(t, p.id, target.id));
-      S.wars.push({ id: S.nextId++, a: p.id, b: target.id, kind: 'war', since: turn });
+      let name = cleanWarName(how.name);
+      if (!name && how.grievance && !(S.warNames || []).some((x) => x.toLowerCase() === 'the war of unpaid reparations')) name = 'The War of Unpaid Reparations';
+      if (!name) name = autoWarName(S, turn, p, target);
+      S.warNames = S.warNames || [];
+      if (!S.warNames.includes(name)) S.warNames.push(name);
+      S.wars.push({ id: S.nextId++, a: p.id, b: target.id, kind: 'war', since: turn, name });
       S.treaties = S.treaties.filter((t) => !pairs(t, p.id, target.id)); // allies who go to war with each other end their alliance
       S.grievances = S.grievances.filter((g) => !(g.from === p.id && g.against === target.id));
-      news('war', msg);
-      if (ended) news('alliances', `The alliance between ${p.name} and ${target.name} ended when they went to war.`);
+      const A = UP(p.name), Bn = UP(target.name), N = UP(name);
+      if (how.kind === 'ally') story('war', 92, pick([`${A} ENTERS ${N}`, `${A} JOINS ${UP(how.def)} IN ${N}`, `${A} ANSWERS THE CALL: WAR ON ${Bn}`]), how.body || `${msg} It joins ${name}.`, { war: true, name });
+      else if (how.kind === 'ultimatum') story('war', 100, pick([`${Bn} DEFIES ULTIMATUM: WAR WITH ${A}`, `ULTIMATUM EXPIRES: ${A} AT WAR WITH ${Bn}`]), `${msg} The conflict is to be known as ${name}.`, { war: true, name });
+      else story('war', 100, pick([`${A} DECLARES WAR ON ${Bn}`, `${A} AND ${Bn} AT WAR`, `${A} MARCHES ON ${Bn}`]), `${msg} The conflict is to be known as ${name}.`, { war: true, name });
+      if (ended) story('alliances', 64, `${A}–${Bn} ALLIANCE IN RUINS`, `The alliance between ${p.name} and ${target.name} ended when they went to war.`);
+      msg = `${msg} (${name})`;
       // a call to arms goes to every ally of the nation attacked
       for (const c of alliesOf(S, target.id)) {
         const ally = S.players[c];
         if (c === p.id || ally.eliminated || atWar(S, c, p.id)) continue;
-        S.calls.push({ id: S.nextId++, ally: c, defender: target.id, attacker: p.id, issued: turn, deadline: turn + R.ALLIANCE.answerTurns });
+        S.calls.push({ id: S.nextId++, ally: c, defender: target.id, attacker: p.id, issued: turn, deadline: turn + R.ALLIANCE.answerTurns, war: name });
         rep(c, 'diplomacy', `Call to arms: your ally ${target.name} was attacked by ${p.name}. Honor it to join the war at once, or refuse; you have until turn ${turn + R.ALLIANCE.answerTurns} to answer, and every nation will learn your choice.`);
       }
       for (const r of S.routes.slice()) if ((r.owner === p.id && r.partner === target.id) || (r.owner === target.id && r.partner === p.id)) removeRoute(r.id, 'war was declared');
@@ -2717,8 +2876,9 @@ const Engine = ((R) => {
       const a = S.players[pr.from], b = S.players[pr.to], pl = normPeace(pr.payload);
       const err = checkPeace(S, a.id, b.id, pl);
       if (err) { both(a.id, b.id, 'diplomacy', `The ${pr.ultimatum ? 'ultimatum\'s terms' : 'peace treaty'} between ${a.name} and ${b.name} could not be carried out: ${err}.`); return false; }
-      const wasWar = atWar(S, a.id, b.id);
+      const wasWar = atWar(S, a.id, b.id), wname = warNameOf(S, a.id, b.id);
       S.wars = S.wars.filter((w) => !pairs(w, a.id, b.id));
+      const repTxt = [];
       if (pl.term > 0) {
         S.treaties = S.treaties.filter((t) => !(t.type === 'peace' && pairs(t, a.id, b.id)));
         S.treaties.push({ id: S.nextId++, a: a.id, b: b.id, type: 'peace', since: turn, endsTurn: turn + pl.term + 1 });
@@ -2740,10 +2900,16 @@ const Engine = ((R) => {
         const rp = part.reparations;
         if (!rp || !rp.amount || !wasWar) continue;
         S.loans.push({ id: S.nextId++, kind: 'reparations', lender: recv.id, borrower: giver.id, principal: rp.amount, rate: 0, term: rp.turns, payment: Math.floor(rp.amount / rp.turns), balance: rp.amount, paid: 0, missed: 0, since: turn });
-        news('peace', `${giver.name} will pay ${recv.name} ${rp.amount} credits in reparations over ${rp.turns} turns.`);
+        repTxt.push(`${giver.name} will pay ${recv.name} ${rp.amount} credits in reparations over ${rp.turns} month${rp.turns === 1 ? '' : 's'}.`);
       }
       refreshTraits(S);
-      if (wasWar) news('peace', `${a.name} and ${b.name} made peace${pl.term > 0 ? ` (no war between them before turn ${turn + pl.term + 1})` : ''}.`);
+      if (wasWar) {
+        // a treaty is named after the oldest city of the nation that accepted it
+        const town = citiesOf(S, b.id).sort((x, y) => x.id - y.id)[0] || citiesOf(S, a.id).sort((x, y) => x.id - y.id)[0];
+        const tname = town ? `the Treaty of ${town.name}` : 'a treaty', N = wname ? UP(wname) : 'THE WAR';
+        story('peace', 85, pick([town ? `TREATY OF ${UP(town.name)} ENDS ${N}` : `PEACE: ${N} IS OVER`, `PEACE! ${N} IS OVER`]),
+          `${a.name} and ${b.name} made peace, signing ${tname}${wname ? ` to end ${wname}` : ''}.${pl.term > 0 ? ` Neither may make war on the other before ${dateText(turn + pl.term + 1)}.` : ''}${repTxt.length ? ` ${repTxt.join(' ')}` : ''}`);
+      } else if (pr.ultimatum) story('war', 75, pick([`${UP(b.name)} BOWS TO ${UP(a.name)}'S DEMANDS`, `${UP(b.name)} YIELDS: NO WAR WITH ${UP(a.name)}`]), `${b.name} accepted ${a.name}'s ultimatum and handed over what was demanded. There will be no war.`);
       S.calls = S.calls.filter((c) => !(pairs({ a: c.defender, b: c.attacker }, a.id, b.id)));
       if (!pr.ultimatum) both(a.id, b.id, 'diplomacy', `${a.name} and ${b.name} signed ${desc}${wasWar ? ', ending their war' : ''}.${pl.term > 0 ? ` Neither may declare war on the other before turn ${turn + pl.term + 1}.` : ''}`);
       return true;
@@ -2806,7 +2972,7 @@ const Engine = ((R) => {
           p.gov = st.government; p.govSince = turn; p.taxSince = null; // a new government may set a new tax rate at once
           if (govOf(S, p.id).fixedTax) p.tax = 'normal';
           for (const q of S.players) rep(q.id, 'government', `${p.name} changed its government from ${was} to ${govOf(S, p.id).name}.`);
-          news('government', `${p.name} changed its government from ${was} to ${govOf(S, p.id).name}.`);
+          { const X = UP(p.name), k = govKey(S, p.id); story('government', 60, k === 'communism' ? `REVOLUTION IN ${X}` : k === 'autocracy' ? `STRONGMAN SEIZES POWER IN ${X}` : k === 'democracy' ? `${X} EMBRACES DEMOCRACY` : k === 'monarchy' ? `${X} CROWNS A MONARCH` : `${X} INSTALLS A PROVISIONAL GOVERNMENT`, `${p.name} changed its government from ${was} to ${govOf(S, p.id).name}.`); }
           if (!fromProvisional) {
             p.upheavalUntil = turn + R.GOV_CHANGE.upheavalTurns - 1;
             if (p.mob === 'full') { p.mob = 'partial'; p.mobPending = null; }
@@ -2842,6 +3008,7 @@ const Engine = ((R) => {
         p.recurring = r;
       }
     }
+    for (const t of S.treaties) if (t.type === 'alliance' && t.endsTurn != null && t.endsTurn <= turn) story('alliances', 58, `${UP(pname(t.a))}–${UP(pname(t.b))} ALLIANCE ENDS`, `The defensive alliance between ${pname(t.a)} and ${pname(t.b)} has ended.`);
     S.treaties = S.treaties.filter((t) => t.endsTurn == null || t.endsTurn > turn);
     for (const r of S.routes.slice()) if (r.endsTurn != null && r.endsTurn <= turn) removeRoute(r.id, 'cancellation took effect');
 
@@ -2864,7 +3031,7 @@ const Engine = ((R) => {
       } else if (pr.kind === 'treaty') {
         if (atWar(S, pr.from, p.id) || hasTreaty(S, pr.from, p.id, pl.type)) continue;
         S.treaties.push({ id: S.nextId++, a: pr.from, b: p.id, type: pl.type, since: turn, endsTurn: null });
-        if (pl.type === 'alliance') { for (const q of S.players) rep(q.id, 'diplomacy', `${from.name} and ${p.name} signed a defensive alliance.`); news('alliances', `${from.name} and ${p.name} signed a defensive alliance.`); }
+        if (pl.type === 'alliance') { for (const q of S.players) rep(q.id, 'diplomacy', `${from.name} and ${p.name} signed a defensive alliance.`); story('alliances', 65, pick([`${UP(from.name)} AND ${UP(p.name)} SIGN DEFENSIVE PACT`, `${UP(from.name)}–${UP(p.name)} ALLIANCE SEALED`]), `${from.name} and ${p.name} signed a defensive alliance: each will be called to arms if the other is attacked.`); }
         else both(pr.from, p.id, 'diplomacy', `${from.name} and ${p.name} agreed ${pl.type} rights.`);
       } else if (pr.kind === 'blueprint' && pl.design != null) {
         const dz = designById(S, pl.design);
@@ -2921,21 +3088,21 @@ const Engine = ((R) => {
       const att = S.players[c.attacker], def = S.players[c.defender];
       if (!o.honor) {
         for (const q of S.players) rep(q.id, 'diplomacy', `${p.name} refused its ally ${def.name}'s call to arms against ${att.name}.`);
-        news('alliances', `${p.name} refused ${def.name}'s call to arms against ${att.name}.`);
+        story('alliances', 70, pick([`${UP(p.name)} ABANDONS ${UP(def.name)}`, `${UP(p.name)} REFUSES CALL TO ARMS`]), `${p.name} refused ${def.name}'s call to arms against ${att.name}${c.war ? ` in ${c.war}` : ''}. The alliance stands, but ${def.name} fights alone.`);
         continue;
       }
       if (att.eliminated || !atWar(S, c.defender, c.attacker) || atWar(S, p.id, c.attacker)) { rep(p.id, 'diplomacy', `The call to arms against ${att.name} no longer applies.`); continue; }
       const pact = S.treaties.find((t) => t.type === 'peace' && pairs(t, p.id, c.attacker));
       if (pact) { rep(p.id, 'diplomacy', `You cannot honor the call to arms: your peace treaty with ${att.name} is in force until turn ${pact.endsTurn}.`); continue; }
-      news('alliances', `${p.name} honored ${def.name}'s call to arms against ${att.name}.`);
-      startWar(p, att, `${p.name} honored its alliance with ${def.name} and declared war on ${att.name}.`);
+      const wn = c.war || warNameOf(S, c.defender, c.attacker);
+      startWar(p, att, `${p.name} honored its alliance with ${def.name} and declared war on ${att.name}.`, { kind: 'ally', def: def.name, name: wn, body: `${p.name} honored ${def.name}'s call to arms against ${att.name} and joins ${wn || 'the war'}.` });
     }
     for (const c of S.calls.slice()) {
       if (c.deadline > turn) continue;
       S.calls = S.calls.filter((x) => x !== c);
       if (!atWar(S, c.defender, c.attacker) || S.players[c.ally].eliminated) continue;
       for (const q of S.players) rep(q.id, 'diplomacy', `${pname(c.ally)} did not answer ${pname(c.defender)}'s call to arms against ${pname(c.attacker)}: it is counted as refused.`);
-      news('alliances', `${pname(c.ally)} refused ${pname(c.defender)}'s call to arms against ${pname(c.attacker)} (no answer).`);
+      story('alliances', 68, `SILENCE FROM ${UP(pname(c.ally))} AS ${UP(pname(c.defender))} FIGHTS ALONE`, `${pname(c.ally)} refused ${pname(c.defender)}'s call to arms against ${pname(c.attacker)} (no answer).`);
     }
     for (const u of S.ultimatums.slice()) {
       if (u.deadline > turn) continue;
@@ -2944,7 +3111,7 @@ const Engine = ((R) => {
       if (a.eliminated || b.eliminated || atWar(S, a.id, b.id)) continue;
       const pact = S.treaties.find((t) => t.type === 'peace' && pairs(t, a.id, b.id));
       if (pact) { both(a.id, b.id, 'diplomacy', `${a.name}'s ultimatum to ${b.name} lapsed: a peace treaty is now in force.`); continue; }
-      startWar(a, b, `${b.name} did not accept ${a.name}'s ultimatum: ${a.name} is now at war with ${b.name}.`);
+      startWar(a, b, `${b.name} did not accept ${a.name}'s ultimatum: ${a.name} is now at war with ${b.name}.`, { kind: 'ultimatum', name: u.name });
     }
 
     for (const p of active) for (const o of O[p.id].diplo) {
@@ -2963,7 +3130,8 @@ const Engine = ((R) => {
           if (atWar(S, p.id, target.id)) break;
           const err = checkDeclare(S, p.id, target.id);
           if (err) { rep(p.id, 'diplomacy', `Could not declare war on ${target.name}: ${err}.`); break; }
-          startWar(p, target, `${p.name} declared war on ${target.name}.`);
+          const griev = S.grievances.some((g) => g.from === p.id && g.against === target.id);
+          startWar(p, target, `${p.name} declared war on ${target.name}.`, { kind: 'declare', name: o.name, grievance: griev });
           break;
         }
         case 'ultimatum': {
@@ -2973,10 +3141,10 @@ const Engine = ((R) => {
           const pl = normPeace(Object.assign({}, o.payload || {}, { term: 0 }));
           pl.give.reparations.amount = 0; pl.get.reparations.amount = 0; // reparations only end a war
           const notice = Math.max(1, govOf(S, p.id).notice);
-          const u = { id: S.nextId++, from: p.id, to: target.id, payload: pl, note: String(o.note || '').slice(0, 300), issued: turn, deadline: turn + notice };
+          const u = { id: S.nextId++, from: p.id, to: target.id, payload: pl, note: String(o.note || '').slice(0, 300), issued: turn, deadline: turn + notice, name: cleanWarName(o.name) || null };
           S.ultimatums.push(u);
           for (const q of S.players) if (!q.eliminated) rep(q.id, 'diplomacy', `${p.name} sent ${target.name} an ultimatum: ${describeUltimatum(S, u)}. Unless ${target.name} accepts, war begins on turn ${u.deadline}.`);
-          news('war', `${p.name} sent ${target.name} an ultimatum: war on turn ${u.deadline} unless it is accepted.`);
+          story('war', 80, pick([`${UP(p.name)} ISSUES ULTIMATUM TO ${UP(target.name)}`, `${UP(p.name)} PRESENTS ${UP(target.name)} WITH DEMANDS`]), `${p.name} sent ${target.name} an ultimatum. Unless it is accepted, war begins in ${dateText(u.deadline)}.`);
           break;
         }
         case 'cancelTreaty': {
@@ -2985,7 +3153,7 @@ const Engine = ((R) => {
           if (t.type === 'alliance') {
             t.endsTurn = turn + R.ALLIANCE.noticeTurns;
             for (const q of S.players) rep(q.id, 'diplomacy', `${p.name} gave notice to leave its alliance with ${pname(t.a === p.id ? t.b : t.a)}; it ends after turn ${t.endsTurn - 1}.`);
-            news('alliances', `${p.name} gave notice to leave its alliance with ${pname(t.a === p.id ? t.b : t.a)} (it ends after turn ${t.endsTurn - 1}).`);
+            story('alliances', 60, `${UP(p.name)} TO QUIT ALLIANCE WITH ${UP(pname(t.a === p.id ? t.b : t.a))}`, `${p.name} gave notice to leave its alliance with ${pname(t.a === p.id ? t.b : t.a)}. The alliance ends after ${dateText(t.endsTurn - 1)}.`);
             break;
           }
           t.endsTurn = turn + 1;
@@ -3037,7 +3205,7 @@ const Engine = ((R) => {
       p.unrestUntil = turn + Math.min(LN.penaltyCap, left + steps) - 1;
       p.lastDomesticDefault = { turn, amount };
       for (const q of S.players) rep(q.id, 'finance', `${p.name} defaulted on ${amount} credits of domestic debt.`);
-      news('finance', `${p.name} defaulted on ${amount} credits of domestic debt.`);
+      story('finance', 58, pick([`${UP(p.name)} DEFAULTS ON ITS BONDS`, `BONDHOLDERS RUINED IN ${UP(p.name)}`]), `${p.name} defaulted on ${amount} credits of domestic debt. Unrest is expected.`);
       rep(p.id, 'finance', `Unrest: housing makes 0.3 less of its multiplier and goods output falls 10% until turn ${p.unrestUntil} is over; new domestic loans cost +${LN.defaultFlat + p.unrestRate} points until then.`);
     };
     const foreignDefault = (l, why) => {
@@ -3047,11 +3215,11 @@ const Engine = ((R) => {
         // unpaid reparations: the nation owed may declare war at once, whatever their peace treaty says
         S.grievances.push({ from: len.id, against: b.id, turn });
         for (const q of S.players) rep(q.id, 'finance', `${b.name} defaulted on reparations owed to ${len.name}${why ? ` (${why})` : ''}. ${len.name} may declare war on ${b.name} at once.`);
-        news('finance', `${b.name} defaulted on reparations owed to ${len.name}; ${len.name} may declare war at once.`);
+        story('finance', 62, `${UP(b.name)} STOPS PAYING REPARATIONS TO ${UP(len.name)}`, `${b.name} defaulted on reparations owed to ${len.name}; ${len.name} may declare war at once.`);
         return;
       }
       b.lastForeignDefault = turn;
-      news('finance', `${b.name} defaulted on a loan from another nation.`);
+      story('finance', 55, `${UP(b.name)} DEFAULTS ON FOREIGN LOAN`, `${b.name} defaulted on a loan from another nation.`);
       for (const q of S.players) if (q.id !== l.lender && q.id !== l.borrower) rep(q.id, 'finance', `${b.name} defaulted on a loan from another nation.`);
       both(l.borrower, l.lender, 'finance', `${b.name} defaulted on its loan from ${len.name} (${l.balance} credits still owed)${why ? `: ${why}` : ''}.`);
     };
@@ -3077,7 +3245,7 @@ const Engine = ((R) => {
       } else if (o.op === 'forgive' && l.lender === p.id) {
         S.loans = S.loans.filter((x) => x !== l);
         both(l.borrower, l.lender, 'finance', `${p.name} forgave ${pname(l.borrower)}'s ${l.kind === 'reparations' ? 'reparations' : 'loan'} (${l.balance} credits).`);
-        if (l.kind === 'reparations') news('peace', `${p.name} forgave the reparations ${pname(l.borrower)} still owed it.`);
+        if (l.kind === 'reparations') story('peace', 40, `${UP(p.name)} FORGIVES ${UP(pname(l.borrower))}'S REPARATIONS`, `${p.name} forgave the reparations ${pname(l.borrower)} still owed it.`);
       }
     }
     for (const p of active) {
@@ -3290,7 +3458,7 @@ const Engine = ((R) => {
       for (const tile of S.map.tiles) if (tile.owner === c.id) { if (tile.rail === old) tile.rail = by; if (tile.bridgeBy === old) tile.bridgeBy = by; if (tile.tunnel === old) tile.tunnel = by; if (tile.trap === old) tile.trap = by; }
       for (const r of S.routes.slice()) if (r.from === c.id || (r.to.type === 'city' && r.to.id === c.id)) removeRoute(r.id, `${c.name} was captured`);
       for (const q of S.players) if (!q.eliminated) rep(q.id, 'combat', `${pname(by)} captured ${c.name} from ${pname(old)}, with every good stored there.`);
-      news('war', `${pname(by)} captured ${c.name} from ${pname(old)}.`);
+      { const wn = warNameOf(S, by, old); story('war', 90, pick([`${UP(c.name)} FALLS TO ${UP(pname(by))}`, `${UP(pname(by))} TAKES ${UP(c.name)}`]), `${pname(by)} captured ${c.name} from ${pname(old)}${wn ? ` in ${wn}` : ''}.`, { war: true }); }
       if (last) eliminate(loser, by);
     }
     // field depots: an enemy land unit stepping onto one destroys it and takes half the contents home.
@@ -3366,6 +3534,7 @@ const Engine = ((R) => {
       (buysBy[g] = buysBy[g] || []).push({ p, g, amt, want: q, c, bid, got: 0, rec: !!o.rec });
     }
     S.market.last = {};
+    const soldOut = []; // goods the market ran out of with buyers left short
     for (const g of GOODS) {
       const list = buysBy[g];
       if (!list) continue;
@@ -3392,6 +3561,7 @@ const Engine = ((R) => {
         rep(x.p.id, 'market', `Bought ${x.got} ${ctxt} at ${price} each (${x.got * price} credits)${x.got < x.amt ? `; ordered ${x.amt}` : ''}${x.rec ? ' (recurring)' : ''}.`);
       }
       if (sold) S.market.last[g] = { qty: sold, avg: Math.round(spent / sold), high, turn };
+      if (short.length && (S.market.pool[g] || 0) <= 0) soldOut.push(g);
     }
     for (const p of active) for (const o of [...O[p.id].sells, ...recSells[p.id]]) {
       const g = o.good, c = cityById(S, o.city);
@@ -3430,7 +3600,8 @@ const Engine = ((R) => {
       if (p.science < d.sci) { rep(p.id, 'research', `Not enough science for ${d.name} (needs ${d.sci}, have ${p.science}).`); continue; }
       p.science -= d.sci; p.researched.push(key);
       rep(p.id, 'research', `Researched ${d.name} for ${d.sci} science.`);
-      if (!S.firstResearched[key]) { S.firstResearched[key] = { by: p.id, turn }; news('technology', `${p.name} is the first nation to research the ${d.name.toLowerCase()}.`); }
+      if (!S.firstResearched[key]) { S.firstResearched[key] = { by: p.id, turn }; story('technology', 45, pick([`${UP(p.name)} FIRST TO MASTER THE ${UP(d.name)}`, `BREAKTHROUGH IN ${UP(p.name)}: THE ${UP(d.name)}`]), `${p.name} is the first nation to research the ${d.name.toLowerCase()}.`); }
+      else tr(p.id).researched.push(d.name);
     }
 
     /* ----- 6. production (before construction, so this turn's output can be built with) ----- */
@@ -3489,6 +3660,7 @@ const Engine = ((R) => {
       for (const [key, n] of Object.entries(shortfalls)) {
         const [cn, bn, why] = key.split('|');
         rep(p.id, 'shortfall', `${cn}: ${n > 1 ? `${n}× ` : ''}${bn} idle, missing ${why}.`);
+        tr(p.id).idle += n;
       }
     }
 
@@ -3585,6 +3757,7 @@ const Engine = ((R) => {
       for (const [g, v] of Object.entries(left)) if (v > 0) addToCity(S, c, g, v);
       if (forest) addToCity(S, c, 'lumber', R.CLEAR_FOREST.lumber);
       rep(p.id, 'construction', `Founded ${c.name} at ${tileLabel(S, c.t)}${forest ? `, clearing the forest for ${R.CLEAR_FOREST.lumber} lumber` : ''}.`);
+      story('world', 22, pick([`${UP(p.name)} FOUNDS THE CITY OF ${UP(c.name)}`, `NEW CITY OF ${UP(c.name)} RISES IN ${UP(p.name)}`]), `Settlers of ${p.name} have founded the city of ${c.name}.`);
     }
     for (const p of active) for (const o of O[p.id].builds) {
       const err = checkBuild(S, p.id, o);
@@ -3647,6 +3820,7 @@ const Engine = ((R) => {
         u.hp = maxHpU(S, u);
         if (d.cargo) u.cargoCap = cargoCap(S, u);
         S.units.push(u);
+        { const tp = tr(p.id); tp.built[o.type] = (tp.built[o.type] || 0) + 1; if (dz && dz.built == null) { dz.built = turn; tp.designs.push(dz); } }
         rep(p.id, 'recruitment', `${c.name} built ${unitName(u)}${t === c.t ? '' : ` at ${tileLabel(S, t)}`}.`);
       }
     }
@@ -3849,6 +4023,8 @@ const Engine = ((R) => {
       if (!res.ok) {
         const loss = isWinter(turn) && d.cls !== 'ship' ? R.WINTER_ATTRITION : 1;
         u.hp = round1(u.hp - loss); u.supply = `Out of supply (missing ${goodsText(res.missing)})`;
+        if ((res.missing || {}).food) tr(u.owner).hungry++;
+        if ((res.missing || {}).ammo) tr(u.owner).noAmmo++;
         rep(u.owner, 'supply', `${unitName(u)} at ${tileLabel(S, posOf(S, u))} is out of supply (missing ${goodsText(res.missing)}) and lost ${loss} HP${loss > 1 ? ' to the winter' : ''}.`);
         if (u.hp <= 0) { destroyUnit(u, 'attrition'); continue; }
       } else {
@@ -3898,7 +4074,7 @@ const Engine = ((R) => {
       if (p.mobDown) { p.mob = p.mobDown; p.mobDown = null; }
       if (p.mobPending && turn >= p.mobPending.at) { p.mob = p.mobPending.to; p.mobPending = null; }
       if (p.mob !== before) for (const q of S.players) rep(q.id, 'war', `${p.name} is now at ${p.mob === 'full' ? 'full mobilization' : p.mob === 'partial' ? 'partial mobilization' : 'peacetime'}.`);
-      if (p.mob !== before) news('mobilization', `${p.name} is now at ${p.mob === 'full' ? 'full mobilization' : p.mob === 'partial' ? 'partial mobilization' : 'peacetime'}.`);
+      if (p.mob !== before) story('mobilization', 50, p.mob === 'full' ? `${UP(p.name)} MOBILIZES FOR WAR` : p.mob === 'partial' ? `${UP(p.name)} CALLS UP RESERVES` : `${UP(p.name)} STANDS DOWN`, `${p.name} is now at ${p.mob === 'full' ? 'full mobilization' : p.mob === 'partial' ? 'partial mobilization' : 'peacetime'}.`);
       if (p.mobPending && p.mobPending.since === turn) for (const q of S.players) if (q.id !== p.id) rep(q.id, 'war', `${p.name} has begun ${p.mobPending.to === 'full' ? 'full' : 'partial'} mobilization.`);
       if (p.tax === 'war' && p.mob === 'peace') { p.tax = 'high'; rep(p.id, 'government', 'Back at peacetime mobilization: your war tax dropped to the high rate.'); }
       if (p.rally && !S.wars.some((w) => w.a === p.id || w.b === p.id)) p.rally = false;
@@ -3998,12 +4174,137 @@ const Engine = ((R) => {
       p.cum.science = round1(p.cum.science + t.sci);
       p.cum.value += Object.entries(t.made).reduce((a, [g, v]) => a + v * (R.BASE_PRICE[g] || 0), 0);
     }
-    // market prices actually paid this turn
-    for (const g of GOODS) { const m = S.market.last && S.market.last[g]; if (m && m.turn === turn) news('market', `${R.GOOD_NAMES[g]}: ${m.qty} sold at ${m.avg} each${m.high > m.avg ? ` (up to ${m.high})` : ''}.`); }
+    const issue = printNewspaper();
+    function printNewspaper() {
+      const PR = R.PRESS, GN = (g) => R.GOOD_NAMES[g], WORD = (n) => ['NO', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN', 'ELEVEN', 'TWELVE'][n] || String(n);
+      const iss = { turn, date: dateText(turn), stories: [], market: [], scoop: null, ads: [], tip: null, classified: null, rankings: rankings(S) };
+      // the market report: what sold this month, and at what price
+      for (const g of GOODS) { const m = S.market.last && S.market.last[g]; if (m && m.turn === turn) iss.market.push({ good: g, qty: m.qty, avg: m.avg, high: m.high, soldOut: soldOut.includes(g) }); }
+      for (const g of soldOut) story('market', 30, pick([`${UP(GN(g))} SOLD OUT`, `RUN ON ${UP(GN(g))}: WORLD MARKET EMPTY`]), `The world market ran out of ${GN(g).toLowerCase()} this month, and some buyers went home empty-handed.`);
+      // big price moves since last month
+      const prev = S.market.prevSell || {};
+      const swings = GOODS.filter((g) => prev[g] && prices[g]).map((g) => [g, (prices[g].sell - prev[g]) / prev[g]]).filter(([, d]) => Math.abs(d) >= PR.priceSwing).sort((x, y) => Math.abs(y[1]) - Math.abs(x[1])).slice(0, PR.swingsPerIssue);
+      for (const [g, d] of swings) {
+        const pct = Math.round(Math.abs(d) * 100), arms = ['ammo', 'smallArms', 'metal'].includes(g);
+        story('market', 28, d > 0 ? `${UP(GN(g))} PRICES SOAR ${pct}%${arms ? ' AS NATIONS ARM' : ''}` : `${UP(GN(g))} PRICES TUMBLE ${pct}%`, `${GN(g)} costs ${prices[g].sell} on the world market this month, ${d > 0 ? 'up' : 'down'} from ${prev[g]}.`);
+      }
+      S.market.prevSell = {}; for (const g of GOODS) if (prices[g]) S.market.prevSell[g] = prices[g].sell;
+      // world production records (measured against the level of the last record story)
+      S.records = S.records || {};
+      const recs = [];
+      for (const g of GOODS) {
+        const v = Math.round(worldMade[g] || 0); if (v <= 0) continue;
+        const r = S.records[g];
+        if (!r) { S.records[g] = { max: v, base: v, story: -99 }; continue; }
+        if (v > r.max) {
+          r.max = v;
+          const gain = v / r.base - 1;
+          if (turn >= PR.recordFrom && gain >= PR.recordGain && turn - r.story >= PR.recordGap) recs.push([g, gain, v]);
+        }
+      }
+      for (const [g, , v] of recs.sort((x, y) => y[1] - x[1]).slice(0, PR.recordsPerIssue)) {
+        S.records[g].story = turn; S.records[g].base = v;
+        story('world', 35, pick([`WORLD ${UP(GN(g))} OUTPUT AT RECORD HIGH`, `${UP(GN(g))} BOOM: THE WORLD HAS NEVER MADE MORE`]), `The nations of the world produced ${v} ${GN(g).toLowerCase()} this month, more than ever before.`);
+      }
+      // war fever
+      const full = active.filter((p) => !p.eliminated && p.mob === 'full').length;
+      if (full >= PR.feverCount && full > (S.feverPrev || 0)) story('mobilization', 32, `WAR FEVER: ${WORD(full)} NATIONS AT FULL MOBILIZATION`, `${full} nations now stand at full mobilization. Observers fear the worst.`);
+      S.feverPrev = full;
+      // a new leader in the rankings
+      const last = (S.news || [])[(S.news || []).length - 1], RH = { financial: ['THE LEADING FINANCIAL POWER', 'finance'], army: ['THE GREATEST ARMY', 'land forces'], navy: ['THE MIGHTIEST NAVY', 'sea power'], technology: ['THE LEADER IN SCIENCE', 'science'], size: ['THE LARGEST NATION', 'size'], manufacturing: ['THE WORKSHOP OF THE WORLD', 'manufacturing'] };
+      let changes = 0;
+      if (last && last.rankings) for (const k of Object.keys(RH)) {
+        const was = (last.rankings[k] || [])[0], now = (iss.rankings[k] || [])[0];
+        if (was == null || now == null || was === now || changes >= 2 || S.players[was].eliminated) continue;
+        changes++;
+        story('world', 40, `${UP(pname(now))} OVERTAKES ${UP(pname(was))} AS ${RH[k][0]}`, `${pname(now)} now leads the world in ${RH[k][1]}, ahead of ${pname(was)}.`);
+      }
+      // the seasons
+      if (monthOf(turn + 1) === 10) story('world', 20, pick(['WINTER CLOSES IN', 'ARMIES BRACE FOR WINTER']), 'December is upon us. Until spring, land units out of supply lose 2 HP a month instead of 1.');
+      if (monthOf(turn + 1) === 1) story('world', 20, pick(['THE SPRING THAW', 'SPRING AT LAST']), 'March brings the thaw. Armies in the field need no longer fear the cold.');
+      // anniversaries of wars still being fought
+      const seen = new Set();
+      for (const w of S.wars) {
+        if (!w.name || seen.has(w.name)) continue; seen.add(w.name);
+        const since = Math.min(...S.wars.filter((x) => x.name === w.name).map((x) => x.since)), yrs = (turn - since) / 12;
+        if (yrs >= 1 && Number.isInteger(yrs)) story('war', 25, `${WORD(yrs)} YEAR${yrs > 1 ? 'S' : ''} OF ${UP(w.name)}`, `${w.name} began ${yrs > 1 ? `${yrs} years` : 'a year'} ago this month, and there is no peace in sight.`);
+      }
+      // paid notices: three spaces, sold by sealed bid
+      iss.ads = adAuction();
+      // the leak: one secret about one nation, chosen at random
+      iss.scoop = leak();
+      // quiet months get a tip and a classified advertisement
+      if (stories.filter((x) => x.sec !== 'market').length < PR.quietBelow) {
+        S.pressIdx = S.pressIdx || { tip: 0, cls: 0 };
+        const [h, b] = R.PRESS_TIPS[S.pressIdx.tip % R.PRESS_TIPS.length];
+        iss.tip = { head: h, body: b };
+        iss.classified = R.CLASSIFIEDS[S.pressIdx.cls % R.CLASSIFIEDS.length];
+        S.pressIdx.tip++; S.pressIdx.cls++;
+      }
+      iss.stories = stories.map((x, i) => [x, i]).sort((x, y) => y[0].pri - x[0].pri || x[1] - y[1]).map(([x]) => x);
+      return iss;
+    }
+    function adAuction() {
+      const PR = R.PRESS, bids = [];
+      for (const p of active) {
+        const o = O[p.id].ad;
+        if (!o) continue;
+        const text = String(o.text || '').replace(/\s+/g, ' ').trim().slice(0, PR.adMaxChars), bid = Math.floor(Number(o.bid) || 0), anon = !!o.anon;
+        if (!text) continue;
+        if (bid < PR.adMin) { rep(p.id, 'diplomacy', `Your newspaper bid of ${bid} was below the minimum of ${PR.adMin}.`); continue; }
+        const most = bid + (anon ? PR.adAnon : 0);
+        if (p.credits < most) { rep(p.id, 'diplomacy', `Your newspaper bid was withdrawn: it needs up to ${most} credits and you have ${Math.floor(p.credits)}.`); continue; }
+        bids.push({ p, text, bid, anon });
+      }
+      // highest bid wins; a tie goes to the shorter notice, then to the lower player number
+      bids.sort((x, y) => y.bid - x.bid || x.text.length - y.text.length || x.p.id - y.p.id);
+      const win = bids.slice(0, PR.adSlots), lose = bids.slice(PR.adSlots);
+      const top = lose.reduce((m, x) => Math.max(m, x.bid), 0), out = [];
+      for (const x of win) {
+        const price = Math.max(PR.adMin, Math.min(x.bid, top ? top + 1 : PR.adMin)), cost = price + (x.anon ? PR.adAnon : 0);
+        x.p.credits -= cost;
+        rep(x.p.id, 'diplomacy', `Your notice is printed in this month's newspaper${x.anon ? ', unsigned' : ''}: ${cost} credits (${price} for the space${x.anon ? ` and ${PR.adAnon} to print it anonymously` : ''}).`);
+        out.push({ by: x.anon ? null : x.p.id, text: x.text });
+      }
+      for (const x of lose) rep(x.p.id, 'diplomacy', `Your bid of ${x.bid} for newspaper space was outbid; nothing was charged.`);
+      return out;
+    }
+    function leak() {
+      const UNOUN = { infantry: ['infantry regiment', 'infantry regiments'], cavalry: ['cavalry regiment', 'cavalry regiments'], artillery: ['artillery battery', 'artillery batteries'], merchantman: ['merchantman', 'merchantmen'], supplyTruck: ['supply truck', 'supply trucks'] };
+      const noun = (k, n) => { const x = UNOUN[k] || [U[k].name.toLowerCase(), `${U[k].name.toLowerCase()}s`]; return n === 1 ? x[0] : x[1]; };
+      const WORD = (n) => ['NO', 'ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN', 'ELEVEN', 'TWELVE'][n] || String(n);
+      const facts = (p) => {
+        const t = tr(p.id), X = UP(p.name), war = S.wars.some((w) => w.a === p.id || w.b === p.id), W = (peace, atWar) => (war ? atWar : peace), out = [];
+        const wars = [...new Set(S.wars.filter((w) => w.a === p.id || w.b === p.id).map((w) => w.name).filter(Boolean))];
+        const built = Object.entries(t.built).filter(([k, n]) => U[k] && U[k].role === 'combat' && (n >= 2 || U[k].cls === 'ship')).sort((a, b) => b[1] - a[1]);
+        if (built.length) { const [k, n] = built[0]; out.push({ w: W(3, 4), head: `${X} ${U[k].cls === 'ship' ? 'LAUNCHES' : 'RAISES'} ${WORD(n)} NEW ${UP(noun(k, n))}`, body: `${p.name} built ${n} new ${noun(k, n)} this month, our correspondent has learned.` }); }
+        if (t.lost) out.push({ w: W(2, 5), head: t.lost >= 3 ? `HEAVY LOSSES FOR ${X}` : `${X} LOSES ${WORD(t.lost)} UNIT${t.lost > 1 ? 'S' : ''}`, body: `${p.name} lost ${t.lost} unit${t.lost > 1 ? 's' : ''} this month${wars.length ? ` in ${wars.join(' and ')}` : ''}, according to sources close to its army.` });
+        if (t.hungry) out.push({ w: W(2, 4), head: `${X} TROOPS SUFFER ON POOR RATIONS`, body: `${t.hungry} of ${p.name}'s units went without food this month. Soldiers' letters home speak of empty mess tins.` });
+        if (t.noAmmo) out.push({ w: W(2, 5), head: `${X} RUNS DRY ON AMMUNITION`, body: `${t.noAmmo} of ${p.name}'s units ran out of ammunition this month. How will its boys fight without bullets?` });
+        if (t.designs.length) { const d = designPress(t.designs[0], p); out.push({ w: 3, head: d.head, body: d.body }); }
+        if (t.researched.length) out.push({ w: W(2, 1), head: `${X} SCIENTISTS MASTER THE ${UP(t.researched[0])}`, body: `${p.name} has quietly researched the ${t.researched[0].toLowerCase()}.` });
+        const debt = S.loans.filter((l) => l.borrower === p.id && l.kind !== 'reparations').sort((a, b) => b.balance - a.balance)[0];
+        if (debt) out.push({ w: W(3, 2), head: `${X} DEEP IN DEBT TO ${UP(pname(debt.lender))}`, body: `${p.name} owes ${pname(debt.lender)} ${Math.round(debt.balance)} credits, according to papers seen by this newspaper.` });
+        if (t.idle >= 3) out.push({ w: W(2, 1), head: `IDLE FACTORIES IN ${X}`, body: `${t.idle} of ${p.name}'s buildings stood idle this month for want of workers or materials.` });
+        const mun = citiesOf(S, p.id).reduce((a, c) => a + (c.stock.ammo || 0) + (c.stock.smallArms || 0), 0), was = p.munSnap;
+        if (was != null && mun >= 40 && mun >= was * 1.5) out.push({ w: W(3, 3), head: `${X} QUIETLY HOARDING MUNITIONS`, body: `${p.name}'s stores of ammunition and small arms have grown to ${Math.round(mun)}, our correspondent reports.` });
+        return out;
+      };
+      const cand = active.filter((p) => !p.eliminated).map((p) => [p, facts(p)]).filter(([, f]) => f.length);
+      for (const p of active) p.munSnap = citiesOf(S, p.id).reduce((a, c) => a + (c.stock.ammo || 0) + (c.stock.smallArms || 0), 0);
+      const pool = cand.length > 1 ? cand.filter(([p]) => p.id !== S.lastScoop) : cand;
+      if (!pool.length) { S.lastScoop = null; return null; }
+      const [p, f] = pick(pool);
+      let r = press() * f.reduce((a, x) => a + x.w, 0), fact = f[0];
+      for (const x of f) { r -= x.w; if (r < 0) { fact = x; break; } }
+      S.lastScoop = p.id;
+      rep(p.id, 'diplomacy', 'Information vital to national security has been leaked in the press.');
+      return { nation: p.id, head: fact.head, body: fact.body };
+    }
     // tax-office income feeds each nation's borrowing limit (the last 12 turns)
     for (const p of active) { p.taxHistory = (p.taxHistory || []).concat([taxThisTurn[p.id] || 0]).slice(-LN.incomeTurns); }
     /* ----- end of turn ----- */
-    S.news = (S.news || []).concat([{ turn, sections: paper, rankings: rankings(S) }]).slice(-R.HISTORY.newsTurns);
+    S.news = (S.news || []).concat([issue]).slice(-R.HISTORY.newsTurns);
     const alive = S.players.filter((p) => !p.eliminated);
     if (alive.length === 1) S.gameOver = { turn, winners: [alive[0].id], reason: `${alive[0].name} is the last nation standing.` };
     else if (alive.length > 1 && alive.every((p) => p.endVote) && !alive.some((a) => alive.some((b) => atWar(S, a.id, b.id)))) {
@@ -4021,7 +4322,7 @@ const Engine = ((R) => {
     R, newGame, resolveTurn, normalizeOrders, migrate, computePrices, worldTotals, makeRng,
     hex: { idx, colRow, dirs, nbrs, dist, within },
     q: {
-      alliesOf, allied, debtOwed, owedTo, netWealth, avgHist, financialWeight, tilesHeld, rankings,
+      dateText, designPress, autoWarName, warNameOf, cleanWarName, alliesOf, allied, debtOwed, owedTo, netWealth, avgHist, financialWeight, tilesHeld, rankings,
       incomeAvg, unrestOn, unrestLeft, loanParams, taxAdjOf, domesticDebt, debtRatio, penaltyNow, newLoanRate, loanRateNow, loanInterest, loanDueNow, borrowLimit, checkBorrow, loanPayment, intlInterest, intlDueNow, loansOf, debtService, checkLoanTerms,
       queueable, cleanQueue, cleanKeep, cleanRecurring, cityOrderOf, keepOf, queueShortfall, estimatePay,
       cityById, unitById, cityAt, unitsAt, cityBuildings, countB, tileBuilding, tileOwner, tileOwnerCity, citiesOf, unitsOf, unitName,
@@ -4216,7 +4517,7 @@ function queuePreview(c) {
     return { state: 'ready', text: 'can be built this turn' };
   });
 }
-function draftCount(d) { return ['attacks', 'sabotage', 'moves', 'board', 'unload', 'buys', 'sells', 'research', 'designs', 'dump', 'disband', 'demolish', 'clear', 'builds', 'trains', 'found', 'cargo', 'routeOps', 'diplo', 'finance'].reduce((n, k) => n + (d[k] || []).length, 0) + (d.settings && (d.settings.priority || d.settings.mobilize || d.settings.supplyPriority || ['products', 'halt', 'labor', 'fuel', 'doctrine'].some((k) => d.settings[k] && Object.keys(d.settings[k]).length)) ? 1 : 0) + (standingChanged(d) ? 1 : 0); }
+function draftCount(d) { return (d.ad ? 1 : 0) + ['attacks', 'sabotage', 'moves', 'board', 'unload', 'buys', 'sells', 'research', 'designs', 'dump', 'disband', 'demolish', 'clear', 'builds', 'trains', 'found', 'cargo', 'routeOps', 'diplo', 'finance'].reduce((n, k) => n + (d[k] || []).length, 0) + (d.settings && (d.settings.priority || d.settings.mobilize || d.settings.supplyPriority || ['products', 'halt', 'labor', 'fuel', 'doctrine'].some((k) => d.settings[k] && Object.keys(d.settings[k]).length)) ? 1 : 0) + (standingChanged(d) ? 1 : 0); }
 // goods and manpower already committed by this turn's orders, per city
 function reserved(cityId) {
   const d = draft(), goods = {};
@@ -4302,12 +4603,32 @@ function computeHL() {
   for (const t of Q.attackTargets(S, u)) hl.attack.add(t);
 }
 
+// Unit icons: white silhouettes inside the nation-coloured token (combat circle, logistics plate); ships are drawn
+// as the hull with their rig or superstructure. Custom designs use their base model's icon.
+const UNIT_ICONS = {
+  infantry: (c) => `<path d="M-5.5,1.5 A5.5,5.2 0 0 1 5.5,1.5 Z" fill="${c}"/><path d="M-7.5,1.8 L7.5,1.8" stroke="${c}" stroke-width="1.8" stroke-linecap="round"/><path d="M-3,1.8 L-3,4.5 M3,1.8 L3,4.5" stroke="${c}" stroke-width="1.1"/>`,
+  cavalry: (c) => `<path d="M-4.5,5.5 L-4.5,-0.5 A4.5,4.5 0 0 1 4.5,-0.5 L4.5,5.5" fill="none" stroke="${c}" stroke-width="2.6" stroke-linecap="round"/><circle cx="-4.5" cy="1.5" r=".7" fill="#141a16"/><circle cx="4.5" cy="1.5" r=".7" fill="#141a16"/>`,
+  artillery: (c) => `<path d="M-4,2 L6.5,-4.5" stroke="${c}" stroke-width="2.6" stroke-linecap="round"/><circle cx="-2.5" cy="3" r="3.3" fill="none" stroke="${c}" stroke-width="1.5"/><circle cx="-2.5" cy="3" r=".9" fill="${c}"/>`,
+  tank: (c) => `<rect x="-7.5" y="0" width="15" height="5" rx="2.5" fill="${c}"/><rect x="-3.5" y="-4" width="7" height="4.2" rx="1" fill="${c}"/><path d="M3,-2 L8.5,-2" stroke="${c}" stroke-width="1.6"/><path d="M-5,2.5 L5,2.5" stroke="#141a16" stroke-width=".8" stroke-dasharray="1.2 1.3"/>`,
+  caravan: (c) => `<path d="M-7,1.5 Q-7,-5.5 0,-5.5 Q7,-5.5 7,1.5 Z" fill="${c}"/><circle cx="-4" cy="3.3" r="1.9" fill="${c}"/><circle cx="4" cy="3.3" r="1.9" fill="${c}"/>`,
+  supplyTruck: (c) => `<rect x="-8" y="-4.5" width="10" height="6.5" fill="${c}"/><path d="M2.8,-2.5 L6,-2.5 L8,0 L8,2 L2.8,2 Z" fill="${c}"/><circle cx="-5" cy="3.4" r="1.8" fill="${c}"/><circle cx="5" cy="3.4" r="1.8" fill="${c}"/>`,
+  train: (c) => `<rect x="-8" y="-2" width="10" height="5" rx="1" fill="${c}"/><rect x="2" y="-5" width="5.5" height="8" fill="${c}"/><rect x="-6.5" y="-5.5" width="2.6" height="3.6" fill="${c}"/><circle cx="-5" cy="4" r="1.6" fill="${c}"/><circle cx="-1" cy="4" r="1.6" fill="${c}"/><circle cx="4.5" cy="4" r="1.6" fill="${c}"/>`,
+};
+// ship tokens: hull plus rig, filled in the nation's colour
+const SHIP_ICONS = {
+  frigate: (f, k) => `<path d="M-1,-5 L-1,-15 M5,-5 L5,-12" stroke="${k}" stroke-width="1"/><path d="M-1.5,-14.5 L-8,-6 L-1.5,-6 Z M4.5,-11.5 L0.5,-6 L4.5,-6 Z" fill="${f}" stroke="${k}" stroke-width=".9"/>`,
+  warship: (f, k) => `<rect x="-6" y="-9" width="9" height="4.5" fill="${f}" stroke="${k}" stroke-width=".9"/><rect x="-3.5" y="-13" width="3" height="4.5" fill="${f}" stroke="${k}" stroke-width=".9"/><path d="M3,-7.5 L10,-9" stroke="${k}" stroke-width="1.6"/>`,
+  merchantman: (f, k) => `<path d="M0,-5 L0,-15" stroke="${k}" stroke-width="1"/><path d="M-0.5,-14.5 L-7.5,-6 L-0.5,-6 Z" fill="${f}" stroke="${k}" stroke-width=".9"/><rect x="2" y="-8.5" width="5" height="3.5" fill="${f}" stroke="${k}" stroke-width=".9"/>`,
+  freighter: (f, k) => `<rect x="2" y="-10" width="5" height="5" fill="${f}" stroke="${k}" stroke-width=".9"/><rect x="3.3" y="-13.5" width="2.4" height="3.5" fill="${k}"/><rect x="-7" y="-8" width="4" height="3" fill="${f}" stroke="${k}" stroke-width=".8"/><rect x="-2.5" y="-8" width="4" height="3" fill="${f}" stroke="${k}" stroke-width=".8"/>`,
+};
+const iconMode = () => { if (UI.unitLabels == null) { try { UI.unitLabels = localStorage.getItem('gpc-unit-labels') || 'icons'; } catch (e) { UI.unitLabels = 'icons'; } } return UI.unitLabels; };
 function unitToken(u, x, y, small) {
   const d = UNI[u.type], col = pcol(u.owner), fg = textOn(col);
   const hp = u.hp / d.hp;
   const ring = u.id === (UI.sel && UI.sel.unit) ? '<circle r="13" fill="none" stroke="#fff" stroke-width="2.2"/>' : '';
   let shape;
-  if (d.cls === 'ship') shape = `<path d="M-11,-5 L11,-5 L7,6 L-7,6 Z" fill="${col}" stroke="#141a16" stroke-width="1.2"/>`;
+  const icons = iconMode() === 'icons';
+  if (d.cls === 'ship') shape = `${icons && SHIP_ICONS[u.type] ? SHIP_ICONS[u.type](col, '#141a16') : ''}<path d="M-11,-5 L11,-5 L7,6 L-7,6 Z" fill="${col}" stroke="#141a16" stroke-width="1.2"/>`;
   else if (d.role === 'logistic') shape = `<rect x="${small ? -8 : -10}" y="-6" width="${small ? 16 : 20}" height="12" rx="2.5" fill="${col}" stroke="#141a16" stroke-width="1.1"/>`;
   else shape = `<circle r="${small ? 7 : 9.5}" fill="${col}" stroke="#141a16" stroke-width="1.3"/>`;
   const bar = hp < 1 ? `<rect x="-9" y="${small ? 8 : 10}" width="18" height="3" fill="#1e2620"/><rect x="-9" y="${small ? 8 : 10}" width="${(18 * Math.max(0, hp)).toFixed(1)}" height="3" fill="${hp > 0.5 ? '#6fbf7f' : hp > 0.25 ? '#e2b33c' : '#d6463e'}"/>` : '';
@@ -4322,7 +4643,8 @@ function unitToken(u, x, y, small) {
     if (lvl) badges += `<g transform="translate(-16,-9)"><title>Entrenched, level ${lvl} (−${lvl * 10}% damage taken)</title><rect x="-5" y="-4.5" width="15" height="9" rx="2" fill="#5a4326" stroke="#141a16" stroke-width="0.6"/><path d="M-3.2,-1.8 L-3.2,2 L2.2,2 L2.2,-1.8" fill="none" stroke="#e8d9b0" stroke-width="1.2"/><text class="tok" x="6" fill="#fff" style="font-size:7px">${lvl}</text></g>`;
     if (Q.blitzing(S, u)) badges += `<g transform="translate(14,-9)"><title>Mobile warfare: moved last turn (+25% damage)</title><circle r="5" fill="#f2d37a" stroke="#141a16" stroke-width="0.6"/><path d="M0.9,-3.6 L-2.1,0.6 L-0.1,0.6 L-0.9,3.6 L2.1,-0.6 L0.1,-0.6 Z" fill="#141a16"/></g>`;
   }
-  return `<g transform="translate(${x.toFixed(1)},${y.toFixed(1)})">${ring}${shape}<text class="tok" fill="${fg}" style="font-size:${small ? 7.5 : 9}px">${d.abbr}</text>${bar}${cargo}${badges}</g>`;
+  const label = icons && UNIT_ICONS[u.type] ? `<g transform="scale(${small ? 0.85 : 1})">${UNIT_ICONS[u.type](fg)}</g>` : icons && d.cls === 'ship' ? '' : `<text class="tok" fill="${fg}" style="font-size:${small ? 7.5 : 9}px">${d.abbr}</text>`;
+  return `<g transform="translate(${x.toFixed(1)},${y.toFixed(1)})"><title>${esc(Q.unitName(u))}</title>${ring}${shape}${label}${bar}${cargo}${badges}</g>`;
 }
 
 function buildMapSvg(kind) {
@@ -4767,9 +5089,17 @@ function mapBlock(kind) {
   const { body } = buildMapSvg(kind), V = UI.views[kind];
   return `<svg data-map="${kind}" viewBox="${V.x} ${V.y} ${V.w} ${V.h}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${kind === 'flow' ? 'Resource flow map' : 'Game map'}">${body}</svg>`;
 }
+function legendToken(k) {
+  const d = UNI[k], col = '#6d7a70', fg = '#fff';
+  const shape = d.cls === 'ship' ? `${SHIP_ICONS[k] ? SHIP_ICONS[k](col, '#141a16') : ''}<path d="M-11,-5 L11,-5 L7,6 L-7,6 Z" fill="${col}" stroke="#141a16" stroke-width="1.2"/>`
+    : d.role === 'logistic' ? `<rect x="-10" y="-6" width="20" height="12" rx="2.5" fill="${col}" stroke="#141a16" stroke-width="1.1"/>${UNIT_ICONS[k] ? UNIT_ICONS[k](fg) : ''}`
+      : `<circle r="9.5" fill="${col}" stroke="#141a16" stroke-width="1.3"/>${UNIT_ICONS[k] ? UNIT_ICONS[k](fg) : ''}`;
+  return `<svg class="ltok" viewBox="-12 -16 24 24" width="22" height="22" style="width:22px;height:22px" aria-hidden="true">${shape}</svg>`;
+}
 function legendHtml() {
   return `<div class="legend">${Object.entries(RR.TILES).map(([, t]) => `<span><i style="background:${t.color}"></i>${t.name}${t.glyph ? ` ${t.glyph}` : ''}</span>`).join('')}
-    <span>■ City (HP below)</span><span>● Combat unit</span><span>▬ Logistics unit</span><span>⛵ Ship (hull shape)</span></div>`;
+    <span>■ City (HP below)</span><span>● Combat unit</span><span>▬ Logistics unit</span><span>⛵ Ship (hull shape)</span>
+    ${iconMode() === 'icons' ? Object.keys(UNI).map((k) => `<span>${legendToken(k)}${esc(UNI[k].name)}</span>`).join('') : ''}</div>`;
 }
 const TAB_RENDER = {};
 TAB_RENDER.map = function () {
@@ -4781,7 +5111,7 @@ TAB_RENDER.map = function () {
     modebar = `<div class="modebar">${what}<button class="btn small" data-act="cancel-mode">${md.key === 'railroad' || md.kind === 'cede' ? 'Done' : 'Cancel'}</button></div>`;
   }
   return `<div class="split"><div class="mapwrap">${mapBlock('main')}
-      <div class="maptools"><button class="btn small" data-act="zoom" data-k="0.8" aria-label="Zoom in">+</button><button class="btn small" data-act="zoom" data-k="1.25" aria-label="Zoom out">−</button><button class="btn small" data-act="fit" data-kind="main">Whole map</button><button class="btn small ph-hide" data-act="legend">${UI.legend ? 'Hide' : 'Show'} legend</button></div>
+      <div class="maptools"><button class="btn small" data-act="zoom" data-k="0.8" aria-label="Zoom in">+</button><button class="btn small" data-act="zoom" data-k="1.25" aria-label="Zoom out">−</button><button class="btn small" data-act="fit" data-kind="main">Whole map</button><button class="btn small ph-hide" data-act="legend">${UI.legend ? 'Hide' : 'Show'} legend</button><button class="btn small" data-act="unit-labels" title="Show units as icons or letters">${iconMode() === 'icons' ? 'Unit letters' : 'Unit icons'}</button></div>
       ${modebar}${UI.legend ? legendHtml() : ''}</div>
     <aside class="side sheet-${UI.mode ? 'min' : UI.sel ? (UI.sheet || 'half') : (UI.sheetIdle || 'min')}"><div class="sheethandle ph-only"><button class="grab" data-act="sheet" aria-label="Resize panel"><i></i></button>${UI.sel ? '<button class="x" data-act="sheet-close" aria-label="Close panel">✕</button>' : ''}</div>${sidePanel()}</aside></div>`;
 };
@@ -5131,7 +5461,7 @@ TAB_RENDER.today = function () {
       ${Q.unrestOn(S, UI.me) ? `<li><span class="warn">Unrest until turn ${p.unrestUntil}: housing −0.3, goods −10%</span></li>` : ''}
       ${Q.loansOf(S, UI.me).filter((l) => l.borrower === UI.me && l.missed).map((l) => `<li><span class="warn">Missed a payment to ${esc(pname(l.lender))}: another miss is a default</span></li>`).join('')}</ul>
       <button class="btn small" data-act="tab" data-tab="government">Finance</button></div>` : ''}
-    ${issue ? `<div class="panel"><h3 style="margin-top:0">Newspaper <span class="small muted">turn ${issue.turn}</span></h3><p class="small">${(() => { const n = Object.values(issue.sections).reduce((a, l) => a + l.length, 0); const top = issue.sections.war[0] || issue.sections.peace[0] || issue.sections.alliances[0] || issue.sections.government[0] || issue.sections.finance[0] || issue.sections.technology[0]; return top ? `${esc(top)}${n > 1 ? ` <span class="muted">And ${n - 1} more stor${n === 2 ? 'y' : 'ies'}.</span>` : ''}` : 'A quiet turn.'; })()}</p><div class="row"><button class="btn small" data-act="tab" data-tab="news">Read the newspaper</button><button class="btn small" data-act="tab" data-tab="history">History</button></div></div>` : ''}
+    ${issue ? `<div class="panel"><h3 style="margin-top:0">Newspaper <span class="small muted">${esc(issue.date || Q.dateText(issue.turn))}</span></h3><p class="small">${(() => { const top = (issue.stories || [])[0]; const n = (issue.stories || []).length; return top ? `<b>${esc(top.head || top.body)}</b>${n > 1 ? ` <span class="muted">And ${n - 1} more stor${n === 2 ? 'y' : 'ies'}.</span>` : ''}` : 'A quiet month.'; })()}</p><div class="row"><button class="btn small" data-act="tab" data-tab="news">Read the newspaper</button><button class="btn small" data-act="tab" data-tab="history">History</button></div></div>` : ''}
     <div class="panel"><h3 style="margin-top:0">Needs attention <span class="small muted">from last turn</span></h3><ul class="list">${alert.slice(0, 8).map(li).join('') || '<li class="muted">Nothing went wrong last turn.</li>'}</ul>
       ${alert.length > 8 ? `<p class="small muted">And ${alert.length - 8} more.</p>` : ''}<button class="btn small" data-act="tab" data-tab="reports">All reports</button></div>
     <div class="panel"><h3 style="margin-top:0">Building queues</h3>${built.length ? `<ul class="list">${built.slice(0, 6).map(li).join('')}</ul>` : ''}
@@ -5553,6 +5883,7 @@ function peaceBuilder() {
     <p class="small muted">Set out your demands (what ${esc(them.name)} gives) and anything you offer in return. If ${esc(them.name)} accepts within ${n} turn${n === 1 ? '' : 's'}, the terms are carried out and there is no war; otherwise war begins on turn ${S.turn + n}. You can withdraw it before then. Every nation is told.</p>
     <div class="cols" style="grid-template-columns:1fr 1fr;gap:12px">${side('get', pd.to)}${side('give', UI.me)}</div>
     <label style="display:block;margin:8px 0">Message (optional, not enforced) <input type="text" maxlength="300" style="width:100%" data-chg="ult-note" value="${esc(pd.note || '')}"></label>
+    <label style="display:block;margin:8px 0">Name of the war, if it comes (optional; otherwise the newspaper names it) <input type="text" maxlength="${RR.PRESS.warNameMax}" style="width:100%" data-chg="ult-name" value="${esc(pd.name || '')}"></label>
     <div class="row"><button class="btn" data-act="pc-pick">Pick tiles on the map</button><button class="btn danger" data-act="ult-send">Send ultimatum</button><button class="btn" data-act="pc-close">Cancel</button></div></div>`;
   }
   return `<div class="panel" id="peace-builder"><h3 style="margin-top:0">Treaty with ${playerLabel(pd.to)}</h3>
@@ -5570,7 +5901,7 @@ TAB_RENDER.diplomacy = function () {
   const pact = (x) => S.treaties.find((t) => t.type === 'peace' && ((t.a === UI.me && t.b === x.id) || (t.b === UI.me && t.a === x.id)));
   const rel = (x) => {
     if (x.eliminated) return '<span class="tag">Out of the game</span>';
-    if (Q.atWar(S, UI.me, x.id)) return '<span class="tag war">At war</span>';
+    if (Q.atWar(S, UI.me, x.id)) return `<span class="tag war">At war</span>${Q.warNameOf(S, UI.me, x.id) ? `<div class="small muted">${esc(Q.warNameOf(S, UI.me, x.id))}</div>` : ''}`;
     const pc = pact(x);
     if (pc) return `<span class="tag ok">Peace treaty</span><div class="small muted">no war before turn ${pc.endsTurn}</div>`;
     return '<span class="tag ok">At peace</span>';
@@ -5583,7 +5914,7 @@ TAB_RENDER.diplomacy = function () {
     acts.push(queued((o) => o.type === 'propose' && o.kind === 'peace' && o.to === x.id) ? '<span class="tag brass">Peace offered</span>' : `<button class="btn small" data-act="pc-open" data-to="${x.id}">${war ? 'Propose peace…' : 'Offer peace treaty…'}</button>`);
     if (!war && !pact(x)) {
       const decErr = Q.checkDeclare(S, UI.me, x.id), pendU = (S.ultimatums || []).some((u) => u.from === UI.me && u.to === x.id);
-      if (queued((o) => o.type === 'declare' && o.to === x.id)) acts.push('<span class="tag war">War declared this turn</span>');
+      if (queued((o) => o.type === 'declare' && o.to === x.id)) { const o = d.diplo.find((y) => y.type === 'declare' && y.to === x.id); acts.push(`<span class="tag war">War declared this turn</span><input type="text" maxlength="${RR.PRESS.warNameMax}" class="warname" placeholder="Name the war (optional)" data-chg="war-name" data-to="${x.id}" value="${esc(o.name || '')}" aria-label="Name of the war">`); }
       else if (!decErr) acts.push(`<button class="btn small danger" data-act="declare" data-to="${x.id}">Declare war</button>`);
       if (queued((o) => o.type === 'ultimatum' && o.to === x.id)) acts.push('<span class="tag war">Ultimatum queued</span>');
       else if (!pendU) acts.push(`<button class="btn small danger" data-act="ult-open" data-to="${x.id}" title="${esc(decErr || '')}">Send ultimatum…</button>`);
@@ -5614,7 +5945,7 @@ TAB_RENDER.diplomacy = function () {
     <div class="ledger" style="margin-top:14px"><table class="cards"><thead><tr><th>Nation</th><th>Status</th><th>Government</th><th>Treaties</th><th>Mobilization</th><th>Size</th><th>Actions</th></tr></thead><tbody>${rows}</tbody></table></div>
     <div class="cols" style="margin-top:16px">
       <div class="panel"><h3 style="margin-top:0">Answer this turn</h3><ul class="list">${callsIn}${ultIn}${incoming || (ultIn || callsIn ? '' : '<li class="muted">Nothing to answer.</li>')}</ul><h4>Waiting on others</h4><ul class="list">${ultOut}${outgoing || (ultOut ? '' : '<li class="muted">None</li>')}</ul></div>
-      <div class="panel"><h3 style="margin-top:0">Wars and treaties</h3><ul class="list">${S.wars.map((w) => `<li>${playerLabel(w.a)} vs ${playerLabel(w.b)}<span class="small muted">since turn ${w.since}</span></li>`).join('') || '<li class="muted">No wars.</li>'}
+      <div class="panel"><h3 style="margin-top:0">Wars and treaties</h3><ul class="list">${S.wars.map((w) => `<li><span>${playerLabel(w.a)} vs ${playerLabel(w.b)}${w.name ? `<br><b class="small">${esc(w.name)}</b>` : ''}</span><span class="small muted">since turn ${w.since}</span></li>`).join('') || '<li class="muted">No wars.</li>'}
         ${ults.map((u) => `<li>${playerLabel(u.from)} → ${playerLabel(u.to)}<span class="small muted">ultimatum, war on turn ${u.deadline} unless accepted</span></li>`).join('')}
         ${S.treaties.filter((t) => t.type === 'peace').map((t) => `<li>${playerLabel(t.a)} and ${playerLabel(t.b)}<span class="small muted">peace, no war before turn ${t.endsTurn}</span></li>`).join('')}
         ${S.treaties.filter((t) => t.type === 'alliance').map((t) => `<li>${playerLabel(t.a)} and ${playerLabel(t.b)}<span class="small muted">defensive alliance${t.endsTurn ? `, ends turn ${t.endsTurn}` : ''}</span></li>`).join('')}
@@ -5650,7 +5981,7 @@ function orderGroups() {
   const G = [];
   const add = (phase, list, i, text) => { let g = G.find((x) => x.phase === phase); if (!g) { g = { phase, items: [] }; G.push(g); } g.items.push({ list, i, text }); };
   d.diplo.forEach((o, i) => {
-    const t = o.type === 'declare' ? `Declare war on ${pname(o.to)}`
+    const t = o.type === 'declare' ? `Declare war on ${pname(o.to)}${o.name ? ` (${o.name})` : ''}`
       : o.type === 'propose' && o.kind === 'loan' ? `${o.payload.lend ? 'Offer' : 'Ask for'} a loan of ${o.payload.amount} credits at ${o.payload.rate}% over ${o.payload.term} turns ${o.payload.lend ? 'to' : 'from'} ${pname(o.to)}` : o.type === 'propose' ? `Propose ${o.kind === 'treaty' ? (o.payload.type === 'alliance' ? 'a defensive alliance' : `${o.payload.type} rights`) : o.kind === 'blueprint' ? `selling ${BLD[o.payload.key].name} for ${o.payload.price}` : Q.describeProposal(S, { kind: 'peace', from: UI.me, to: o.to, payload: o.payload })} to ${pname(o.to)}`
         : o.type === 'respond' ? `${o.accept ? 'Accept' : 'Reject'} ${Q.describeProposal(S, S.proposals.find((p) => p.id === o.id) || { kind: '?' })}`
           : o.type === 'credits' ? `Send ${o.amount} credits to ${pname(o.to)}`
@@ -5690,7 +6021,8 @@ function orderGroups() {
   (d.finance || []).forEach((o, i) => add('Loans', 'finance', i, o.op === 'borrow' ? `Take a domestic loan of ${o.amount} credits` : `${o.op === 'payoff' ? 'Pay off' : o.op === 'default' ? 'Default on' : 'Forgive'} loan #${o.loan}`));
   d.cargo.forEach((o, i) => add('Logistics', 'cargo', i, `${uname(o.unit)} ${o.amount > 0 ? 'loads' : 'unloads'} ${Math.abs(o.amount)} ${gl(o.good)}`));
   d.routeOps.forEach((o, i) => add('Logistics', 'routeOps', i, o.op === 'remove' ? `Close route #${o.id}` : o.op === 'update' ? `Change route #${o.id}` : `New route ${cityName(o.from)} → ${destName(o.to)}`));
-  const order = ['Diplomacy', 'Loans', 'Combat', 'Movement', 'Market buys', 'Market sells', 'Research', 'Production', 'Buildings', 'Units', 'Logistics', 'Building queues'];
+  if (d.ad) add('Newspaper', 'ad', 0, `Bid ${d.ad.bid} for a newspaper notice${d.ad.anon ? ` (+${RR.PRESS.adAnon} to print it unsigned)` : ''}: "${d.ad.text}"`);
+  const order = ['Newspaper', 'Diplomacy', 'Loans', 'Combat', 'Movement', 'Market buys', 'Market sells', 'Research', 'Production', 'Buildings', 'Units', 'Logistics', 'Building queues'];
   return G.sort((a, b) => order.indexOf(a.phase) - order.indexOf(b.phase));
 }
 TAB_RENDER.orders = function () {
@@ -5714,6 +6046,7 @@ const ACT = {
   'sheet-close'() { UI.sel = null; UI.mode = null; render(); },
   menu() { UI.menu = !UI.menu; render(); },
   zoom(el) { zoomBy('main', Number(el.dataset.k)); },
+  'unit-labels'() { UI.unitLabels = iconMode() === 'icons' ? 'letters' : 'icons'; try { localStorage.setItem('gpc-unit-labels', UI.unitLabels); } catch (e) { /* not saved */ } render(); },
   'zoom-flow'(el) { zoomBy('flow', Number(el.dataset.k)); },
   fit(el) { fitView(el.dataset.kind); render(); },
   legend() { UI.legend = !UI.legend; render(); },
@@ -5723,7 +6056,7 @@ const ACT = {
   clear(el) { const id = Number(el.dataset.unit), list = el.dataset.list; mutate((d) => { d[list] = d[list].filter((o) => o.unit !== id); }); },
   rm(el) {
     const list = el.dataset.list, i = Number(el.dataset.idx);
-    mutate((d) => { if (list === 'settings') d.settings = null; else d[list].splice(i, 1); });
+    mutate((d) => { if (list === 'settings') d.settings = null; else if (list === 'ad') d.ad = null; else d[list].splice(i, 1); });
   },
   'rm-op'(el) { mutate((d) => d.routeOps.splice(Number(el.dataset.idx), 1)); },
   'clear-all'() { if (confirm('Clear every order for this turn?')) { UI._d = Engine.normalizeOrders({}); saveDraft(); render(); } },
@@ -5812,7 +6145,7 @@ const ACT = {
   'ult-open'(el) { const pd = peaceDraft(Number(el.dataset.to)); pd.ult = true; render(); const pb = $('#peace-builder'); if (pb) pb.scrollIntoView({ block: 'nearest' }); },
   'ult-send'() {
     const pd = UI.peace; const payload = Q.normPeace(Object.assign({}, pd, { term: 0 }));
-    mutate((d) => { d.diplo = d.diplo.filter((o) => !(o.type === 'ultimatum' && o.to === pd.to)); d.diplo.push({ type: 'ultimatum', to: pd.to, payload, note: pd.note || '' }); });
+    mutate((d) => { d.diplo = d.diplo.filter((o) => !(o.type === 'ultimatum' && o.to === pd.to)); d.diplo.push({ type: 'ultimatum', to: pd.to, payload, note: pd.note || '', name: pd.name || '' }); });
     UI.peace = null; toast('Ultimatum queued'); render();
   },
   'ult-cancel'(el) { const id = Number(el.dataset.id); mutate((d) => { if (!d.diplo.some((o) => o.type === 'ultCancel' && o.id === id)) d.diplo.push({ type: 'ultCancel', id }); }); },
@@ -5931,6 +6264,8 @@ const CHG = {
   'rf-prio'(el) { UI.routeEdit.priority = el.value; render(); },
   fuel(el) { const s = settings(); s.fuel = s.fuel || {}; const b = st().buildings.find((x) => x.id === Number(el.dataset.id)); if (b && (b.fuelOn !== false) === el.checked) delete s.fuel[el.dataset.id]; else s.fuel[el.dataset.id] = el.checked; saveDraft(); render(); },
   'ult-note'(el) { if (UI.peace) UI.peace.note = el.value; },
+  'ult-name'(el) { if (UI.peace) UI.peace.name = el.value; },
+  'war-name'(el) { const to = Number(el.dataset.to); const o = draft().diplo.find((y) => y.type === 'declare' && y.to === to); if (o) { o.name = el.value.slice(0, RR.PRESS.warNameMax); saveDraft(); } },
   'ult-accept'(el) { const id = Number(el.dataset.id); mutate((d) => { d.diplo = d.diplo.filter((o) => !(o.type === 'ultAccept' && o.id === id)); if (el.checked) d.diplo.push({ type: 'ultAccept', id }); }); },
   government(el) { const s = settings(); if (el.value === (meP().gov || 'monarchy')) delete s.government; else s.government = el.value; saveDraft(); render(); },
   tax(el) { const s = settings(); if (el.value === (meP().tax || 'normal')) delete s.tax; else s.tax = el.value; saveDraft(); render(); },
@@ -6168,26 +6503,78 @@ TAB_RENDER.history = function () {
 CHG['hist-good'] = (el) => { const L = new Set(UI.histGoods || []); if (el.checked) L.add(el.value); else L.delete(el.value); UI.histGoods = [...L]; render(); };
 
 /* ---------- Newspaper (12 issues) ---------- */
-const NEWS_SECTIONS = [['war', 'War'], ['peace', 'Peace'], ['alliances', 'Alliances'], ['government', 'Governments'], ['finance', 'Finance'], ['mobilization', 'Mobilization'], ['technology', 'Science'], ['market', 'Market prices']];
-const RANK_NAMES = [['financial', 'Financial'], ['army', 'Army'], ['navy', 'Navy'], ['technology', 'Technology'], ['size', 'Size'], ['manufacturing', 'Manufacturing']];
+const RANK_NAMES = [['financial', 'Finance'], ['army', 'Army'], ['navy', 'Navy'], ['technology', 'Science'], ['size', 'Size'], ['manufacturing', 'Manufacturing']];
+const ROMAN = (n) => { let r = ''; for (const [v, x] of [[1000, 'M'], [900, 'CM'], [500, 'D'], [400, 'CD'], [100, 'C'], [90, 'XC'], [50, 'L'], [40, 'XL'], [10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']]) while (n >= v) { r += x; n -= v; } return r; };
+const issueDate = (iss) => iss.date || Q.dateText(iss.turn);
+function storyHtml(x, cls) {
+  return `<section class="story ${cls || ''}">${x.head ? `<h3>${esc(x.head)}</h3>` : ''}<p>${esc(x.body)}</p></section>`;
+}
+function gazette(iss) {
+  const S = st(), list = iss.stories || [];
+  const lead = list[0], war = lead && lead.war && lead.pri >= 100;
+  const major = list.slice(1).filter((x) => x.pri >= 60).slice(0, 2), rest = list.slice(1).filter((x) => !major.includes(x));
+  const season = Q.seasonOf(iss.turn).replace(/^./, (c) => c.toUpperCase());
+  const rk = iss.rankings || {};
+  const ear = war ? 'WAR EXTRA!' : `${season.toUpperCase()} EDITION`;
+  const leadHtml = lead
+    ? `${war ? '<div class="banner">WAR!</div>' : ''}<h2 class="${war ? 'subbanner' : 'banner-head'}">${esc(lead.head || lead.body)}</h2>${lead.head ? `<p class="lead-body">${esc(lead.body)}</p>` : ''}`
+    : '<h2 class="banner-head">ALL QUIET ACROSS THE WORLD</h2><p class="lead-body">No nation made war or peace this month, and the chancelleries report nothing of note.</p>';
+  const boxes = [];
+  if (iss.scoop) boxes.push(`<section class="story box scoop"><div class="kicker">From Our Correspondent</div><h3>${esc(iss.scoop.head)}</h3><p>${esc(iss.scoop.body)}</p></section>`);
+  if ((iss.ads || []).length) boxes.push(`<section class="story box notices"><div class="kicker">Proclamations &amp; Notices</div>${iss.ads.map((a) => `<p class="gz-notice">${esc(a.text)}<span class="sig">— ${a.by == null ? 'Anonymous' : esc(pname(a.by))}</span></p>`).join('')}</section>`);
+  boxes.push(`<section class="story box powers"><div class="kicker">The Great Powers</div><p class="small">The leading nations in each field, best first. Figures are never published.</p>${RANK_NAMES.map(([k, t]) => `<div class="rk"><b>${t}</b><span>${(rk[k] || []).map((pid) => `<span class="${pid === UI.me ? 'me' : ''}">${esc(pname(pid))}</span>`).join(', ') || '<i>none yet</i>'}</span></div>`).join('')}</section>`);
+  if ((iss.market || []).length) boxes.push(`<section class="story box market"><div class="kicker">The Market Report</div><table><thead><tr><th>Good</th><th class="n">Sold</th><th class="n">Price</th></tr></thead><tbody>${iss.market.map((m) => `<tr><td>${GN(m.good)}${m.soldOut ? ' <b>(sold out)</b>' : ''}</td><td class="n">${n2(m.qty)}</td><td class="n">${m.avg}${m.high > m.avg ? `–${m.high}` : ''}</td></tr>`).join('')}</tbody></table></section>`);
+  if (iss.tip) boxes.push(`<section class="story box advice"><div class="kicker">Ask the Quartermaster</div><h3>${esc(iss.tip.head)}</h3><p>${esc(iss.tip.body)}</p></section>`);
+  if (iss.classified) boxes.push(`<section class="story box classified"><div class="kicker">Classified</div><p>${esc(iss.classified)}</p></section>`);
+  return `<article class="gazette" aria-label="The World Gazette, ${esc(issueDate(iss))}">
+    <header class="mast"><div class="ears"><span class="ear">${ear}</span><h1 class="mast-title">The World Gazette</h1><span class="ear">${ear}</span></div>
+      <div class="dateline"><span>Vol. ${ROMAN(Q.yearOf(iss.turn))}</span><span>${esc(issueDate(iss))}</span><span>Price One Credit</span></div></header>
+    <div class="lead">${leadHtml}</div>
+    ${major.length ? `<div class="majors">${major.map((x) => storyHtml(x, 'major')).join('')}</div>` : ''}
+    <div class="flow">${rest.map((x) => storyHtml(x)).join('')}${boxes.join('')}</div>
+  </article>`;
+}
+function adPanel() {
+  const S = st(), p = meP(), d = draft(), PR = RR.PRESS;
+  if (!p || p.eliminated || S.gameOver) return '';
+  const f = UI.adForm || (UI.adForm = { text: '', bid: String(PR.adMin), anon: false });
+  const { err, most } = adCheck(f);
+  return `<div class="panel adpanel"><h3 style="margin-top:0">Place a notice in this month's paper</h3>
+    <p class="small muted">Three notices are printed each month, sold by sealed bid like goods at market: the three highest bids win, and each winner pays 1 credit more than the best losing bid (never more than its own bid, never less than ${PR.adMin}). A tie goes to the shorter notice, then to the lower player number. Printing it unsigned costs ${PR.adAnon} more. Losing bids cost nothing.</p>
+    ${d.ad ? `<p><span class="tag brass">Bidding ${d.ad.bid}${d.ad.anon ? ` + ${PR.adAnon} unsigned` : ''}</span> "${esc(d.ad.text)}" <button class="x" data-act="ad-cancel" aria-label="Withdraw bid">✕</button></p>` : ''}
+    <textarea rows="3" maxlength="${PR.adMaxChars}" data-chg="ad-f" data-f="text" style="width:100%" placeholder="Your notice, up to ${PR.adMaxChars} characters">${esc(f.text)}</textarea>
+    <div class="row"><span class="small muted" id="ad-count">${f.text.length}/${PR.adMaxChars}</span><label>Bid <input type="number" min="${PR.adMin}" step="10" class="w-sm" data-chg="ad-f" data-f="bid" value="${esc(f.bid)}"></label>
+      <label class="ck"><input type="checkbox" data-chg="ad-f" data-f="anon" ${f.anon ? 'checked' : ''}> Print unsigned (+${PR.adAnon})</label>
+      <button class="btn small primary" id="ad-place" data-act="ad-place" ${err ? 'disabled' : ''}>${d.ad ? 'Replace bid' : 'Place bid'}</button></div>
+    <p class="small ${err ? 'warn' : 'muted'}" id="ad-msg">${err || `You pay at most ${most} credits.`}</p></div>`;
+}
 TAB_RENDER.news = function () {
   const S = st(), list = S.news || [];
-  if (!list.length) return '<div class="page"><h2>Newspaper</h2><p class="muted">The first issue comes out when the first turn resolves.</p></div>';
+  if (!list.length) return `<div class="page news"><h2>Newspaper</h2><p class="muted">The first issue comes out when the first month resolves.</p>${adPanel()}</div>`;
   let i = list.findIndex((x) => x.turn === UI.newsTurn); if (i < 0) i = list.length - 1;
-  const iss = list[i];
-  const secs = NEWS_SECTIONS.filter(([k]) => (iss.sections[k] || []).length);
-  const rk = iss.rankings || {};
-  return `<div class="page news"><div class="row" style="justify-content:space-between;align-items:baseline"><h2 style="margin:0">The World Gazette</h2>
-      <span class="row" style="margin:0"><button class="btn small" data-act="news-step" data-d="-1" ${i <= 0 ? 'disabled' : ''} aria-label="Older issue">‹</button>
-      <select data-chg="news-idx" aria-label="Issue">${list.map((x, j) => `<option value="${x.turn}" ${j === i ? 'selected' : ''}>Turn ${x.turn}</option>`).join('')}</select>
-      <button class="btn small" data-act="news-step" data-d="1" ${i >= list.length - 1 ? 'disabled' : ''} aria-label="Newer issue">›</button></span></div>
-    <p class="muted small">Turn ${iss.turn}, ${esc((Q.seasonOf(iss.turn) || '').replace(/^./, (c) => c.toUpperCase()))} of year ${Q.yearOf(iss.turn)}. The last ${RR.HISTORY.newsTurns} issues are kept.</p>
-    <div class="news-cols">
-      ${secs.map(([k, t]) => `<section class="panel"><h3 style="margin-top:0">${t}</h3><ul class="list">${iss.sections[k].map((m) => `<li><span>${esc(m)}</span></li>`).join('')}</ul></section>`).join('') || '<section class="panel"><p class="muted">A quiet turn: nothing to report.</p></section>'}
-      <section class="panel"><h3 style="margin-top:0">Rankings</h3><p class="small muted">The leading half of the nations in each, best first. Figures are never published.</p>
-        <div class="ranks">${RANK_NAMES.map(([k, t]) => `<div><h4>${t}</h4>${(rk[k] || []).length ? `<ol>${rk[k].map((pid) => `<li class="${pid === UI.me ? 'good' : ''}">${esc(pname(pid))}</li>`).join('')}</ol>` : '<p class="small muted">No nation yet.</p>'}</div>`).join('')}</div></section>
-    </div></div>`;
+  return `<div class="page news"><div class="news-nav"><button class="btn small" data-act="news-step" data-d="-1" ${i <= 0 ? 'disabled' : ''} aria-label="Older issue">‹ Older</button>
+      <select data-chg="news-idx" aria-label="Issue">${list.map((x, j) => `<option value="${x.turn}" ${j === i ? 'selected' : ''}>${esc(issueDate(x))}</option>`).join('')}</select>
+      <button class="btn small" data-act="news-step" data-d="1" ${i >= list.length - 1 ? 'disabled' : ''} aria-label="Newer issue">Newer ›</button></div>
+    ${gazette(list[i])}
+    <p class="small muted" style="text-align:center">The last ${RR.HISTORY.newsTurns} issues are kept.</p>
+    ${adPanel()}</div>`;
 };
+function adCheck(f) {
+  const PR = RR.PRESS, p = meP(), bid = Math.floor(Number(f.bid) || 0), most = bid + (f.anon ? PR.adAnon : 0);
+  return { most, err: !f.text.trim() ? 'Write your notice' : bid < PR.adMin ? `The minimum bid is ${PR.adMin}` : most > p.credits ? 'Not enough credits' : '' };
+}
+// typing updates the form in place (a redraw could swallow the click on "Place bid")
+CHG['ad-f'] = (el) => {
+  const f = UI.adForm; if (!f) return;
+  if (el.dataset.f === 'anon') f.anon = el.checked; else f[el.dataset.f] = el.value;
+  const { err, most } = adCheck(f), b = $('#ad-place'), m = $('#ad-msg'), c = $('#ad-count');
+  if (b) b.disabled = !!err;
+  if (m) { m.textContent = err || `You pay at most ${most} credits.`; m.className = `small ${err ? 'warn' : 'muted'}`; }
+  if (c) c.textContent = `${f.text.length}/${RR.PRESS.adMaxChars}`;
+};
+document.addEventListener('input', (e) => { const el = e.target.closest && e.target.closest('[data-chg="ad-f"]'); if (el) CHG['ad-f'](el); });
+ACT['ad-place'] = () => { const f = UI.adForm; mutate((d) => { d.ad = { text: f.text.trim().slice(0, RR.PRESS.adMaxChars), bid: Math.floor(Number(f.bid) || 0), anon: !!f.anon }; }); toast('Newspaper bid queued'); };
+ACT['ad-cancel'] = () => mutate((d) => { d.ad = null; });
 CHG['news-idx'] = (el) => { UI.newsTurn = Number(el.value); render(); };
 ACT['news-step'] = (el) => { const L = st().news || []; let cur = L.findIndex((x) => x.turn === UI.newsTurn); if (cur < 0) cur = L.length - 1; const j = Math.max(0, Math.min(L.length - 1, cur + Number(el.dataset.d))); UI.newsTurn = L[j].turn; render(); };
 
