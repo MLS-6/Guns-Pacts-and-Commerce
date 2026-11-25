@@ -5311,19 +5311,22 @@ TAB_RENDER.government = function () {
   const govReady = Q.govCooldownEnds(S, UI.me), taxReady = Q.taxCooldownEnds(S, UI.me);
   const wantG = st0.government || curG, wantT = st0.tax || curT;
   const pct = (m) => `${m >= 1 ? '+' : '−'}${Math.round(Math.abs(m - 1) * 100)}%`;
+  const LN = RR.LOANS, sign = (v) => (v > 0 ? `+${v}` : v < 0 ? `−${Math.abs(v)}` : '±0');
+  const loanExtra = (p.loans || []).length * LN.perLoan + (Q.unrestOn(S, UI.me) ? LN.defaultFlat + (p.unrestRate || 0) : 0);
+  const nextRate = (gk, tk) => Math.max(0, RR.GOVERNMENTS[gk].loan.base + loanExtra + LN.taxAdj[RR.GOVERNMENTS[gk].fixedTax ? 'normal' : tk]);
   const govRadio = GOV_KEYS.map((k) => {
     const G = RR.GOVERNMENTS[k], dis = k !== curG && S.turn < govReady;
-    return `<label class="ck" style="display:block;margin:6px 0"><input type="radio" name="gov" data-chg="government" value="${k}" ${wantG === k ? 'checked' : ''} ${dis ? 'disabled' : ''}> <b>${G.name}</b>${k === curG ? ' <span class="tag ok">current</span>' : ''}<div class="small muted" style="margin-left:22px">${esc(G.text)}</div></label>`;
+    return `<label class="ck" style="display:block;margin:6px 0"><input type="radio" name="gov" data-chg="government" value="${k}" ${wantG === k ? 'checked' : ''} ${dis ? 'disabled' : ''}> <b>${G.name}</b>${k === curG ? ' <span class="tag ok">current</span>' : ''}<div class="small muted" style="margin-left:22px">${esc(G.text)}</div><div class="small" style="margin-left:22px">Domestic loans: ${G.loan.base}% a year base, up to ${G.loan.months} months of income per loan and ${G.loan.capMonths} in all. Your next loan would cost <b>${nextRate(k, wantT)}%</b>.</div></label>`;
   }).join('');
   const taxRadio = RR.TAX_LEVELS.map((lv) => {
     const t = g.tax[lv], dis = g.fixedTax || (lv !== curT && S.turn < taxReady) || (lv === 'war' && p.mob === 'peace');
     if (g.fixedTax && lv !== 'normal') return '';
-    return `<label class="ck" style="display:block;margin:4px 0"><input type="radio" name="tax" data-chg="tax" value="${lv}" ${wantT === lv ? 'checked' : ''} ${dis ? 'disabled' : ''}> <b>${RR.TAX_NAMES[lv]}</b> <span class="small muted">${t.rate} credits per manpower, housing ${pct(t.mp)}${lv === 'war' ? '; needs partial or full mobilization' : ''}</span>${lv === curT ? ' <span class="tag ok">current</span>' : ''}</label>`;
+    return `<label class="ck" style="display:block;margin:4px 0"><input type="radio" name="tax" data-chg="tax" value="${lv}" ${wantT === lv ? 'checked' : ''} ${dis ? 'disabled' : ''}> <b>${RR.TAX_NAMES[lv]}</b> <span class="small muted">${t.rate} credits per manpower, housing ${pct(t.mp)}, domestic loans ${sign(LN.taxAdj[lv])} point${Math.abs(LN.taxAdj[lv]) === 1 ? '' : 's'} (next loan ${nextRate(wantG, lv)}%)${lv === 'war' ? '; needs partial or full mobilization' : ''}</span>${lv === curT ? ' <span class="tag ok">current</span>' : ''}</label>`;
   }).join('');
   const housing = S.buildings.filter((b) => Q.buildingOwner(S, b) === UI.me && Q.recipeOf(b) && Q.recipeOf(b).mpOut && !b.halted);
   const mpNow = Math.round(housing.reduce((a, b) => a + Q.mpOutOf(S, b), 0) * 10) / 10;
   const taxNow = S.buildings.filter((b) => b.key === 'taxOffice' && Q.buildingOwner(S, b) === UI.me).reduce((a, b) => a + Q.creditsOutOf(S, b), 0);
-  const cmp = `<table class="govtax"><thead><tr><th rowspan="2">Tax rate</th>${GOV_KEYS.map((k) => `<th colspan="2" class="grp">${RR.GOVERNMENTS[k].name}</th>`).join('')}</tr><tr>${GOV_KEYS.map(() => '<th class="n gs">Credits</th><th class="n">Housing</th>').join('')}</tr></thead><tbody>${RR.TAX_LEVELS.map((lv) => `<tr><td>${RR.TAX_NAMES[lv]}</td>${GOV_KEYS.map((k) => { const G = RR.GOVERNMENTS[k], t = G.tax[lv]; return G.fixedTax && lv !== 'normal' ? '<td class="n muted gs">–</td><td class="n muted">–</td>' : `<td class="n gs">${t.rate}</td><td class="n">×${t.mp}</td>`; }).join('')}</tr>`).join('')}</tbody></table>`;
+  const cmp = `<table class="govtax"><thead><tr><th rowspan="2">Tax rate</th><th rowspan="2" class="n" title="Change to the interest rate on domestic loans, for every government">Domestic loans</th>${GOV_KEYS.map((k) => `<th colspan="2" class="grp">${RR.GOVERNMENTS[k].name}</th>`).join('')}</tr><tr>${GOV_KEYS.map(() => '<th class="n gs">Credits</th><th class="n">Housing</th>').join('')}</tr></thead><tbody>${RR.TAX_LEVELS.map((lv) => `<tr><td>${RR.TAX_NAMES[lv]}</td><td class="n">${sign(LN.taxAdj[lv])} pts</td>${GOV_KEYS.map((k) => { const G = RR.GOVERNMENTS[k], t = G.tax[lv]; return G.fixedTax && lv !== 'normal' ? '<td class="n muted gs">–</td><td class="n muted">–</td>' : `<td class="n gs">${t.rate}</td><td class="n">×${t.mp}</td>`; }).join('')}</tr>`).join('')}<tr class="sub"><td>Domestic loans</td><td class="n small">base rate, size</td>${GOV_KEYS.map((k) => { const L = RR.GOVERNMENTS[k].loan; return `<td colspan="2" class="gs small" style="text-align:center">${L.base}% a year; ${L.months} months of income per loan, ${L.capMonths} in all</td>`; }).join('')}</tr></tbody></table>`;
   const feat = [
     ['Change tax rate', (G) => (G.fixedTax ? 'fixed at normal' : `every ${G.taxEvery} turns`)],
     ['Tax offices pay on', (G) => (G.taxOnUse ? 'manpower used in production' : 'manpower housing makes')],
@@ -5331,13 +5334,16 @@ TAB_RENDER.government = function () {
     ['Market sales', (G) => `${Math.round((G.marketSell || RR.MARKET.buyRatio) * 100)}% of the price`],
     ['Production', (G) => (G.production ? `buildings ×${G.production.out} output, ×${G.production.mp} manpower, ×${G.production.inputs} inputs; housing ×${G.housing.out} manpower, ×${G.housing.inputs} food` : 'normal')],
     ['Research', (G) => (G.science ? 'universities and research facilities: 25% fewer credits, a third less manpower' : 'normal')],
-    ['Going to war', (G) => (G.notice ? `ultimatum: ${G.notice} turn${G.notice === 1 ? '' : 's'}' notice` : 'declare war instantly')],
+    ['Going to war', (G) => (G.notice ? `ultimatum: ${G.notice} turn${G.notice === 1 ? "'s" : "s'"} notice` : 'declare war instantly')],
     ['Partial → full mobilization', (G) => `${G.toFullTurns} turns${G.rally ? ' (1 if war is declared on you)' : ''}`],
     ['Land unit pay', (G) => (G.landPay ? `${Math.round((1 - G.landPay) * 100)}% less` : 'normal')],
     ['Changing to it', (G) => (G.fixedTax ? 'upheaval; leaving it causes none' : 'upheaval')],
     ['Settlements', (G) => (G.settlementCut ? `${Math.round(G.settlementCut * 100)}% cheaper` : 'normal')],
     ['Town halls', (G) => (G.costs && G.costs.townHall ? `${Object.entries(G.costs.townHall).map(([g, v]) => `${v} ${g === 'mp' ? 'manpower' : g}`).join(', ')}` : 'normal')],
     ['Extraction manpower', (G) => (G.extractionMp ? `×${G.extractionMp} (not silver or gold mines)` : 'normal')],
+    ['Domestic loan base rate', (G) => `${G.loan.base}% a year`],
+    ['Largest domestic loan', (G) => `${G.loan.months} months of income`],
+    ['All domestic debt', (G) => `up to ${G.loan.capMonths} months of income`],
   ];
   const featT = `<table><thead><tr><th></th>${GOV_KEYS.map((k) => `<th>${RR.GOVERNMENTS[k].name}</th>`).join('')}</tr></thead><tbody>${feat.map(([lab, f]) => `<tr><td>${lab}</td>${GOV_KEYS.map((k) => `<td class="small">${esc(f(RR.GOVERNMENTS[k]))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
   return `<div class="page"><h2>Government</h2><p class="muted">Your government sets your tax rates, how you go to war and how fast you mobilize. Other nations can see your government and tax rate on the Diplomacy tab.</p>
