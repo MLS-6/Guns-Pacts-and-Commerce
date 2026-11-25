@@ -570,16 +570,19 @@ const RULES = (() => {
   const TAX_NAMES = { low: 'Low', normal: 'Normal', high: 'High', war: 'War tax' };
   const GOVERNMENTS = {
     provisional: {
+      loan: { base: 10, months: 3, capMonths: 36 }, // domestic loans: annual base rate %, largest loan and total debt in months of income
       name: 'Provisional Government', taxEvery: 0, fixedTax: true, notice: 0, toFullTurns: 3,
       tax: { low: { rate: 150, mp: 1.0 }, normal: { rate: 150, mp: 1.0 }, high: { rate: 150, mp: 1.0 }, war: { rate: 150, mp: 1.0 } },
       text: 'Every nation starts here. A fixed normal tax (150 credits per manpower, housing ×1.0), war declared instantly, no other effects. Leaving it causes no upheaval.',
     },
     democracy: {
+      loan: { base: 6, months: 6, capMonths: 36 }, // domestic loans: annual base rate %, largest loan and total debt in months of income
       name: 'Democracy', taxEvery: 6, notice: 4, toFullTurns: 3, rally: true, marketSell: 0.9, science: { credits: 0.75, mp: 2 / 3 },
       tax: { low: { rate: 100, mp: 1.2 }, normal: { rate: 150, mp: 1.1 }, high: { rate: 200, mp: 0.9 }, war: { rate: 250, mp: 0.85 } },
       text: 'Most manpower in peacetime, cheaper research (universities and research facilities cost 25% fewer credits and a third less manpower) and 90% of the price for market sales. War needs 4 turns\' notice (an ultimatum) unless the enemy is at war with a partner. If war is declared on it, it reaches full mobilization in 1 turn.',
     },
     monarchy: {
+      loan: { base: 8, months: 4, capMonths: 36 }, // domestic loans: annual base rate %, largest loan and total debt in months of income
       name: 'Monarchy', taxEvery: 4, notice: 1, toFullTurns: 3, settlementCut: 0.25,
       extractionMp: 0.5, // extraction buildings (not silver or gold mines) need half the manpower
       costs: { townHall: { lumber: 23, metal: 8, tools: 6, mp: 3 } }, // town halls about a quarter cheaper
@@ -587,16 +590,26 @@ const RULES = (() => {
       text: 'Holds up best under high and war taxes. War needs 1 turn\'s notice (an ultimatum). Settlements and town halls cost about 25% less, and extraction buildings (not silver or gold mines) need half the manpower.',
     },
     autocracy: {
+      loan: { base: 12, months: 3, capMonths: 36 }, // domestic loans: annual base rate %, largest loan and total debt in months of income
       name: 'Autocracy', taxEvery: 2, notice: 0, toFullTurns: 2, landPay: 0.75,
       tax: { low: { rate: 130, mp: 1.0 }, normal: { rate: 200, mp: 0.9 }, high: { rate: 250, mp: 0.8 }, war: { rate: 350, mp: 0.75 } },
       text: 'Most credits, least manpower. Declares war instantly, mobilizes in 2 turns, and pays land units 25% less.',
     },
     communism: {
+      loan: { base: 15, months: 2, capMonths: 12 }, // domestic loans: annual base rate %, largest loan and total debt in months of income
       name: 'Communism', taxEvery: 3, notice: 0, toFullTurns: 3, landPay: 0.65, marketSell: 0.6, fullMpCut: 0.1, taxOnUse: true,
       production: { out: 2, mp: 3, inputs: 2.5 }, housing: { out: 1.5, inputs: 2.5 },
       tax: { low: { rate: 65, mp: 1.1 }, normal: { rate: 110, mp: 1.0 }, high: { rate: 150, mp: 0.9 }, war: { rate: 185, mp: 0.85 } },
       text: 'A planned economy: every production and extraction building makes 2× its output but needs 3× the manpower and 2.5× the inputs; housing makes 1.5× the manpower and eats 2.5× the food. Tax offices pay for manpower used in production, not manpower made. Market sales pay only 60%. Land units cost 35% less, full mobilization costs only 10% of manpower, and war is declared instantly.',
     },
+  };
+  // Loans. Domestic: 12-turn bonds (interest each turn, face value on the last turn), paid before anything else.
+  // Income = average tax-office income over the last 12 turns. Rates are annual percentages.
+  const LOANS = {
+    term: 12, incomeTurns: 12, perLoan: 1, taxAdj: { low: -1, normal: 0, high: 2, war: 4 },
+    defaultFlat: 10, penaltyCap: 30, maxRatePenalty: 30, step: 0.1, // 1 turn and +1 point per 10% of yearly income defaulted
+    unrestMp: 0.3, unrestGoods: 0.1,
+    intl: { maxTerm: 60, maxRate: 100, missedToDefault: 2 },
   };
   // Standing orders: building queues (per city) and recurring market orders (per nation)
   const QUEUE = { perCity: 10 };
@@ -671,7 +684,7 @@ const RULES = (() => {
 
   return {
     GOODS, GOOD_NAMES, GOOD_COLORS, BASE_PRICE, MARKET, SPECIAL_STORAGE, TILES, BUILDINGS, UNITS, DAMAGE, WEAPON_AMMO, WEAPON_RANGE,
-    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, TAX_LEVELS, TAX_NAMES, GOVERNMENTS, GOV_KEYS, GOV_CHANGE, QUEUE, RECURRING, SETTLEMENT_MONARCHY, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, QUALITY_DAMAGE, WINTER_ATTRITION, SUMMER_FARM, CAPTURE_CARGO, DESIGN, ENTRENCH, UNIT_STORE, SETTLEMENT, CITY_RUN_LUMBER, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
+    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, TAX_LEVELS, TAX_NAMES, GOVERNMENTS, GOV_KEYS, GOV_CHANGE, QUEUE, RECURRING, LOANS, SETTLEMENT_MONARCHY, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, QUALITY_DAMAGE, WINTER_ATTRITION, SUMMER_FARM, CAPTURE_CARGO, DESIGN, ENTRENCH, UNIT_STORE, SETTLEMENT, CITY_RUN_LUMBER, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = RULES;
@@ -1244,7 +1257,9 @@ const Engine = ((R) => {
     const wet = d.waterMult && nbrs(S.map, b.t).some((j) => ['river', 'lake'].includes(S.map.tiles[j].type));
     if (d.railBonus && tile.rail != null) flat += d.railBonus;
     const sun = (d.base || b.key) === 'farm' && !(opts && opts.season === false) && isSummer(S.turn) ? R.SUMMER_FARM : 1;
-    const gm = opts && opts.gov === false ? 1 : govMods(S, b).out; // storage uses the normal output
+    const own = buildingOwner(S, b), pl = S.players[own];
+    const unrest = !(opts && opts.gov === false) && pl && pl.unrestUntil != null && S.turn <= pl.unrestUntil ? 1 - R.LOANS.unrestGoods : 1;
+    const gm = (opts && opts.gov === false ? 1 : govMods(S, b).out) * unrest; // storage uses the normal output; unrest cuts goods 10%
     for (const g of Object.keys(out)) out[g] = round1((Math.round(out[g] * (1 + pct)) * (wet ? d.waterMult : 1) + flat) * sun * gm);
     return out;
   }
@@ -1278,6 +1293,7 @@ const Engine = ((R) => {
     const g = govOf(S, pid);
     let m = taxOf(S, pid).mp - (p.mob === 'full' ? (g.fullMpCut != null ? g.fullMpCut : R.MOBILIZE.fullMpCut) : 0);
     if (p.upheavalUntil != null && (turn != null ? turn : S.turn) <= p.upheavalUntil) m -= R.GOV_CHANGE.upheavalMp;
+    if (p.unrestUntil != null && (turn != null ? turn : S.turn) <= p.unrestUntil) m -= R.LOANS.unrestMp; // unrest after a domestic default
     return Math.max(0, Math.round(m * 1000) / 1000);
   }
   const taxCooldownEnds = (S, pid) => { const p = S.players[pid]; return p.taxSince == null ? 0 : p.taxSince + govOf(S, pid).taxEvery; };
@@ -2164,6 +2180,7 @@ const Engine = ((R) => {
     if (pr.kind === 'blueprint' && p.design != null) { const dz = designById(S, p.design); return `the ${dz ? `${dz.name} design (${U[dz.base].name.toLowerCase()})` : 'unit design'} blueprint for ${p.price} credits`; }
     if (pr.kind === 'blueprint') return `the ${B[p.key] ? B[p.key].name : p.key} blueprint for ${p.price} credits`;
     if (pr.kind === 'route') return `a trade route (#${p.route})`;
+    if (pr.kind === 'loan') return `a loan of ${p.amount} credits at ${p.rate}% a year over ${p.term} turns (${loanPayment(p.amount, p.rate, p.term)} a turn), ${p.lend ? `from ${S.players[pr.from].name} to ${S.players[pr.to].name}` : `from ${S.players[pr.to].name} to ${S.players[pr.from].name}`}`;
     return pr.kind;
   }
 
@@ -2227,9 +2244,9 @@ const Engine = ((R) => {
     const { map, starts } = genMap(list.length, rng, { mapType: opts.mapType, tilesPerPlayer: opts.tilesPerPlayer });
     const start = startingResources(opts.start);
     const S = {
-      version: 8, id: opts.id || `game-${seed.toString(36)}-${Date.now().toString(36)}`, name: opts.name || 'Guns, Pacts, and Commerce', start,
+      version: 9, id: opts.id || `game-${seed.toString(36)}-${Date.now().toString(36)}`, name: opts.name || 'Guns, Pacts, and Commerce', start,
       seed, turn: 1, map, players: [], cities: [], units: [], buildings: [], routes: [], treaties: [], wars: [], proposals: [],
-      market: { pool: {}, prices: {} }, reports: {}, nextId: 1, gameOver: null, history: [], depots: [], designs: [], ultimatums: [],
+      market: { pool: {}, prices: {} }, reports: {}, nextId: 1, gameOver: null, history: [], depots: [], designs: [], ultimatums: [], loans: [],
     };
     list.forEach((pl, i) => {
       S.players.push({
@@ -2239,6 +2256,7 @@ const Engine = ((R) => {
         mob: 'peace', mobPending: null, mobDown: null, doctrine: { naval: null, army: null, warfare: null }, doctrineSince: {}, supplyPriority: R.SUPPLY_PRIORITY.slice(),
         gov: 'provisional', govSince: null, tax: 'normal', taxSince: null, upheavalUntil: null, rally: false,
         queue: {}, keep: {}, keepCredits: 0, keepManpower: 0, cityOrder: [], recurring: [],
+        loans: [], taxHistory: [], unrestUntil: null, unrestRate: 0, lastDomesticDefault: null, lastForeignDefault: null,
       });
       const c = foundCityAt(S, i, starts[i], pl.cityName || `${pl.name || 'Player ' + (i + 1)} Capital`);
       for (const g of Object.keys(start.stock)) c.stock[g] = Math.min(start.stock[g], capacity(S, c, g));
@@ -2336,13 +2354,80 @@ const Engine = ((R) => {
     return total;
   }
 
+
+  /* =====================================================================
+     LOANS
+     Domestic: 12-turn bonds. Interest (annual rate / 12 of the face value) every turn, the face value with the
+     last payment. Income = average tax-office income over the last 12 turns (missing turns count as 0).
+     International: fixed-rate loans with equal payments, PMT = P r (1+r)^n / ((1+r)^n - 1), r = annual / 12.
+     ===================================================================== */
+  const LN = R.LOANS;
+  function incomeAvg(S, pid) {
+    const h = (S.players[pid] && S.players[pid].taxHistory) || [];
+    return h.slice(-LN.incomeTurns).reduce((a, v) => a + (v || 0), 0) / LN.incomeTurns;
+  }
+  const unrestOn = (S, pid, turn) => { const p = S.players[pid]; return !!p && p.unrestUntil != null && (turn != null ? turn : S.turn) <= p.unrestUntil; };
+  const unrestLeft = (S, pid, turn) => (unrestOn(S, pid, turn) ? S.players[pid].unrestUntil - (turn != null ? turn : S.turn) + 1 : 0);
+  const loanParams = (S, pid) => govOf(S, pid).loan || R.GOVERNMENTS.provisional.loan;
+  const taxAdjOf = (S, pid) => LN.taxAdj[(S.players[pid] && S.players[pid].tax) || 'normal'] || 0;
+  const domesticDebt = (S, pid) => ((S.players[pid] && S.players[pid].loans) || []).reduce((a, l) => a + l.face, 0);
+  // the fixed part of a new loan's rate: government base + 1 per loan outstanding + the default penalty while it lasts
+  function newLoanFixedRate(S, pid, turn) {
+    const p = S.players[pid];
+    let r = loanParams(S, pid).base + LN.perLoan * ((p && p.loans) || []).length;
+    if (unrestOn(S, pid, turn)) r += LN.defaultFlat + (p.unrestRate || 0);
+    return r;
+  }
+  const newLoanRate = (S, pid, turn) => Math.max(0, newLoanFixedRate(S, pid, turn) + taxAdjOf(S, pid));
+  const loanRateNow = (S, pid, l) => Math.max(0, l.rate + taxAdjOf(S, pid)); // only the tax part follows the current tax rate
+  const loanInterest = (S, pid, l) => Math.ceil((l.face * loanRateNow(S, pid, l)) / 100 / 12 - 1e-9);
+  const loanDueNow = (S, pid, l) => loanInterest(S, pid, l) + (l.paid >= LN.term - 1 ? l.face : 0);
+  function borrowLimit(S, pid) {
+    const avg = incomeAvg(S, pid), lp = loanParams(S, pid);
+    const perLoan = Math.floor(lp.months * avg), room = Math.max(0, Math.floor(lp.capMonths * avg - domesticDebt(S, pid)));
+    return { avg, perLoan, room, max: Math.min(perLoan, room) };
+  }
+  function checkBorrow(S, pid, amount) {
+    const a = Math.floor(Number(amount) || 0), lim = borrowLimit(S, pid);
+    if (a <= 0) return 'Enter an amount';
+    if (a > lim.perLoan) return `A single loan can be at most ${lim.perLoan} credits (${loanParams(S, pid).months} months of income)`;
+    if (a > lim.room) return `That would take your domestic debt past its limit (${loanParams(S, pid).capMonths} months of income); you can borrow ${lim.room} more`;
+    return null;
+  }
+  // payment for an international loan (whole credits; the last payment settles whatever is left)
+  function loanPayment(P, annual, n) {
+    const r = annual / 100 / 12;
+    if (!r) return Math.ceil(P / n);
+    const f = Math.pow(1 + r, n);
+    return Math.round((P * r * f) / (f - 1));
+  }
+  const intlInterest = (l) => Math.round((l.balance * l.rate) / 100 / 12);
+  const intlDueNow = (l) => { const i = intlInterest(l); return l.paid >= l.term - 1 || l.payment >= l.balance + i ? l.balance + i : l.payment; };
+  const loansOf = (S, pid) => (S.loans || []).filter((l) => l.borrower === pid || l.lender === pid);
+  // what a nation must pay on its debts in a coming turn (domestic, then international)
+  function debtService(S, pid) {
+    const p = S.players[pid];
+    let n = 0;
+    for (const l of (p && p.loans) || []) n += loanDueNow(S, pid, l);
+    for (const l of S.loans || []) if (l.borrower === pid) n += intlDueNow(l);
+    return n;
+  }
+  function checkLoanTerms(pl) {
+    const amount = Math.floor(Number(pl.amount) || 0), term = Math.floor(Number(pl.term) || 0), rate = Math.round((Number(pl.rate) || 0) * 10) / 10;
+    if (amount <= 0) return 'Enter an amount';
+    if (term < 1 || term > LN.intl.maxTerm) return `The term must be 1 to ${LN.intl.maxTerm} turns`;
+    if (rate < 0 || rate > LN.intl.maxRate) return `The rate must be 0% to ${LN.intl.maxRate}% a year`;
+    return null;
+  }
+
   /* =====================================================================
      TURN RESOLUTION
      Phase order: diplomacy -> combat -> movement -> market buys -> market sells
      -> research -> production -> buildings -> units -> logistics (routes,
-     supply & upkeep, repairs, military pay) -> building queues -> end of turn
+     supply & upkeep, repairs, military pay) -> building queues -> end of turn.
+     Loan payments come right after diplomacy, before anything else can spend the credits.
      ===================================================================== */
-  const ORDER_LISTS = ['attacks', 'sabotage', 'moves', 'board', 'unload', 'buys', 'sells', 'research', 'designs', 'dump', 'disband', 'demolish', 'clear', 'builds', 'trains', 'found', 'cargo', 'routeOps', 'diplo'];
+  const ORDER_LISTS = ['attacks', 'sabotage', 'moves', 'board', 'unload', 'buys', 'sells', 'research', 'designs', 'dump', 'disband', 'demolish', 'clear', 'builds', 'trains', 'found', 'cargo', 'routeOps', 'diplo', 'finance'];
 
   // Bring a saved game from an older version up to date.
   function migrate(S) {
@@ -2384,7 +2469,18 @@ const Engine = ((R) => {
       if (p.keepManpower == null) p.keepManpower = 0;
       if (!p.cityOrder) p.cityOrder = [];
       if (!p.recurring) p.recurring = [];
+      // version 9: loans. Games already under way start with their recent tax income filled in from today's tax offices.
+      if (!p.loans) p.loans = [];
+      if (p.unrestRate == null) p.unrestRate = 0;
+      if (p.unrestUntil === undefined) p.unrestUntil = null;
+      if (p.lastDomesticDefault === undefined) p.lastDomesticDefault = null;
+      if (p.lastForeignDefault === undefined) p.lastForeignDefault = null;
+      if (!p.taxHistory) {
+        const est = S.buildings.filter((b) => b.key === 'taxOffice' && buildingOwner(S, b) === p.id).reduce((a, b) => a + creditsOutOf(S, b), 0);
+        p.taxHistory = Array.from({ length: Math.min(R.LOANS.incomeTurns, Math.max(0, (S.turn || 1) - 1)) }, () => est);
+      }
     }
+    S.loans = S.loans || [];
     S.ultimatums = S.ultimatums || [];
     S.proposals = (S.proposals || []).filter((pr) => ['peace', 'treaty', 'blueprint', 'route'].includes(pr.kind));
     if ((S.version || 1) < 4) {
@@ -2399,7 +2495,7 @@ const Engine = ((R) => {
       // version 5: tank traps belong to a nation (they used to record a city)
       for (const tile of S.map.tiles) if (tile.trap != null) { const c = cityById(S, tile.trap); tile.trap = c ? c.owner : null; }
     }
-    S.version = 8;
+    S.version = 9;
     return S;
   }
   function normalizeOrders(o) {
@@ -2689,6 +2785,13 @@ const Engine = ((R) => {
       } else if (pr.kind === 'route') {
         const r = S.routes.find((x) => x.id === pl.route);
         if (r) { r.accepted = true; both(pr.from, p.id, 'logistics', `Trade route #${r.id} between ${from.name} and ${p.name} is open.`); }
+      } else if (pr.kind === 'loan') {
+        const lender = pl.lend ? from : p, borrower = pl.lend ? p : from;
+        if (lender.credits < pl.amount) { both(pr.from, p.id, 'finance', `The loan of ${pl.amount} credits fell through: ${lender.name} did not have the credits.`); continue; }
+        lender.credits -= pl.amount; borrower.credits += pl.amount;
+        const l = { id: S.nextId++, lender: lender.id, borrower: borrower.id, principal: pl.amount, rate: pl.rate, term: pl.term, payment: loanPayment(pl.amount, pl.rate, pl.term), balance: pl.amount, paid: 0, missed: 0, since: turn };
+        S.loans.push(l);
+        both(pr.from, p.id, 'finance', `${lender.name} lent ${borrower.name} ${pl.amount} credits at ${pl.rate}% a year over ${pl.term} turns: ${l.payment} credits a turn, starting next turn.`);
       }
     }
     for (const pr of S.proposals) if (pr.turn === turn && !pr.answered) {
@@ -2781,10 +2884,84 @@ const Engine = ((R) => {
       } else if (o.kind === 'blueprint') {
         if (!B[pl.key] || !p.researched.includes(pl.key)) { rep(p.id, 'diplomacy', 'You can only sell blueprints you researched yourself.'); continue; }
         pl.price = Math.max(0, Math.floor(Number(pl.price) || 0));
+      } else if (o.kind === 'loan') {
+        const err = checkLoanTerms(pl);
+        if (err) { rep(p.id, 'finance', `Loan proposal not sent to ${to.name}: ${err}.`); continue; }
+        pl = { amount: Math.floor(Number(pl.amount)), rate: Math.round(Number(pl.rate || 0) * 10) / 10, term: Math.floor(Number(pl.term)), lend: !!pl.lend };
       } else continue;
       const pr = { id: S.nextId++, from: p.id, to: to.id, kind: o.kind, payload: pl, turn: turn + 1 };
       S.proposals.push(pr);
       both(p.id, to.id, 'diplomacy', `${p.name} proposed ${describeProposal(S, pr)} to ${to.name}.`);
+    }
+
+    /* ----- loans: new domestic loans, early payoffs, defaults and forgiveness, then every debt payment ----- */
+    // Debt is paid before anything else in the turn: domestic loans (oldest first), then international loans.
+    const taxThisTurn = {};
+    S.loans = (S.loans || []).filter((l) => !S.players[l.lender].eliminated && !S.players[l.borrower].eliminated);
+    const domesticDefault = (p, amount) => {
+      const annual = incomeAvg(S, p.id) * 12;
+      const steps = Math.max(1, Math.min(LN.penaltyCap, annual > 0 ? Math.ceil(amount / (annual * LN.step) - 1e-9) : LN.penaltyCap));
+      const left = unrestLeft(S, p.id, turn);
+      p.unrestRate = Math.min(LN.maxRatePenalty, Math.max(left ? p.unrestRate || 0 : 0, steps));
+      p.unrestUntil = turn + Math.min(LN.penaltyCap, left + steps) - 1;
+      p.lastDomesticDefault = { turn, amount };
+      for (const q of S.players) rep(q.id, 'finance', `${p.name} defaulted on ${amount} credits of domestic debt.`);
+      rep(p.id, 'finance', `Unrest: housing makes 0.3 less of its multiplier and goods output falls 10% until turn ${p.unrestUntil} is over; new domestic loans cost +${LN.defaultFlat + p.unrestRate} points until then.`);
+    };
+    const foreignDefault = (l, why) => {
+      const b = S.players[l.borrower], len = S.players[l.lender];
+      S.loans = S.loans.filter((x) => x !== l);
+      b.lastForeignDefault = turn;
+      for (const q of S.players) if (q.id !== l.lender && q.id !== l.borrower) rep(q.id, 'finance', `${b.name} defaulted on a loan from another nation.`);
+      both(l.borrower, l.lender, 'finance', `${b.name} defaulted on its loan from ${len.name} (${l.balance} credits still owed)${why ? `: ${why}` : ''}.`);
+    };
+    for (const p of active) for (const o of O[p.id].finance) {
+      if (o.op === 'borrow') {
+        const err = checkBorrow(S, p.id, o.amount);
+        if (err) { rep(p.id, 'finance', `Domestic loan not taken: ${err}.`); continue; }
+        const face = Math.floor(Number(o.amount)), rate = newLoanFixedRate(S, p.id, turn);
+        p.loans.push({ id: S.nextId++, face, rate, taken: turn, paid: 0 });
+        p.credits += face;
+        rep(p.id, 'finance', `Took a domestic loan of ${face} credits at ${Math.max(0, rate + taxAdjOf(S, p.id))}% a year: interest from next turn, the ${face} credits due on turn ${turn + LN.term}.`);
+        continue;
+      }
+      const l = (S.loans || []).find((x) => x.id === Number(o.loan));
+      if (!l) continue;
+      if (o.op === 'payoff' && l.borrower === p.id) {
+        if (p.credits < l.balance) { rep(p.id, 'finance', `Could not pay off the loan from ${pname(l.lender)} early: it needs ${l.balance} credits.`); continue; }
+        p.credits -= l.balance; S.players[l.lender].credits += l.balance;
+        S.loans = S.loans.filter((x) => x !== l);
+        both(l.borrower, l.lender, 'finance', `${p.name} paid off its loan from ${pname(l.lender)} early (${l.balance} credits).`);
+      } else if (o.op === 'default' && l.borrower === p.id) {
+        foreignDefault(l, 'by choice');
+      } else if (o.op === 'forgive' && l.lender === p.id) {
+        S.loans = S.loans.filter((x) => x !== l);
+        both(l.borrower, l.lender, 'finance', `${p.name} forgave ${pname(l.borrower)}'s loan (${l.balance} credits).`);
+      }
+    }
+    for (const p of active) {
+      const keep = [];
+      for (const l of (p.loans || []).filter((x) => x.taken < turn)) {
+        const due = loanDueNow(S, p.id, l), last = l.paid >= LN.term - 1;
+        if (p.credits >= due) {
+          p.credits -= due; l.paid++;
+          if (last) rep(p.id, 'finance', `Repaid a domestic loan of ${l.face} credits (${due} this turn).`);
+          else keep.push(l);
+        } else domesticDefault(p, l.face + loanInterest(S, p.id, l));
+      }
+      p.loans = keep.concat((p.loans || []).filter((x) => x.taken >= turn));
+    }
+    for (const l of (S.loans || []).slice()) {
+      if (l.since >= turn) continue;
+      const b = S.players[l.borrower], len = S.players[l.lender], due = intlDueNow(l), i = intlInterest(l);
+      if (b.credits >= due) {
+        b.credits -= due; len.credits += due; l.balance = Math.max(0, l.balance - (due - i)); l.paid++; l.missed = 0;
+        if (l.balance <= 0) { S.loans = S.loans.filter((x) => x !== l); both(l.borrower, l.lender, 'finance', `${b.name} finished repaying its loan from ${len.name}.`); }
+      } else {
+        l.missed++;
+        if (l.missed >= LN.intl.missedToDefault) foreignDefault(l, `${l.missed} payments missed in a row`);
+        else both(l.borrower, l.lender, 'finance', `${b.name} missed a payment of ${due} credits on its loan from ${len.name}; the loan runs a turn longer. Another miss next turn is a default.`);
+      }
     }
 
     /* ----- 1. combat ----- */
@@ -3015,7 +3192,7 @@ const Engine = ((R) => {
     const recBuys = {}, recSells = {}, crFloor = {};
     for (const p of active) {
       p.recurring = (p.recurring || []).filter((o) => o.until == null || o.until >= turn);
-      crFloor[p.id] = (p.keepCredits || 0) + estimatePay(S, p.id);
+      crFloor[p.id] = (p.keepCredits || 0) + estimatePay(S, p.id) + debtService(S, p.id); // also next turn's loan payments
       recBuys[p.id] = []; recSells[p.id] = [];
       for (const o of p.recurring) {
         const c = cityById(S, o.city);
@@ -3159,7 +3336,7 @@ const Engine = ((R) => {
         if (rc.mpOut) { const mo = mpOutOf(S, b); p.manpower = round1(p.manpower + mo); made.manpower = mo; mpMade[c.id] = (mpMade[c.id] || 0) + mo; }
         if (rc.sciOut) { const so = sciOutOf(S, b); p.science = round1(p.science + so); made.science = so; }
         const cr = rc.creditsPerMp && !rc.labor ? creditsOutOf(S, b, (onUse ? mpUsed : mpMade)[c.id] || 0) : creditsOutOf(S, b);
-        if (cr) { p.credits += cr; made.credits = cr; }
+        if (cr) { p.credits += cr; made.credits = cr; if (b.key === 'taxOffice') taxThisTurn[p.id] = (taxThisTurn[p.id] || 0) + cr; }
         b.ranTurn = turn;
         b.lastOut = made;
         b.status = Object.keys(lost).length ? `Running, but storage full: lost ${goodsText(lost)}` : d.fuelUse ? (fueled ? 'Running with fuel' : 'Running without fuel (+50%)') : 'Running';
@@ -3665,6 +3842,8 @@ const Engine = ((R) => {
       if (c) for (const [g, v] of Object.entries(dp.stock)) { const a = addToCity(S, c, g, v); if (a) got[g] = a; }
       both(dp.owner, c ? c.owner : dp.owner, 'construction', `${pname(dp.owner)}'s settlement at ${tileLabel(S, dp.t)} is now inside ${c ? `${c.name}'s territory` : 'a city\'s territory'}; it was dissolved${Object.keys(got).length ? ` and ${c.name} took ${goodsText(got)}` : ''}.`);
     }
+    // tax-office income feeds each nation's borrowing limit (the last 12 turns)
+    for (const p of active) { p.taxHistory = (p.taxHistory || []).concat([taxThisTurn[p.id] || 0]).slice(-LN.incomeTurns); }
     /* ----- end of turn ----- */
     const alive = S.players.filter((p) => !p.eliminated);
     if (alive.length === 1) S.gameOver = { turn, winners: [alive[0].id], reason: `${alive[0].name} is the last nation standing.` };
@@ -3683,6 +3862,7 @@ const Engine = ((R) => {
     R, newGame, resolveTurn, normalizeOrders, migrate, computePrices, worldTotals, makeRng,
     hex: { idx, colRow, dirs, nbrs, dist, within },
     q: {
+      incomeAvg, unrestOn, unrestLeft, loanParams, taxAdjOf, domesticDebt, newLoanFixedRate, newLoanRate, loanRateNow, loanInterest, loanDueNow, borrowLimit, checkBorrow, loanPayment, intlInterest, intlDueNow, loansOf, debtService, checkLoanTerms,
       queueable, cleanQueue, cleanKeep, cleanRecurring, cityOrderOf, keepOf, queueShortfall, estimatePay,
       cityById, unitById, cityAt, unitsAt, cityBuildings, countB, tileBuilding, tileOwner, tileOwnerCity, citiesOf, unitsOf, unitName,
       garrisonOf, posOf, carried, atWar, friendly, hasTreaty, isUnlocked, unitUnlocked, territoryRadius, supplyRadius, maxHp,
@@ -3876,7 +4056,7 @@ function queuePreview(c) {
     return { state: 'ready', text: 'can be built this turn' };
   });
 }
-function draftCount(d) { return ['attacks', 'sabotage', 'moves', 'board', 'unload', 'buys', 'sells', 'research', 'designs', 'dump', 'disband', 'demolish', 'clear', 'builds', 'trains', 'found', 'cargo', 'routeOps', 'diplo'].reduce((n, k) => n + d[k].length, 0) + (d.settings && (d.settings.priority || d.settings.mobilize || d.settings.supplyPriority || ['products', 'halt', 'labor', 'fuel', 'doctrine'].some((k) => d.settings[k] && Object.keys(d.settings[k]).length)) ? 1 : 0) + (standingChanged(d) ? 1 : 0); }
+function draftCount(d) { return ['attacks', 'sabotage', 'moves', 'board', 'unload', 'buys', 'sells', 'research', 'designs', 'dump', 'disband', 'demolish', 'clear', 'builds', 'trains', 'found', 'cargo', 'routeOps', 'diplo', 'finance'].reduce((n, k) => n + (d[k] || []).length, 0) + (d.settings && (d.settings.priority || d.settings.mobilize || d.settings.supplyPriority || ['products', 'halt', 'labor', 'fuel', 'doctrine'].some((k) => d.settings[k] && Object.keys(d.settings[k]).length)) ? 1 : 0) + (standingChanged(d) ? 1 : 0); }
 // goods and manpower already committed by this turn's orders, per city
 function reserved(cityId) {
   const d = draft(), goods = {};
@@ -4783,6 +4963,11 @@ TAB_RENDER.today = function () {
       ${ults.map((u) => `<li><span class="warn">Ultimatum from ${esc(pname(u.from))}: war on turn ${u.deadline} unless you accept</span><button class="btn small" data-act="tab" data-tab="diplomacy">Answer</button></li>`).join('')}
       ${props.length ? `<li><span>${props.length} proposal${props.length > 1 ? 's' : ''} waiting for your answer</span><button class="btn small" data-act="tab" data-tab="diplomacy">Answer</button></li>` : ''}
       ${wars.length ? `<li><span>At war with ${esc(wars.join(', '))}</span><button class="btn small" data-act="tab" data-tab="war">War tab</button></li>` : ''}</ul></div>` : ''}
+    ${(p.loans || []).length || Q.loansOf(S, UI.me).length || Q.unrestOn(S, UI.me) ? `<div class="panel"><h3 style="margin-top:0">Finance</h3><ul class="list">
+      <li><span>Debt payments next turn</span><b class="num">${Q.debtService(S, UI.me)}</b></li>
+      ${Q.unrestOn(S, UI.me) ? `<li><span class="warn">Unrest until turn ${p.unrestUntil}: housing −0.3, goods −10%</span></li>` : ''}
+      ${Q.loansOf(S, UI.me).filter((l) => l.borrower === UI.me && l.missed).map((l) => `<li><span class="warn">Missed a payment to ${esc(pname(l.lender))}: another miss is a default</span></li>`).join('')}</ul>
+      <button class="btn small" data-act="tab" data-tab="government">Finance</button></div>` : ''}
     <div class="panel"><h3 style="margin-top:0">Needs attention <span class="small muted">from last turn</span></h3><ul class="list">${alert.slice(0, 8).map(li).join('') || '<li class="muted">Nothing went wrong last turn.</li>'}</ul>
       ${alert.length > 8 ? `<p class="small muted">And ${alert.length - 8} more.</p>` : ''}<button class="btn small" data-act="tab" data-tab="reports">All reports</button></div>
     <div class="panel"><h3 style="margin-top:0">Building queues</h3>${built.length ? `<ul class="list">${built.slice(0, 6).map(li).join('')}</ul>` : ''}
@@ -5074,6 +5259,52 @@ function designPanel(S, p, d) {
 
 /* ---------- Government ---------- */
 const GOV_KEYS = RR.GOV_KEYS;
+/* ---------- Finance: domestic loans, international loans, credit standing ---------- */
+function financePanel(S, p, d) {
+  const LN = RR.LOANS, lim = Q.borrowLimit(S, UI.me), lp = Q.loanParams(S, UI.me);
+  const fin = d.finance || [], pend = (op, id) => fin.some((o) => o.op === op && Number(o.loan) === id);
+  const queuedBorrow = fin.filter((o) => o.op === 'borrow').reduce((a, o) => a + (Number(o.amount) || 0), 0);
+  const dom = (p.loans || []).map((l) => {
+    const due = l.taken + LN.term, i = Q.loanInterest(S, UI.me, l);
+    return `<tr><td class="n">${l.face}</td><td class="n">${Q.loanRateNow(S, UI.me, l)}%</td><td class="n">${i}</td><td class="n">${LN.term - l.paid}</td><td class="n">Turn ${due}</td></tr>`;
+  }).join('');
+  const mine = Q.loansOf(S, UI.me);
+  const borrowed = mine.filter((l) => l.borrower === UI.me), lent = mine.filter((l) => l.lender === UI.me);
+  const intlRow = (l, side) => `<tr><td>${esc(pname(side === 'b' ? l.lender : l.borrower))}</td><td class="n">${l.balance}</td><td class="n">${l.rate}%</td><td class="n">${Q.intlDueNow(l)}</td><td class="n">${Math.max(1, l.term - l.paid)}</td><td class="n ${l.missed ? 'warn' : ''}">${l.missed}</td><td>${side === 'b'
+    ? (pend('payoff', l.id) || pend('default', l.id) ? `<span class="tag">${pend('payoff', l.id) ? 'Paying off' : 'Defaulting'} this turn</span>` : `<button class="btn small" data-act="loan-op" data-op="payoff" data-id="${l.id}" ${p.credits < l.balance ? 'disabled' : ''} title="Pay the remaining principal now">Pay off ${l.balance}</button> <button class="btn small danger" data-act="loan-op" data-op="default" data-id="${l.id}">Default</button>`)
+    : (pend('forgive', l.id) ? '<span class="tag">Forgiving this turn</span>' : `<button class="btn small" data-act="loan-op" data-op="forgive" data-id="${l.id}">Forgive</button>`)}</td></tr>`;
+  const intlHead = (who) => `<thead><tr><th>${who}</th><th class="n">Balance</th><th class="n">Rate</th><th class="n">Next payment</th><th class="n">Payments left</th><th class="n">Missed</th><th></th></tr></thead>`;
+  const owed = (p.loans || []).reduce((a, l) => a + l.face, 0) + borrowed.reduce((a, l) => a + l.balance, 0);
+  const owedTo = lent.reduce((a, l) => a + l.balance, 0);
+  const unrest = Q.unrestOn(S, UI.me);
+  const others = activePlayers().filter((x) => x.id !== UI.me);
+  const lf = UI.loanForm || (UI.loanForm = { to: others[0] ? others[0].id : null, lend: '1', amount: '5000', rate: '10', term: '12' });
+  const pay = Number(lf.amount) > 0 && Number(lf.term) > 0 ? Q.loanPayment(Math.floor(Number(lf.amount)), Number(lf.rate) || 0, Math.floor(Number(lf.term))) : 0;
+  const lfErr = Q.checkLoanTerms(lf);
+  return `<h3>Finance</h3>
+    <div class="row" style="gap:24px"><span>You owe <b class="num">${owed}</b></span><span>Owed to you <b class="num">${owedTo}</b></span><span>Debt payments next turn <b class="num">${Q.debtService(S, UI.me)}</b></span><span>Income (12-turn average of tax offices) <b class="num">${Math.round(lim.avg)}</b> a turn</span></div>
+    ${unrest ? `<p class="warn">Unrest after a default: housing −${LN.unrestMp} to its multiplier and goods output −${Math.round(LN.unrestGoods * 100)}% until turn ${p.unrestUntil} is over; new domestic loans cost +${LN.defaultFlat + (p.unrestRate || 0)} points until then (and keep that rate for their whole 12 turns).</p>` : ''}
+    <div class="cols" style="grid-template-columns:1fr 1fr;gap:14px">
+      <div class="panel"><h4 style="margin-top:0">Domestic loans</h4>
+        <p class="small muted">Bonds sold to your own people. You pay interest every turn (the annual rate ÷ 12) and the face value on the 12th turn, before anything else in the turn. Your rate is ${lp.base}% for a ${esc(RR.GOVERNMENTS[p.gov || 'provisional'].name.toLowerCase())}, +${LN.perLoan} for each loan you already hold, ${Q.taxAdjOf(S, UI.me) >= 0 ? '+' : '−'}${Math.abs(Q.taxAdjOf(S, UI.me))} for your tax rate${unrest ? `, +${LN.defaultFlat + (p.unrestRate || 0)} during unrest` : ''}. Only the tax part changes after you borrow. Failing a payment defaults the loan and causes unrest.</p>
+        ${dom ? `<div class="ledger"><table class="cards"><thead><tr><th class="n">Face value</th><th class="n">Rate now</th><th class="n">Interest a turn</th><th class="n">Payments left</th><th class="n">Face value due</th></tr></thead><tbody>${dom}</tbody></table></div>` : '<p class="small muted">No domestic loans.</p>'}
+        <div class="row" style="margin-top:8px"><input type="number" min="1" step="100" id="ln-amt" placeholder="credits" style="width:110px" aria-label="Loan amount"><button class="btn small primary" data-act="loan-take" ${lim.max <= 0 ? 'disabled' : ''}>Take a loan at ${Q.newLoanRate(S, UI.me)}%</button></div>
+        <p class="small muted">Up to <b>${Math.max(0, lim.max - queuedBorrow)}</b> credits now: ${lp.months} months of income per loan, ${lp.capMonths} months in all (${lim.room} left).${queuedBorrow ? ` ${queuedBorrow} already ordered this turn.` : ''}</p>
+        ${fin.filter((o) => o.op === 'borrow').map((o) => `<p class="small"><span class="tag brass">Borrowing ${o.amount} this turn</span> <button class="x" data-act="loan-cancel" data-idx="${fin.indexOf(o)}" aria-label="Cancel">✕</button></p>`).join('')}
+        ${p.lastDomesticDefault ? `<p class="small warn">Last domestic default: ${p.lastDomesticDefault.amount} credits on turn ${p.lastDomesticDefault.turn}.</p>` : ''}</div>
+      <div class="panel"><h4 style="margin-top:0">Lend to or borrow from a nation</h4>
+        <p class="small muted">Equal payments every turn, mostly interest at first. Sent like a treaty; the other nation accepts next turn and the credits move then. Nothing in the game forces repayment: a missed payment pushes the schedule back a turn, two in a row is a default, and the borrower may default at any time. Every nation learns of a default, but not the lender or the amount.</p>
+        <div class="row"><select data-chg="lf" data-f="lend" aria-label="Lend or borrow"><option value="1" ${lf.lend === '1' ? 'selected' : ''}>Lend to</option><option value="0" ${lf.lend === '0' ? 'selected' : ''}>Borrow from</option></select>
+          <select data-chg="lf" data-f="to" aria-label="Nation">${others.map((x) => `<option value="${x.id}" ${Number(lf.to) === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></div>
+        <div class="row"><label class="small">Amount <input type="number" min="1" step="100" data-chg="lf" data-f="amount" value="${esc(lf.amount)}" style="width:100px"></label>
+          <label class="small">Rate % a year <input type="number" min="0" max="${LN.intl.maxRate}" step="0.5" data-chg="lf" data-f="rate" value="${esc(lf.rate)}" style="width:70px"></label>
+          <label class="small">Turns <input type="number" min="1" max="${LN.intl.maxTerm}" step="1" data-chg="lf" data-f="term" value="${esc(lf.term)}" style="width:64px"></label></div>
+        <p class="small">${lfErr ? `<span class="warn">${esc(lfErr)}</span>` : `Payment <b>${pay}</b> a turn for ${Math.floor(Number(lf.term))} turns, about <b>${pay * Math.floor(Number(lf.term))}</b> in all.`}</p>
+        <button class="btn small primary" data-act="loan-offer" ${lfErr || !others.length ? 'disabled' : ''}>${lf.lend === '1' ? 'Offer the loan' : 'Ask for the loan'}</button></div>
+    </div>
+    <h4>Loans you owe to other nations</h4>${borrowed.length ? `<div class="ledger"><table class="cards">${intlHead('Lender')}<tbody>${borrowed.map((l) => intlRow(l, 'b')).join('')}</tbody></table></div>` : '<p class="small muted">None.</p>'}
+    <h4>Loans other nations owe you</h4>${lent.length ? `<div class="ledger"><table class="cards">${intlHead('Borrower')}<tbody>${lent.map((l) => intlRow(l, 'l')).join('')}</tbody></table></div>` : '<p class="small muted">None.</p>'}`;
+}
 TAB_RENDER.government = function () {
   const S = st(), p = meP(), d = draft(), st0 = d.settings || {};
   const curG = p.gov || 'monarchy', curT = p.tax || 'normal', g = RR.GOVERNMENTS[curG];
@@ -5117,6 +5348,7 @@ TAB_RENDER.government = function () {
       <div class="panel"><h3 style="margin-top:0">Tax rate</h3><p class="small muted">${S.turn < taxReady ? `You can change it again on turn ${taxReady}.` : 'You can change it this turn.'} ${g.taxOnUse ? 'A tax office pays the rate for each manpower its city uses in production and extraction buildings.' : "A tax office pays the rate for each manpower its city's housing makes."} Full mobilization takes a further ${Math.round((g.fullMpCut != null ? g.fullMpCut : RR.MOBILIZE.fullMpCut) * 100)}% off housing.</p>${taxRadio}</div>
       <div class="panel"><h3 style="margin-top:0">Form of government</h3><p class="small muted">${S.turn < govReady ? `You can change it again on turn ${govReady}.` : 'You can change it this turn.'} Changing causes ${RR.GOV_CHANGE.upheavalTurns} turns of upheaval (0.5 off your housing's manpower multiplier, never below 0) and drops full mobilization to partial. Leaving the Provisional Government causes no upheaval. After a change you must wait ${RR.GOV_CHANGE.every} turns. You may set a new tax rate on the same turn.</p>${govRadio}</div>
     </div>
+    ${financePanel(S, p, d)}
     <h3>Tax rates by government</h3><div class="ledger">${cmp}</div>
     <h3>How the governments differ</h3><div class="ledger">${featT}</div>
     <p class="small muted">Democracies and monarchies may declare war at once on a nation that is at war with one of their partners (any nation with a peace treaty in force, a trade route, or transit, port or rail rights with them). Otherwise they send an ultimatum from the Diplomacy tab.</p></div>`;
@@ -5183,7 +5415,7 @@ TAB_RENDER.diplomacy = function () {
     }
     if (!war) for (const type of ['transit', 'port', 'rail']) if (!tr.some((t) => t.type === type) && !queued((o) => o.type === 'propose' && o.kind === 'treaty' && o.to === x.id && o.payload.type === type)) acts.push(`<button class="btn small" data-act="treaty" data-to="${x.id}" data-type="${type}">Offer ${type} rights</button>`);
     acts.push(`<span class="row" style="margin:0"><input type="number" min="1" class="w-sm" id="cr-${x.id}" placeholder="0" aria-label="Credits to send"><button class="btn small" data-act="credits" data-to="${x.id}">Send credits</button></span>`);
-    return `<tr><td>${playerLabel(x.id)}</td><td>${rel(x)}</td><td class="small">${esc(RR.GOVERNMENTS[x.gov || 'monarchy'].name)}<div class="muted">${esc(RR.TAX_NAMES[x.tax || 'normal'])} tax</div></td>
+    return `<tr><td>${playerLabel(x.id)}</td><td>${rel(x)}</td><td class="small">${esc(RR.GOVERNMENTS[x.gov || 'monarchy'].name)}<div class="muted">${esc(RR.TAX_NAMES[x.tax || 'normal'])} tax</div><div class="muted">Domestic debt ${Q.domesticDebt(S, x.id)}</div>${x.lastDomesticDefault ? `<div class="warn">Defaulted on ${x.lastDomesticDefault.amount} domestic debt, turn ${x.lastDomesticDefault.turn}</div>` : ''}${x.lastForeignDefault != null ? `<div class="warn">Defaulted on a foreign loan, turn ${x.lastForeignDefault}</div>` : ''}${Q.unrestOn(S, x.id) ? '<div class="warn">In unrest</div>' : ''}</td>
       <td class="small">${tr.map((t) => `${t.type} rights${t.endsTurn ? ` (ends turn ${t.endsTurn})` : ` <button class="linkbtn" data-act="cancel-treaty" data-id="${t.id}">cancel</button>`}`).join('<br>') || '<span class="muted">None</span>'}</td>
       <td class="small ${x.mob === 'full' || x.mobPending ? 'warn' : ''}">${esc(mobLabel(S, x))}</td>
       <td class="small">${citiesOf(x.id).length} cit${citiesOf(x.id).length === 1 ? 'y' : 'ies'}, ${Q.unitsOf(S, x.id).length} units</td><td><div class="row" style="margin:0">${acts.join(' ')}</div></td></tr>`;
@@ -5233,7 +5465,7 @@ function orderGroups() {
   const add = (phase, list, i, text) => { let g = G.find((x) => x.phase === phase); if (!g) { g = { phase, items: [] }; G.push(g); } g.items.push({ list, i, text }); };
   d.diplo.forEach((o, i) => {
     const t = o.type === 'declare' ? `Declare war on ${pname(o.to)}`
-      : o.type === 'propose' ? `Propose ${o.kind === 'treaty' ? `${o.payload.type} rights` : o.kind === 'blueprint' ? `selling ${BLD[o.payload.key].name} for ${o.payload.price}` : Q.describeProposal(S, { kind: 'peace', from: UI.me, to: o.to, payload: o.payload })} to ${pname(o.to)}`
+      : o.type === 'propose' && o.kind === 'loan' ? `${o.payload.lend ? 'Offer' : 'Ask for'} a loan of ${o.payload.amount} credits at ${o.payload.rate}% over ${o.payload.term} turns ${o.payload.lend ? 'to' : 'from'} ${pname(o.to)}` : o.type === 'propose' ? `Propose ${o.kind === 'treaty' ? `${o.payload.type} rights` : o.kind === 'blueprint' ? `selling ${BLD[o.payload.key].name} for ${o.payload.price}` : Q.describeProposal(S, { kind: 'peace', from: UI.me, to: o.to, payload: o.payload })} to ${pname(o.to)}`
         : o.type === 'respond' ? `${o.accept ? 'Accept' : 'Reject'} ${Q.describeProposal(S, S.proposals.find((p) => p.id === o.id) || { kind: '?' })}`
           : o.type === 'credits' ? `Send ${o.amount} credits to ${pname(o.to)}`
             : o.type === 'cancelTreaty' ? 'Cancel a treaty'
@@ -5268,9 +5500,10 @@ function orderGroups() {
     if (ch('queue') || ch('keep') || ch('keepManpower') || ch('cityOrder')) add('Building queues', 'standing:queue,keep,keepManpower,cityOrder', 0, `Change ${[ch('queue') && 'building queues', ch('keep') && 'minimum stocks', ch('keepManpower') && 'the manpower minimum', ch('cityOrder') && 'the city order'].filter(Boolean).join(', ')}`);
     if (ch('recurring') || ch('keepCredits')) add('Market buys', 'standing:recurring,keepCredits', 0, `Change ${[ch('recurring') && 'recurring market orders', ch('keepCredits') && 'the credit minimum'].filter(Boolean).join(' and ')}`);
   }
+  (d.finance || []).forEach((o, i) => add('Loans', 'finance', i, o.op === 'borrow' ? `Take a domestic loan of ${o.amount} credits` : `${o.op === 'payoff' ? 'Pay off' : o.op === 'default' ? 'Default on' : 'Forgive'} loan #${o.loan}`));
   d.cargo.forEach((o, i) => add('Logistics', 'cargo', i, `${uname(o.unit)} ${o.amount > 0 ? 'loads' : 'unloads'} ${Math.abs(o.amount)} ${gl(o.good)}`));
   d.routeOps.forEach((o, i) => add('Logistics', 'routeOps', i, o.op === 'remove' ? `Close route #${o.id}` : o.op === 'update' ? `Change route #${o.id}` : `New route ${cityName(o.from)} → ${destName(o.to)}`));
-  const order = ['Diplomacy', 'Combat', 'Movement', 'Market buys', 'Market sells', 'Research', 'Production', 'Buildings', 'Units', 'Logistics', 'Building queues'];
+  const order = ['Diplomacy', 'Loans', 'Combat', 'Movement', 'Market buys', 'Market sells', 'Research', 'Production', 'Buildings', 'Units', 'Logistics', 'Building queues'];
   return G.sort((a, b) => order.indexOf(a.phase) - order.indexOf(b.phase));
 }
 TAB_RENDER.orders = function () {
@@ -5307,6 +5540,23 @@ const ACT = {
   },
   'rm-op'(el) { mutate((d) => d.routeOps.splice(Number(el.dataset.idx), 1)); },
   'clear-all'() { if (confirm('Clear every order for this turn?')) { UI._d = Engine.normalizeOrders({}); saveDraft(); render(); } },
+  'loan-take'() {
+    const v = Math.floor(Number(($('#ln-amt') || {}).value) || 0), err = Q.checkBorrow(st(), UI.me, v + draft().finance.filter((o) => o.op === 'borrow').reduce((a, o) => a + Number(o.amount), 0));
+    if (!v) { toast('Enter an amount'); return; }
+    if (err) { toast(err); return; }
+    mutate((d) => d.finance.push({ op: 'borrow', amount: v })); toast(`Domestic loan of ${v} ordered for this turn`);
+  },
+  'loan-cancel'(el) { mutate((d) => d.finance.splice(Number(el.dataset.idx), 1)); },
+  'loan-op'(el) {
+    const op = el.dataset.op, id = Number(el.dataset.id);
+    if (op === 'default' && !confirm('Default on this loan? Every nation will be told.')) return;
+    mutate((d) => { d.finance = d.finance.filter((o) => Number(o.loan) !== id); d.finance.push({ op, loan: id }); });
+  },
+  'loan-offer'() {
+    const f = UI.loanForm; if (!f || Q.checkLoanTerms(f)) return;
+    mutate((d) => d.diplo.push({ type: 'propose', kind: 'loan', to: Number(f.to), payload: { amount: Math.floor(Number(f.amount)), rate: Number(f.rate) || 0, term: Math.floor(Number(f.term)), lend: f.lend === '1' } }));
+    toast('Loan proposal ordered; it is sent when the turn resolves');
+  },
   'queue-add'(el) {
     const cid = Number(el.dataset.city), key = el.dataset.key;
     editStanding('queue', (q) => { const l = (q[cid] = q[cid] || []); if (l.length < RR.QUEUE.perCity) l.push({ key }); });
@@ -5505,6 +5755,7 @@ const CHG = {
   'df-name'(el) { UI.designForm.name = el.value; render(); },
   'df-step'(el) { const k = el.dataset.k, [lo, hi] = RR.DESIGN.ranges[k]; UI.designForm.steps[k] = Math.max(lo, Math.min(hi, Math.round(Number(el.value) || 0))); render(); },
   'mk-city'(el) { UI.marketCity = Number(el.value); render(); },
+  lf(el) { UI.loanForm[el.dataset.f] = el.value; render(); },
   'q-save'(el) { const cid = Number(el.dataset.city), i = Number(el.dataset.idx); editStanding('queue', (q) => { if (q[cid] && q[cid][i]) q[cid][i].saveFor = el.checked; }); },
   keep(el) { const cid = Number(el.dataset.city), g = el.dataset.good, v = Math.max(0, Math.floor(Number(el.value) || 0)); editStanding('keep', (k) => { k[cid] = k[cid] || {}; if (v > 0) k[cid][g] = v; else delete k[cid][g]; if (!Object.keys(k[cid]).length) delete k[cid]; }); },
   'keep-nat'(el) { editStanding(el.dataset.k, () => Math.max(0, Math.floor(Number(el.value) || 0))); },
