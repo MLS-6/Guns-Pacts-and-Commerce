@@ -22,7 +22,7 @@ const RULES = (() => {
     cloth: 2000, metal: 1000, clothing: 4000, tools: 1400, smallArms: 1400, machinery: 4000,
   };
   // trickle: share of each turn's world production of goods that appears in the market pool (no one loses anything)
-  const MARKET = { scale: 4, buyRatio: 0.8, trickle: 0.05, maxBidX: 10 };
+  const MARKET = { scale: 4, buyRatio: 0.8, trickle: 0.05, maxBidX: 10, trickleChoices: [0, 0.05, 0.1, 0.15, 0.2, 0.25] }; // trickle: the default; each game fixes its own rate at creation
 
   // Goods that warehouses and supply depots do NOT store
   const SPECIAL_STORAGE = ['food', 'fuel'];
@@ -249,16 +249,19 @@ const RULES = (() => {
   const TAX_NAMES = { low: 'Low', normal: 'Normal', high: 'High', war: 'War tax' };
   const GOVERNMENTS = {
     provisional: {
+      loan: { base: 10, slope: 0.25, capMonths: 36 }, // domestic loans: annual base rate %, + slope per 10% of yearly income in debt, total debt cap in months of income
       name: 'Provisional Government', taxEvery: 0, fixedTax: true, notice: 0, toFullTurns: 3,
       tax: { low: { rate: 150, mp: 1.0 }, normal: { rate: 150, mp: 1.0 }, high: { rate: 150, mp: 1.0 }, war: { rate: 150, mp: 1.0 } },
       text: 'Every nation starts here. A fixed normal tax (150 credits per manpower, housing ×1.0), war declared instantly, no other effects. Leaving it causes no upheaval.',
     },
     democracy: {
+      loan: { base: 6, slope: 0.15, capMonths: 36 }, // domestic loans: annual base rate %, + slope per 10% of yearly income in debt, total debt cap in months of income
       name: 'Democracy', taxEvery: 6, notice: 4, toFullTurns: 3, rally: true, marketSell: 0.9, science: { credits: 0.75, mp: 2 / 3 },
       tax: { low: { rate: 100, mp: 1.2 }, normal: { rate: 150, mp: 1.1 }, high: { rate: 200, mp: 0.9 }, war: { rate: 250, mp: 0.85 } },
       text: 'Most manpower in peacetime, cheaper research (universities and research facilities cost 25% fewer credits and a third less manpower) and 90% of the price for market sales. War needs 4 turns\' notice (an ultimatum) unless the enemy is at war with a partner. If war is declared on it, it reaches full mobilization in 1 turn.',
     },
     monarchy: {
+      loan: { base: 8, slope: 0.2, capMonths: 36 }, // domestic loans: annual base rate %, + slope per 10% of yearly income in debt, total debt cap in months of income
       name: 'Monarchy', taxEvery: 4, notice: 1, toFullTurns: 3, settlementCut: 0.25,
       extractionMp: 0.5, // extraction buildings (not silver or gold mines) need half the manpower
       costs: { townHall: { lumber: 23, metal: 8, tools: 6, mp: 3 } }, // town halls about a quarter cheaper
@@ -266,17 +269,91 @@ const RULES = (() => {
       text: 'Holds up best under high and war taxes. War needs 1 turn\'s notice (an ultimatum). Settlements and town halls cost about 25% less, and extraction buildings (not silver or gold mines) need half the manpower.',
     },
     autocracy: {
+      loan: { base: 12, slope: 0.25, capMonths: 36 }, // domestic loans: annual base rate %, + slope per 10% of yearly income in debt, total debt cap in months of income
       name: 'Autocracy', taxEvery: 2, notice: 0, toFullTurns: 2, landPay: 0.75,
       tax: { low: { rate: 130, mp: 1.0 }, normal: { rate: 200, mp: 0.9 }, high: { rate: 250, mp: 0.8 }, war: { rate: 350, mp: 0.75 } },
       text: 'Most credits, least manpower. Declares war instantly, mobilizes in 2 turns, and pays land units 25% less.',
     },
     communism: {
+      loan: { base: 15, slope: 0.35, capMonths: 12 }, // domestic loans: annual base rate %, + slope per 10% of yearly income in debt, total debt cap in months of income
       name: 'Communism', taxEvery: 3, notice: 0, toFullTurns: 3, landPay: 0.65, marketSell: 0.6, fullMpCut: 0.1, taxOnUse: true,
       production: { out: 2, mp: 3, inputs: 2.5 }, housing: { out: 1.5, inputs: 2.5 },
       tax: { low: { rate: 65, mp: 1.1 }, normal: { rate: 110, mp: 1.0 }, high: { rate: 150, mp: 0.9 }, war: { rate: 185, mp: 0.85 } },
       text: 'A planned economy: every production and extraction building makes 2× its output but needs 3× the manpower and 2.5× the inputs; housing makes 1.5× the manpower and eats 2.5× the food. Tax offices pay for manpower used in production, not manpower made. Market sales pay only 60%. Land units cost 35% less, full mobilization costs only 10% of manpower, and war is declared instantly.',
     },
   };
+  // Loans. Domestic: 12-turn bonds (interest each turn, face value on the last turn), paid before anything else.
+  // Income = average tax-office income over the last 12 turns. Rates are annual percentages.
+  const LOANS = {
+    term: 12, incomeTurns: 12, taxAdj: { low: -1, normal: 0, high: 2, war: 4 }, // tax adjustment, fixed when the loan is taken
+    // a loan's rate rises with debt: slope × (debt at the loan's midpoint ÷ yearly income × 10), measured continuously
+    defaultFlat: 10, penaltyCap: 30, maxRatePenalty: 30, step: 0.1, // default: +1 point per 10% of yearly income (exact), 1 turn per 10% (rounded up)
+    unrestMp: 0.3, unrestGoods: 0.1,
+    intl: { maxTerm: 60, maxRate: 100, missedToDefault: 2 },
+  };
+  // Defensive alliances: 2 turns to answer a call to arms; 3 turns' notice to leave
+  const ALLIANCE = { answerTurns: 2, noticeTurns: 3 };
+  // History graphs keep 24 turns; the newspaper keeps 12 issues
+  const HISTORY = { turns: 24, newsTurns: 12 };
+  // Every city pays its nation 100 credits (counted as tax income) and 1 manpower a turn, the manpower scaled like
+  // housing by the government and tax rate (a democracy on low tax: 1.2)
+  const CITY_INCOME = { credits: 100, mp: 1 };
+  // The newspaper: war names, the ad auction, filler stories and the one leak ("scoop") per issue
+  const PRESS = {
+    warNameMax: 40, adSlots: 3, adMin: 200, adAnon: 150, adMaxChars: 200,
+    quietBelow: 4,                // fewer stories than this (market report aside): print a tip and a classified
+    recordGain: 0.1, recordGap: 8, recordFrom: 6, recordsPerIssue: 2, // world production records
+    priceSwing: 0.25, swingsPerIssue: 2, feverCount: 3,
+    salvageNews: 50, salvageShare: 0.1, salvageMin: 10, // salvage of a good makes the paper at 50, or 10% of the world's output of it (at least 10)
+  };
+  // turn 1 is March: spring is March to May, winter December to February
+  const MONTH_NAMES = ['March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December', 'January', 'February'];
+  const PRESS_TIPS = [
+    ['Manpower is the true currency', 'Build residences before you need them. An idle factory usually means too few hands, not too few materials.'],
+    ['Keep a month of food in every city', 'A city with no food stops its people working. Set a food minimum on the Stockpiles tab and let a recurring purchase top it up.'],
+    ['Queue before you travel', 'Away for a few days? Fill each city\'s building queue and set minimum stocks, and your nation keeps building while you are gone.'],
+    ['Town halls pay for themselves', 'A town hall widens a city\'s territory. Build it early in any city with good land just out of reach.'],
+    ['Railroads change everything', 'Trains carry 120 at a time. Once you can build railroads, link your mines to your factories before anything else.'],
+    ['Mind the winter', 'Land units out of supply lose 2 HP a month in winter. Stock your field depots before December.'],
+    ['Read your reports', 'Every idle building and every starving unit is listed with the reason. Five minutes with the Reports tab saves a season of waste.'],
+    ['The market is not a warehouse', 'Buying at market is quick, but prices climb as the pool empties. A trade route with a neighbour is cheaper for steady needs.'],
+    ['Bid what it is worth to you', 'In the market auction you usually pay far less than your top bid: one credit more than the best losing bid.'],
+    ['Storage loses goods quietly', 'A full city throws away what it makes. Watch for "output lost to full storage" and build a warehouse.'],
+    ['Entrenched infantry is hard to shift', 'Infantry that holds its ground digs in deeper each month. Pick your defensive line and stay on it.'],
+    ['Supply decides battles', 'An army fights only as far as its supply reaches. Plan field depots and routes before the first shot.'],
+    ['Settlements need provisions', 'A caravan route to a new settlement packs provisions for the round trip. Fill the settlement and it becomes a city.'],
+    ['Peace treaties are enforced', 'A promise is only words, but a peace treaty with a term cannot be broken until it ends.'],
+    ['An ally is a deterrent', 'A defensive alliance means every attacker must reckon with your friends. A refused call to arms is printed for all to see.'],
+    ['Debt is cheapest when small', 'Domestic loans cost more the more you owe. Borrow early and modestly, and pay on time: a default brings unrest.'],
+    ['Watch the rankings', 'The Great Powers box shows who leads each field. A nation climbing the army rankings is worth watching.'],
+    ['Research what you will build', 'Science is scarce. Unlock the buildings your cities will use next, not the ones that sound grand.'],
+    ['Sell blueprints', 'A nation that researches first can sell the blueprint to its neighbours and earn its science back.'],
+    ['Specialise your cities', 'A mining city, a factory city and a port each do one thing well. Move goods between them by route.'],
+    ['Mobilize with care', 'Full mobilization costs five times peacetime pay and tells the world your plans.'],
+    ['Ships need ports', 'Ships repair at a port, and sailing ships at a harbor. A fleet far from home cannot mend.'],
+    ['Rivers are highways', 'Ships sail rivers and lakes too. A river city with a harbor is a natural hub.'],
+    ['Capture, do not destroy', 'A logistics unit beaten by one of its own kind is captured with most of its cargo. Raid with caravans and trucks.'],
+    ['Plan for the second city', 'Space new cities so their territories touch without overlapping. Overlap wastes land you cannot use twice.'],
+    ['A tax office in every city', 'Tax offices are your income and your borrowing limit. Few things repay their cost as surely.'],
+    ['Check a route\'s capacity', 'If a route says "capacity 120, requested 150", add a transport or shorten the route.'],
+    ['Design units for their job', 'A unit design that trades speed for HP holds a line; one that trades HP for damage hits harder.'],
+    ['Advertise', 'Three notices are printed each month. Bid on the Newspaper tab and tell the world what you want it to hear.'],
+    ['The market report is free intelligence', 'A sudden run on ammunition or steel usually means someone is arming.'],
+  ];
+  const CLASSIFIEDS = [
+    'WANTED: Lumber, in quantity. A sensible nation keeps a month\'s worth in every city. Inquire at your Stockpiles tab.',
+    'FOR HIRE: Caravans, sturdy and willing. Will carry provisions to any settlement. Apply at your nearest stables.',
+    'LOST: One factory\'s output, to full storage. Finder please build a warehouse.',
+    'NOTICE TO GENERALS: Troops fight poorly on empty stomachs. Field depots sold everywhere.',
+    'TRAVELLERS: Railroads now connect the finest cities. Lay track today; thank yourself tomorrow.',
+    'SITUATION WANTED: Experienced infantry seeks quiet hill to dig into. Will not move.',
+    'ATTENTION BUILDERS: Queues accepted, ten to a city. Save for the big one.',
+    'BANKERS\' NOTICE: Pay your bonds on time. Unrest is bad for business.',
+    'FOR SALE: Blueprints of the finest buildings. Inquire with the nation that researched them first.',
+    'WINTER COATS for armies in the field. Order before December.',
+    'MATRIMONIAL: Small democracy seeks strong neighbour for defensive alliance. Must answer calls.',
+    'MARKET TIP: Bid what the goods are worth to you. You will usually pay much less.',
+  ];
   // Standing orders: building queues (per city) and recurring market orders (per nation)
   const QUEUE = { perCity: 10 };
   const RECURRING = { max: 10 };
@@ -350,7 +427,7 @@ const RULES = (() => {
 
   return {
     GOODS, GOOD_NAMES, GOOD_COLORS, BASE_PRICE, MARKET, SPECIAL_STORAGE, TILES, BUILDINGS, UNITS, DAMAGE, WEAPON_AMMO, WEAPON_RANGE,
-    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, TAX_LEVELS, TAX_NAMES, GOVERNMENTS, GOV_KEYS, GOV_CHANGE, QUEUE, RECURRING, SETTLEMENT_MONARCHY, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, QUALITY_DAMAGE, WINTER_ATTRITION, SUMMER_FARM, CAPTURE_CARGO, DESIGN, ENTRENCH, UNIT_STORE, SETTLEMENT, CITY_RUN_LUMBER, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
+    dmg, CITY, REPAIR, MAP, PAY, LOOT, PLAYERS, MINE_LABOR, MOBILIZE, FREE_BERTHS, MANPOWER_DRAW, TAX_LEVELS, TAX_NAMES, GOVERNMENTS, GOV_KEYS, GOV_CHANGE, QUEUE, RECURRING, LOANS, ALLIANCE, HISTORY, CITY_INCOME, PRESS, MONTH_NAMES, PRESS_TIPS, CLASSIFIEDS, SETTLEMENT_MONARCHY, MODS, XP, DOCTRINES, DOCTRINE_GROUPS, DOCTRINE_LOCK, QUALITY_DAMAGE, WINTER_ATTRITION, SUMMER_FARM, CAPTURE_CARGO, DESIGN, ENTRENCH, UNIT_STORE, SETTLEMENT, CITY_RUN_LUMBER, SUPPLY_PRIORITY, DEPOT, TIERS, STACK, DEMOLISH, PEACE, START, CLEAR_FOREST, DEFAULT_PRIORITY, PLAYER_COLORS, ERA_NAMES,
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = RULES;
