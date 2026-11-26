@@ -635,12 +635,7 @@ const Engine = ((R) => {
   const sellPriceFor = (S, pid, g) => { const pr = (S.market.prices || {})[g]; if (!pr) return 0; const k = govOf(S, pid).marketSell || R.MARKET.buyRatio; return Math.max(1, Math.round(pr.sell * k)); };
   const govCooldownEnds = (S, pid) => { const p = S.players[pid]; return p.govSince == null ? 0 : p.govSince + R.GOV_CHANGE.every; };
   // Manpower a housing building makes, after the tax rate, mobilization and any government upheaval
-  // what each city pays its nation every turn: credits (tax income) and manpower made like housing
   const marketTrickle = (S) => (S.marketTrickle != null ? S.marketTrickle : R.MARKET.trickle);
-  function cityIncomeOf(S, pid) {
-    const g = govOf(S, pid);
-    return { credits: R.CITY_INCOME.credits, mp: Math.round(R.CITY_INCOME.mp * (g.housing ? g.housing.out : 1) * mpMult(S, pid) * 100 + 1e-9) / 100 };
-  }
   function mpOutOf(S, b) {
     const rc = recipeOf(b);
     if (!rc || !rc.mpOut) return 0;
@@ -2803,15 +2798,6 @@ const Engine = ((R) => {
 
     /* ----- 6. production (before construction, so this turn's output can be built with) ----- */
     const worldMade = {};
-    // city income first, so its manpower can staff this turn's buildings
-    for (const p of active) {
-      const n = citiesOf(S, p.id).length;
-      if (!n) continue;
-      const ci = cityIncomeOf(S, p.id), cr = ci.credits * n, mp = r2(ci.mp * n), tp = tr(p.id);
-      p.credits += cr; p.manpower = round1(p.manpower + mp);
-      taxThisTurn[p.id] = (taxThisTurn[p.id] || 0) + cr; tp.tax += cr; tp.earned += cr; tp.mp += mp;
-      rep(p.id, 'government', `City income: ${cr} credits and ${mp} manpower (${n} cit${n === 1 ? 'y' : 'ies'}).`);
-    }
     for (const p of active) {
       const order = (k) => { const i = p.priority.indexOf(k); return i < 0 ? 999 : i; };
       // tax offices go last, so they can count the manpower housing made this turn
@@ -3538,7 +3524,7 @@ const Engine = ((R) => {
     R, newGame, resolveTurn, normalizeOrders, migrate, computePrices, worldTotals, makeRng,
     hex: { idx, colRow, dirs, nbrs, dist, within },
     q: {
-      cityIncomeOf, marketTrickle, dateText, designPress, autoWarName, warNameOf, cleanWarName, alliesOf, allied, debtOwed, owedTo, netWealth, avgHist, financialWeight, tilesHeld, rankings,
+      marketTrickle, dateText, designPress, autoWarName, warNameOf, cleanWarName, alliesOf, allied, debtOwed, owedTo, netWealth, avgHist, financialWeight, tilesHeld, rankings,
       incomeAvg, unrestOn, unrestLeft, loanParams, taxAdjOf, domesticDebt, debtRatio, penaltyNow, newLoanRate, loanRateNow, loanInterest, loanDueNow, borrowLimit, checkBorrow, loanPayment, intlInterest, intlDueNow, loansOf, debtService, checkLoanTerms,
       queueable, cleanQueue, cleanKeep, cleanRecurring, cityOrderOf, keepOf, queueShortfall, estimatePay,
       cityById, unitById, cityAt, unitsAt, cityBuildings, countB, tileBuilding, tileOwner, tileOwnerCity, citiesOf, unitsOf, unitName,
