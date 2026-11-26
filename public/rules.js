@@ -258,7 +258,7 @@ const RULES = (() => {
       loan: { base: 6, slope: 0.15, capMonths: 36 }, // domestic loans: annual base rate %, + slope per 10% of yearly income in debt, total debt cap in months of income
       name: 'Democracy', taxEvery: 6, notice: 4, toFullTurns: 3, rally: true, marketSell: 0.9, science: { credits: 0.75, mp: 2 / 3 },
       tax: { low: { rate: 100, mp: 1.2 }, normal: { rate: 150, mp: 1.1 }, high: { rate: 200, mp: 0.9 }, war: { rate: 250, mp: 0.85 } },
-      text: 'Most manpower in peacetime, cheaper research (universities and research facilities cost 25% fewer credits and a third less manpower) and 90% of the price for market sales. War needs 4 turns\' notice (an ultimatum) unless the enemy is at war with a partner. If war is declared on it, it reaches full mobilization in 1 turn.',
+      text: 'Most manpower in peacetime, cheaper research (universities and research facilities cost 25% fewer credits and a third less manpower) and 90% of the price for market sales. War needs 4 turns\' notice (an ultimatum) unless the enemy is at war with an ally (a defensive alliance). If war is declared on it, it reaches full mobilization in 1 turn.',
     },
     monarchy: {
       loan: { base: 8, slope: 0.2, capMonths: 36 }, // domestic loans: annual base rate %, + slope per 10% of yearly income in debt, total debt cap in months of income
@@ -266,7 +266,7 @@ const RULES = (() => {
       extractionMp: 0.5, // extraction buildings (not silver or gold mines) need half the manpower
       costs: { townHall: { lumber: 23, metal: 8, tools: 6, mp: 3 } }, // town halls about a quarter cheaper
       tax: { low: { rate: 100, mp: 1.1 }, normal: { rate: 150, mp: 1.0 }, high: { rate: 200, mp: 0.95 }, war: { rate: 250, mp: 0.9 } },
-      text: 'Holds up best under high and war taxes. War needs 1 turn\'s notice (an ultimatum). Settlements and town halls cost about 25% less, and extraction buildings (not silver or gold mines) need half the manpower.',
+      text: 'Holds up best under high and war taxes. War needs 1 turn\'s notice (an ultimatum) unless the enemy is at war with an ally (a defensive alliance). Settlements and town halls cost about 25% less, and extraction buildings (not silver or gold mines) need half the manpower.',
     },
     autocracy: {
       loan: { base: 12, slope: 0.25, capMonths: 36 }, // domestic loans: annual base rate %, + slope per 10% of yearly income in debt, total debt cap in months of income
